@@ -10,11 +10,8 @@ const router = express.Router();
 // REGISTER USER
 router.post("/register", async (req, res) => {
   try {
-    console.log("Received data:", req.body); // Debugging log
-
     const { name, email, password, city, province, barangay, street } = req.body;
 
-    // Check for missing fields
     if (!name || !email || !password || !city || !province || !barangay || !street) {
       return res.status(400).json({ msg: "All fields are required" });
     }
@@ -23,20 +20,29 @@ router.post("/register", async (req, res) => {
     if (user) return res.status(400).json({ msg: "Email already exists" });
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt); // Ensure `password` is not undefined
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     user = new User({ name, email, password: hashedPassword, city, province, barangay, street });
     await user.save();
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-    res.status(201).json({ token, user });
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      city: user.city,
+      province: user.province,
+      barangay: user.barangay,
+      street: user.street,
+    };
+
+    res.status(201).json({ token, user: safeUser });
   } catch (error) {
     console.error("Registration Error:", error);
     res.status(500).json({ msg: "Server error" });
   }
 });
-
 
 // LOGIN USER
 router.post("/login", async (req, res) => {
@@ -49,12 +55,24 @@ router.post("/login", async (req, res) => {
     if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
-    res.json({ token, user });
+
+    const safeUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      city: user.city,
+      province: user.province,
+      barangay: user.barangay,
+      street: user.street,
+    };
+
+    res.json({ token, user: safeUser });
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 });
+
 
 // Protected Route: Get user profile
 router.get("/profile", authMiddleware, async (req, res) => {
