@@ -1,13 +1,22 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const authMiddleware = require("../middlewares/authMiddleware"); // Import middleware
-
-
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const router = express.Router();
 
-// REGISTER USER
+// Utils (replace with actual email sender)
+const sendVerificationEmail = (email, token) => {
+  console.log(`Verification email sent to ${email}: http://localhost:3000/verify/${token}`);
+};
+
+// Generate JWT
+const generateToken = (user) => {
+  return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+  });
+};
+
+// Register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password, city, province, barangay, street } = req.body;
@@ -16,99 +25,102 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ msg: "All fields are required" });
     }
 
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: "Email already exists" });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ msg: "Email already registered" });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const verificationToken = crypto.randomBytes(20).toString("hex");
 
-    user = new User({ name, email, password: hashedPassword, city, province, barangay, street });
+    const newUser = await User.create({
+      name,
+      email,
+      password,
+      city,
+      province,
+      barangay,
+      street,
+      verificationToken,
+    });
+
+    sendVerificationEmail(email, verificationToken);
+
+    res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// Verify email
+router.get("/verify/:token", async (req, res) => {
+  const { token } = req.params;
+  try {
+    const user = await User.findOne({ verificationToken: token });
+    if (!user) return res.status(400).json({ msg: "Invalid or expired token" });
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
     await user.save();
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "7d" });
-
-    const safeUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      city: user.city,
-      province: user.province,
-      barangay: user.barangay,
-      street: user.street,
-    };
-
-    res.status(201).json({ token, user: safeUser });
+    res.status(200).json({ msg: "Email verified successfully" });
   } catch (error) {
-    console.error("Registration Error:", error);
+    console.error("Verify error:", error);
     res.status(500).json({ msg: "Server error" });
   }
 });
 
-// LOGIN USER
+// Login
 router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const { email, password } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ msg: "Invalid credentials" });
+    if (!user || !(await user.matchPassword(password))) {
+      return res.status(401).json({ msg: "Invalid credentials" });
+    }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
+    if (!user.isVerified) {
+      return res.status(403).json({ msg: "Please verify your email first" });
+    }
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1d" });
-
-    const safeUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      city: user.city,
-      province: user.province,
-      barangay: user.barangay,
-      street: user.street,
-    };
-
-    res.json({ token, user: safeUser });
-  } catch (err) {
-    console.error("Login Error:", err);
+    const token = generateToken(user);
+    res.status(200).json({ token, role: user.role, id: user.id });
+  } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ msg: "Server error" });
   }
 });
 
-
-// Protected Route: Get user profile
+// PROFILE (Protected)
 router.get("/profile", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password"); // Exclude password
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ msg: "User not found" });
     res.json(user);
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Server error" });
   }
 });
+
+// Status
 router.get("/", (req, res) => {
   res.json({ msg: "Auth API is working!" });
 });
 
-
-router.get("/users", async (req, res) => {
+// All Users (For Admins Only - protect if needed)
+router.get("/users", authMiddleware, async (req, res) => {
   try {
-    const users = await User.find({}, "-password"); // Exclude passwords for security
+    const users = await User.find({}, "-password");
     res.json(users);
   } catch (err) {
     res.status(500).json({ msg: "Server error" });
   }
 });
 
+// First Registered User Name
 router.get("/first-user-name", async (req, res) => {
   try {
-    const firstUser = await User.findOne({}, "name").sort({ _id: 1 }); // Sort by _id to get the first registered user
-
-    if (!firstUser) {
-      return res.status(404).json({ msg: "No users found" });
-    }
-    
+    const firstUser = await User.findOne({}, "name").sort({ _id: 1 });
+    if (!firstUser) return res.status(404).json({ msg: "No users found" });
     res.json({ name: firstUser.name });
   } catch (err) {
     console.error("Error fetching first user:", err);
@@ -116,22 +128,18 @@ router.get("/first-user-name", async (req, res) => {
   }
 });
 
+// Monthly User Growth
 router.get("/user-growth", async (req, res) => {
   try {
     const now = new Date();
-    const currentYear = now.getFullYear().toString().slice(-2); // Get YY (last 2 digits of the year)
-    
-    const monthlyData = new Array(12).fill(0); // Ensure fixed 12 months, default to 0
+    const currentYear = now.getFullYear().toString().slice(-2);
 
-    // Loop through all 12 months to count users
-    for (let month = 0; month < 12; month++) { // Use 0-based index for array
-      const MM = (month + 1).toString().padStart(2, "0"); // Convert 1 -> 01, 2 -> 02, etc.
-      const YYMM = `${currentYear}${MM}`; // Format YYMM
-      
-      // Count users where ID starts with YYMM
+    const monthlyData = new Array(12).fill(0);
+    for (let month = 0; month < 12; month++) {
+      const MM = (month + 1).toString().padStart(2, "0");
+      const YYMM = `${currentYear}${MM}`;
       const count = await User.countDocuments({ id: new RegExp(`^${YYMM}`) });
-
-      monthlyData[month] = count; // Assign correctly to array index
+      monthlyData[month] = count;
     }
 
     res.json({ monthlyData });
@@ -141,12 +149,10 @@ router.get("/user-growth", async (req, res) => {
   }
 });
 
-
-
-
+// Total User Count
 router.get("/user-count", async (req, res) => {
   try {
-    const count = await User.countDocuments(); // Bilang ng users
+    const count = await User.countDocuments();
     res.json({ count });
   } catch (err) {
     console.error("Error fetching user count:", err);
@@ -154,15 +160,12 @@ router.get("/user-count", async (req, res) => {
   }
 });
 
-// Get new users this month
+// New Users This Month
 router.get("/new-users-this-month", async (req, res) => {
   try {
     const now = new Date();
-    const YYMM = now.toISOString().slice(2, 7).replace("-", ""); // Kunin ang YYMM format (e.g., "2503" for March 2025)
-
-    // Hanapin ang mga user na may ID na nagsisimula sa YYMM
+    const YYMM = now.toISOString().slice(2, 7).replace("-", "");
     const newUsers = await User.find({ id: new RegExp(`^${YYMM}`) });
-
     res.json({ count: newUsers.length, users: newUsers });
   } catch (error) {
     console.error("Error fetching new users this month:", error);
@@ -170,23 +173,16 @@ router.get("/new-users-this-month", async (req, res) => {
   }
 });
 
-
-// DELETE USER ACCOUNT
+// Delete Account (Protected)
 router.delete("/delete-account", authMiddleware, async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.user.id);
-
-    if (!user) {
-      return res.status(404).json({ msg: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ msg: "User not found" });
     res.json({ msg: "Account deleted successfully" });
   } catch (err) {
     console.error("Account Deletion Error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 });
-
-
 
 module.exports = router;
