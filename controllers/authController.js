@@ -34,7 +34,7 @@ exports.register = async (req, res) => {
     if (existingUser) return res.status(400).json({ msg: "Email already registered" });
 
     // Generate verification token
-    //const verificationToken = crypto.randomBytes(20).toString("hex");
+    const verificationToken = crypto.randomBytes(20).toString("hex");
 
     // Create new user instance
     const newUser = new User({
@@ -45,7 +45,7 @@ exports.register = async (req, res) => {
       province,
       barangay,
       street,
-      //verifyToken: verificationToken,  // Make sure this matches your schema
+      verifyToken: verificationToken,
     });
 
     // Save user (runs pre-save hooks)

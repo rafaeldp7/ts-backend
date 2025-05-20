@@ -32,32 +32,38 @@ const UserSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: true, // 👈 This adds createdAt and updatedAt automatically
+    timestamps: true,
   }
 );
 
-
 // Combined pre-save hook for ID generation + password hashing
 UserSchema.pre("save", async function (next) {
-  if (!this.id) {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
+  try {
+    if (!this.id) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2);
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
 
-    const count = await this.constructor.countDocuments({
-      id: new RegExp(`^${year}${month}${day}`),
-    });
+      const count = await this.constructor.countDocuments({
+        id: new RegExp(`^${year}${month}${day}`),
+      });
 
-    this.id = `${year}${month}${day}${String(count + 1).padStart(4, "0")}`;
+      this.id = `${year}${month}${day}${String(count + 1).padStart(4, "0")}`;
+      console.log("Generated user ID:", this.id);
+    }
+
+    if (this.isModified("password")) {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+      console.log("Password hashed");
+    }
+
+    next();
+  } catch (err) {
+    console.error("Pre-save hook error:", err);
+    next(err);
   }
-
-  if (this.isModified("password")) {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-  }
-
-  next();
 });
 
 // Method to compare password
