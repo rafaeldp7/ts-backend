@@ -70,15 +70,23 @@ router.get("/verify/:token", async (req, res) => {
   }
 });
 
-// Login
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
+
   try {
-    const user = await User.findOne({ email });
-    if (!user || !(await user.matchPassword(password))) {
-      return res.status(401).json({ msg: "Invalid credentials" });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      // No user found with this email
+      return res.status(401).json({ msg: "Invalid credentials - user not found", debug: { email } });
     }
 
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      // Password does not match
+      return res.status(401).json({ msg: "Invalid credentials - wrong password", debug: { email } });
+    }
+
+    // Uncomment to check verification status if needed
     // if (!user.isVerified) {
     //   return res.status(403).json({ msg: "Please verify your email first" });
     // }
@@ -87,9 +95,11 @@ router.post("/login", async (req, res) => {
     res.status(200).json({ token, role: user.role, id: user.id });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ msg: "Server error" });
+    // Send error message back to client
+    res.status(500).json({ msg: "Server error", error: error.message });
   }
 });
+
 
 // PROFILE (Protected)
 router.get("/profile", authMiddleware, async (req, res) => {
