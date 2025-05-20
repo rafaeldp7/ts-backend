@@ -43,7 +43,7 @@ router.post("/register", async (req, res) => {
       verificationToken,
     });
 
-    sendVerificationEmail(email, verificationToken);
+    //sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
   } catch (error) {
@@ -74,7 +74,7 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email: email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) {
       // No user found with this email
       return res.status(401).json({ msg: "Invalid credentials - user not found", debug: { email } });
