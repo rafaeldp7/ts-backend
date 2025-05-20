@@ -1,36 +1,38 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
-
-const UserSchema = new mongoose.Schema({
-  id: { type: String, unique: true, required: true },
-  name: { type: String, required: true },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+const UserSchema = new mongoose.Schema(
+  {
+    id: { type: String, unique: true, required: true },
+    name: { type: String, required: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      match: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/,
+    },
+    password: { type: String, required: true },
+    city: { type: String, required: true },
+    province: { type: String, required: true },
+    barangay: { type: String, required: true },
+    street: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verifyToken: {
+      type: String,
+    },
   },
-  password: { type: String, required: true },
-  city: { type: String, required: true },
-  province: { type: String, required: true },
-  barangay: { type: String, required: true },
-  street: { type: String, required: true },
-  role: {
-    type: String,
-    enum: ["user", "admin"],
-    default: "user"
-  },
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-  verifyToken: {
-    type: String // For storing the verification token
+  {
+    timestamps: true, // 👈 This adds createdAt and updatedAt automatically
   }
-//add time of creation
-});
+);
+
 
 // Combined pre-save hook for ID generation + password hashing
 UserSchema.pre("save", async function (next) {

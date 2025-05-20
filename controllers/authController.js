@@ -43,8 +43,9 @@ exports.register = async (req, res) => {
       street,
       verificationToken,
     });
+    await newUser.save();
 
-    // sendVerificationEmail(email, verificationToken);
+    sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
   } catch (error) {
