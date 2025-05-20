@@ -27,9 +27,9 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // verifyToken: {
-    //   type: String,
-    // },
+    verifyToken: {
+      type: String,
+    },
   },
   {
     timestamps: true, // 👈 This adds createdAt and updatedAt automatically
