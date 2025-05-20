@@ -1,38 +1,25 @@
-
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-
-const status = (req, res) => {
-  res.send("Auth API is up and running");
-};
-
-module.exports = {
-  register,
-  verifyEmail,
-  login,
-  getProfile,
-  getAllUsers,
-  getFirstUserName,
-  getUserGrowth,
-  getUserCount,
-  getNewUsersThisMonth,
-  deleteAccount,
-  status, // ✅ Add this line
-};
-
-
+// Generate JWT token
 const generateToken = (user) => {
   return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "1h",
   });
 };
 
+// Mock email function
 const sendVerificationEmail = (email, token) => {
   console.log(`Verification email sent to ${email}: http://localhost:3000/verify/${token}`);
 };
 
+// Check API status
+exports.status = (req, res) => {
+  res.send("Auth API is up and running");
+};
+
+// Register user
 exports.register = async (req, res) => {
   try {
     const { name, email, password, city, province, barangay, street } = req.body;
@@ -57,7 +44,7 @@ exports.register = async (req, res) => {
       verificationToken,
     });
 
-    //sendVerificationEmail(email, verificationToken);
+    // sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
   } catch (error) {
@@ -66,6 +53,7 @@ exports.register = async (req, res) => {
   }
 };
 
+// Email verification
 exports.verifyEmail = async (req, res) => {
   const { token } = req.params;
   try {
@@ -83,6 +71,7 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// Login
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -101,6 +90,7 @@ exports.login = async (req, res) => {
   }
 };
 
+// Get profile
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -112,6 +102,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
+// Get all users
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find({}, "-password");
@@ -121,6 +112,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
+// Get first user name
 exports.getFirstUserName = async (req, res) => {
   try {
     const firstUser = await User.findOne({}, "name").sort({ _id: 1 });
@@ -132,6 +124,7 @@ exports.getFirstUserName = async (req, res) => {
   }
 };
 
+// Get user growth
 exports.getUserGrowth = async (req, res) => {
   try {
     const now = new Date();
@@ -152,6 +145,7 @@ exports.getUserGrowth = async (req, res) => {
   }
 };
 
+// Get user count
 exports.getUserCount = async (req, res) => {
   try {
     const count = await User.countDocuments();
@@ -162,6 +156,7 @@ exports.getUserCount = async (req, res) => {
   }
 };
 
+// Get new users this month
 exports.getNewUsersThisMonth = async (req, res) => {
   try {
     const now = new Date();
@@ -174,6 +169,7 @@ exports.getNewUsersThisMonth = async (req, res) => {
   }
 };
 
+// Delete account
 exports.deleteAccount = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.user.id);
