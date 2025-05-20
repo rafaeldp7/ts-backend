@@ -29,7 +29,6 @@ const UserSchema = new mongoose.Schema({
   verifyToken: {
     type: String // For storing the verification token
   }
-  .
 //add time of creation
 });
 
