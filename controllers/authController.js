@@ -41,7 +41,7 @@ exports.register = async (req, res) => {
       province,
       barangay,
       street,
-      
+      verificationToken
     });
     await newUser.save();
 
