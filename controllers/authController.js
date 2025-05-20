@@ -3,6 +3,26 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
+
+const status = (req, res) => {
+  res.send("Auth API is up and running");
+};
+
+module.exports = {
+  register,
+  verifyEmail,
+  login,
+  getProfile,
+  getAllUsers,
+  getFirstUserName,
+  getUserGrowth,
+  getUserCount,
+  getNewUsersThisMonth,
+  deleteAccount,
+  status, // ✅ Add this line
+};
+
+
 const generateToken = (user) => {
   return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || "1h",
