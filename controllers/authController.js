@@ -24,16 +24,20 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password, city, province, barangay, street } = req.body;
 
+    // Validate all required fields
     if (!name || !email || !password || !city || !province || !barangay || !street) {
       return res.status(400).json({ msg: "All fields are required" });
     }
 
+    // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) return res.status(400).json({ msg: "Email already registered" });
 
+    // Generate verification token
     const verificationToken = crypto.randomBytes(20).toString("hex");
 
-    const newUser = await User.create({
+    // Create new user instance
+    const newUser = new User({
       name,
       email,
       password,
@@ -41,11 +45,13 @@ exports.register = async (req, res) => {
       province,
       barangay,
       street,
-      verificationToken
+      verifyToken: verificationToken,  // Make sure this matches your schema
     });
+
+    // Save user (runs pre-save hooks)
     await newUser.save();
 
-    //sendVerificationEmail(email, verificationToken);
+    // TODO: sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
   } catch (error) {
