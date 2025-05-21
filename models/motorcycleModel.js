@@ -8,6 +8,8 @@ const MotorcycleSchema = new mongoose.Schema(
     torque: { type: String, required: true }, // e.g. '9Nm @ 6,500rpm'
     fuelTank: { type: Number, required: true }, // in Liters
     fuelConsumption: { type: Number, required: true }, // in km/L
+    isDeleted: { type: Boolean, default: false }
+
   },
   {
     timestamps: true,

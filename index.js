@@ -44,6 +44,7 @@ app.use("/api/tracking", trackingRoutes);
 
 app.use("/api/motorcycles",  motorcycleRoutes); // Motorcycle Routes
 app.use("/api/gas-sessions", gasSessionRoutes); // Gas Session Routes
+app.use("/api/user-motors", userMotorRoutes); // User Motors Routes
 // Start Server
 
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
