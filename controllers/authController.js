@@ -105,7 +105,7 @@ exports.verifyEmail = async (req, res) => {
     if (!user) return res.status(400).json({ msg: "Invalid or expired token" });
 
     user.isVerified = true;
-    user.verificationToken = undefined;
+    user.verifyToken = undefined;
     await user.save();
 
     res.status(200).json({ msg: "Email verified successfully" });
@@ -125,6 +125,12 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) return res.status(401).json({ msg: "Invalid credentials - wrong password" });
+
+    if (!user.isVerified) {
+  return res.status(403).json({ msg: "Please verify your email before logging in." });
+}
+
+
 
     const token = generateToken(user);
     res.status(200).json({

@@ -16,6 +16,7 @@ router.get("/first-user-name", authController.getFirstUserName);
 router.get("/user-growth", authController.getUserGrowth);
 router.get("/user-count", authController.getUserCount);
 router.get("/new-users-this-month", authController.getNewUsersThisMonth);
+router.post("/resend-verification", authController.resendVerificationEmail);
 
 
 // PROTECTED ROUTES
