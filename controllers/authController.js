@@ -23,11 +23,11 @@ const sendVerificationEmail = (email, token) => {
   });
 
   const mailOptions = {
-    from: `"EcoBantay" <${process.env.EMAIL_USER}>`,
+    from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "Verify Your EcoBantay Email",
+    subject: "Verify Your Traffic Slight Account",
     html: `
-      <h2>Welcome to EcoBantay!</h2>
+      <h2>Welcome to Traffic Slight!</h2>
       <p>Please click the link below to verify your email:</p>
       <a href="${process.env.BASE_URL}/verify/${token}">Verify Email</a>
     `,
@@ -82,7 +82,11 @@ exports.register = async (req, res) => {
 
     sendVerificationEmail(email, verificationToken);
 
-    res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
+    res.status(201).json({
+      msg: "Registered successfully. Please check your email to verify.",
+      token: verificationToken,
+    });
+
   } catch (error) {
     console.error("Register error:", error);
 res.status(500).json({ msg: "Server error", error: error.message, stack: error.stack });
