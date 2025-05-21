@@ -20,4 +20,6 @@ router.delete("/:id", motorcycleController.deleteMotorcycle);
 // PUT restore soft-deleted motorcycle
 router.put("/restore/:id", motorcycleController.restoreMotorcycle);
 
+router.get("/deleted", motorcycleController.getDeletedMotorcycles);
+
 module.exports = router;
