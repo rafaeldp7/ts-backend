@@ -1,17 +1,16 @@
 const Motorcycle = require("../models/motorcycleModel");
 
 // Get all motorcycles (exclude soft-deleted)
+// Get all motorcycles (active + deleted)
 exports.getAllMotorcycles = async (req, res) => {
   try {
-    const motorcycles = await Motorcycle.find({ isDeleted: false });
+    const motorcycles = await Motorcycle.find(); // ← no filter
     res.status(200).json(motorcycles);
   } catch (error) {
-    res.status(500).json({
-      msg: "Failed to fetch motorcycles",
-      error: error.message,
-    });
+    res.status(500).json({ msg: "Failed to fetch motorcycles", error: error.message });
   }
 };
+
 
 // Optional: Get all motorcycles including soft-deleted (admin use)
 exports.getAllIncludingDeleted = async (req, res) => {
