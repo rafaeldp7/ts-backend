@@ -3,7 +3,7 @@ require("dotenv").config(); // Load environment variables first
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const morgan = require("morgan");
+// const morgan = require("morgan");
 
 const authRoutes = require("./routes/auth");
 const trackingRoutes = require("./routes/trackingRoutes");
