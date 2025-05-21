@@ -3,18 +3,20 @@ require("dotenv").config(); // Load environment variables first
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const morgan = require("morgan");
 
-const authRoutes = require("./routes/auth"); // Import Auth Routes
+const authRoutes = require("./routes/auth");
 const trackingRoutes = require("./routes/trackingRoutes");
-const gasSessionRoutes = require("./routes/gasSessionRoutes"); // Import Gas Session Routes
-const motorcycleRoutes = require("./routes/motorcycleRoutes"); // Import Motorcycle Routes
-const userMotorRoutes = require("./routes/userMotorRoutes"); // Import User Motors Routes
+const gasSessionRoutes = require("./routes/gasSessionRoutes");
+const motorcycleRoutes = require("./routes/motorcycleRoutes");
+const userMotorRoutes = require("./routes/userMotorRoutes");
 
 const app = express();
 
 // Middleware
 app.use(express.json()); // Parse JSON requests
 app.use(cors()); // Enable CORS
+app.use(morgan("dev")); // Log HTTP requests
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -24,27 +26,34 @@ mongoose
   .connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    serverSelectionTimeoutMS: 5000, // Timeout if MongoDB is not available
+    serverSelectionTimeoutMS: 5000,
   })
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => {
     console.error("❌ MongoDB Connection Error:", err);
-    process.exit(1); // Exit process on database connection failure
+    process.exit(1);
   });
 
 // Routes
-app.use("/api/auth", authRoutes); // Authentication Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/motorcycles", motorcycleRoutes);
+app.use("/api/gas-sessions", gasSessionRoutes);
+app.use("/api/user-motors", userMotorRoutes);
 
 // Default Route
 app.get("/", (req, res) => {
   res.send("🚀 Server is running!");
 });
 
-app.use("/api/tracking", trackingRoutes);
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled Error:", err.stack);
+  res.status(500).json({ msg: "Internal Server Error", error: err.message });
+});
 
-app.use("/api/motorcycles",  motorcycleRoutes); // Motorcycle Routes
-app.use("/api/gas-sessions", gasSessionRoutes); // Gas Session Routes
-app.use("/api/user-motors", userMotorRoutes); // User Motors Routes
 // Start Server
-
-app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`🌍 Running in ${process.env.NODE_ENV || "development"} mode`);
+});
