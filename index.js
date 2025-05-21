@@ -7,6 +7,7 @@ const cors = require("cors");
 const authRoutes = require("./routes/auth"); // Import Auth Routes
 const trackingRoutes = require("./routes/trackingRoutes");
 const gasSessionRoutes = require("./routes/gasSessionRoutes"); // Import Gas Session Routes
+const motorcycleRoutes = require("./routes/motorcycleRoutes"); // Import Motorcycle Routes
 
 
 const app = express();
@@ -41,7 +42,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/tracking", trackingRoutes);
 
-
+app.use("/api/motorcycles",  motorcycleRoutes); // Motorcycle Routes
 app.use("/api/gas-sessions", gasSessionRoutes); // Gas Session Routes
 // Start Server
 
