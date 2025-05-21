@@ -23,22 +23,24 @@ const sendVerificationEmail = (email, token) => {
   });
 
   const mailOptions = {
-    from: `"TrafficSlight" <${process.env.EMAIL_USER}>`,
-    to: "delapazr0721@gmail.com", // ✅ hardcoded test
-    subject: "Test Email",
-    html: `<p>This is a test. Token: ${token}</p> 
-    <a href="${process.env.BASE_URL}/verify/${token}">Verify Email</a>`,
+    from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Verify Your Traffic Slight Account",
+    html: `
+      <h2>Welcome to Traffic Slight!</h2>
+      <p>Please click the link below to verify your email:</p>
+      <a href="trafficslight://verify/${token}">Verify Email</a>
+    `,
   };
 
   transporter.sendMail(mailOptions, (err, info) => {
     if (err) {
-      console.error("Email error:", err);
+      console.error("Email sending failed:", err);
     } else {
-      console.log("Email sent:", info.response);
+      console.log("Verification email sent:", info.response);
     }
   });
 };
-
 
 
 // Check API status
