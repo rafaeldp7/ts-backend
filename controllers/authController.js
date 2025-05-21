@@ -94,7 +94,22 @@ exports.login = async (req, res) => {
     if (!isMatch) return res.status(401).json({ msg: "Invalid credentials - wrong password" });
 
     const token = generateToken(user);
-    res.status(200).json({ token, role: user.role, id: user.id });
+    res.status(200).json({
+  token,
+  user: {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    city: user.city,
+    province: user.province,
+    barangay: user.barangay,
+    street: user.street,
+    isVerified: user.isVerified,
+    createdAt: user.createdAt,
+  },
+});
+
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ msg: "Server error", error: error.message });
