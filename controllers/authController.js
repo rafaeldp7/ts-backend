@@ -23,24 +23,21 @@ const sendVerificationEmail = (email, token) => {
   });
 
   const mailOptions = {
-    from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: "Verify Your Traffic Slight Account",
-    html: `
-      <h2>Welcome to Traffic Slight!</h2>
-      <p>Please click the link below to verify your email:</p>
-      <a href="${process.env.BASE_URL}/verify/${token}">Verify Email</a>
-    `,
+    from: `"TrafficSlight" <${process.env.EMAIL_USER}>`,
+    to: "delapazr0721@gmail.com", // ✅ hardcoded test
+    subject: "Test Email",
+    html: `<p>This is a test. Token: ${token}</p>`,
   };
 
   transporter.sendMail(mailOptions, (err, info) => {
     if (err) {
-      console.error("Email sending failed:", err);
+      console.error("Email error:", err);
     } else {
-      console.log("Verification email sent:", info.response);
+      console.log("Email sent:", info.response);
     }
   });
 };
+
 
 
 // Check API status
@@ -89,9 +86,9 @@ exports.register = async (req, res) => {
 
   } catch (error) {
     console.error("Register error:", error);
-res.status(500).json({ msg: "Server error", error: error.message, stack: error.stack });
-console.log("Response status:", response.status);
-console.log("Response data:", data);
+    res.status(500).json({ msg: "Server error", error: error.message, stack: error.stack });
+    console.log("Response status:", response.status);
+    console.log("Response data:", data);
 
 
   }
@@ -153,27 +150,25 @@ exports.login = async (req, res) => {
     if (!isMatch) return res.status(401).json({ msg: "Invalid credentials - wrong password" });
 
     if (!user.isVerified) {
-  return res.status(403).json({ msg: "Please verify your email before logging in." });
-}
-
-
+      return res.status(403).json({ msg: "Please verify your email before logging in." });
+    }
 
     const token = generateToken(user);
     res.status(200).json({
-  token,
-  user: {
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    city: user.city,
-    province: user.province,
-    barangay: user.barangay,
-    street: user.street,
-    isVerified: user.isVerified,
-    createdAt: user.createdAt,
-  },
-});
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        city: user.city,
+        province: user.province,
+        barangay: user.barangay,
+        street: user.street,
+        isVerified: user.isVerified,
+        createdAt: user.createdAt,
+      },
+    });
 
   } catch (error) {
     console.error("Login error:", error);
