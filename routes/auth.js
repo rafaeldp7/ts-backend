@@ -20,7 +20,7 @@ router.get("/new-users-this-month", authController.getNewUsersThisMonth);
 
 // PROTECTED ROUTES
 router.get("/profile", authMiddleware, authController.getProfile);
-router.get("/users", authController.getAllUsers);
+router.get("/users", authMiddleware, authController.getAllUsers);
 router.delete("/delete-account", authMiddleware, authController.deleteAccount);
 
 module.exports = router;
