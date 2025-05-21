@@ -115,6 +115,32 @@ exports.verifyEmail = async (req, res) => {
   }
 };
 
+// Resend verification email
+exports.resendVerificationEmail = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ msg: "User not found." });
+
+    if (user.isVerified) {
+      return res.status(400).json({ msg: "Email already verified." });
+    }
+
+    const newToken = crypto.randomBytes(20).toString("hex");
+    user.verifyToken = newToken;
+    await user.save();
+
+    sendVerificationEmail(user.email, newToken);
+
+    res.status(200).json({ msg: "Verification email resent successfully." });
+  } catch (err) {
+    console.error("Resend verification error:", err);
+    res.status(500).json({ msg: "Server error." });
+  }
+};
+
+
 // Login
 exports.login = async (req, res) => {
   const { email, password } = req.body;
