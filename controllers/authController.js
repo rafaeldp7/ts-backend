@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -10,9 +11,37 @@ const generateToken = (user) => {
 };
 
 // Mock email function
+
+
 const sendVerificationEmail = (email, token) => {
-  console.log(`Verification email sent to ${email}: http://localhost:3000/verify/${token}`);
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: `"EcoBantay" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Verify Your EcoBantay Email",
+    html: `
+      <h2>Welcome to EcoBantay!</h2>
+      <p>Please click the link below to verify your email:</p>
+      <a href="${process.env.BASE_URL}/verify/${token}">Verify Email</a>
+    `,
+  };
+
+  transporter.sendMail(mailOptions, (err, info) => {
+    if (err) {
+      console.error("Email sending failed:", err);
+    } else {
+      console.log("Verification email sent:", info.response);
+    }
+  });
 };
+
 
 // Check API status
 exports.status = (req, res) => {
@@ -51,7 +80,7 @@ exports.register = async (req, res) => {
     // Save user (runs pre-save hooks)
     await newUser.save();
 
-    // TODO: sendVerificationEmail(email, verificationToken);
+    sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({ msg: "Registered successfully. Please check your email to verify." });
   } catch (error) {
@@ -68,7 +97,7 @@ console.log("Response data:", data);
 exports.verifyEmail = async (req, res) => {
   const { token } = req.params;
   try {
-    const user = await User.findOne({ verificationToken: token });
+    const user = await User.findOne({ verifyToken: token });
     if (!user) return res.status(400).json({ msg: "Invalid or expired token" });
 
     user.isVerified = true;
