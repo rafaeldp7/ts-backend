@@ -26,7 +26,8 @@ const sendVerificationEmail = (email, token) => {
     from: `"TrafficSlight" <${process.env.EMAIL_USER}>`,
     to: "delapazr0721@gmail.com", // ✅ hardcoded test
     subject: "Test Email",
-    html: `<p>This is a test. Token: ${token}</p>`,
+    html: `<p>This is a test. Token: ${token}</p> 
+    <a href="${process.env.BASE_URL}/verify/${token}">Verify Email</a>`,
   };
 
   transporter.sendMail(mailOptions, (err, info) => {
