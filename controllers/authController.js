@@ -23,15 +23,18 @@ const sendVerificationEmail = (email, token) => {
   });
 
   const mailOptions = {
-    from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: "Verify Your Traffic Slight Account",
-    html: `
-      <h2>Welcome to Traffic Slight!</h2>
-      <p>Please click the link below to verify your email:</p>
-      <a href="trafficslight://verify/${token}">Verify Email</a>
-    `,
-  };
+  from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
+  to: email,
+  subject: "Verify Your Traffic Slight Account",
+  html: `
+    <h2>Welcome to Traffic Slight!</h2>
+    <p>Please click the link below to verify your email:</p>
+    <a href="trafficslight://verify/${token}">Verify Email</a>
+    <p>If the link doesn't open, copy and paste this:</p>
+    <p>trafficslight://verify/${token}</p>
+  `,
+};
+
 
   transporter.sendMail(mailOptions, (err, info) => {
     if (err) {
