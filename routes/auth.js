@@ -18,9 +18,9 @@ router.get("/new-users-this-month", authController.getNewUsersThisMonth);
 router.post("/resend-verification", authController.resendVerificationEmail);
 router.post("/location/:userId", authController.userLocation);
 
-router.post("/request-reset", forgotPasswordController.requestReset);
-router.post("/verify-reset-otp", forgotPasswordController.verifyResetOtp);
-router.post("/reset-password", forgotPasswordController.resetPassword);
+router.post("/request-reset", authController.requestReset);
+router.post("/verify-reset-otp", authController.verifyResetOtp);
+router.post("/reset-password", authController.resetPassword);
 
 
 
