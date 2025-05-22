@@ -29,7 +29,7 @@ const sendVerificationEmail = (email, token) => {
 html: `
   <h2>Your Traffic Slight OTP</h2>
   <p>Enter this code in the app to verify your email:</p>
-  <h1 style="letter-spacing: 2px;">${verificationToken}</h1>
+  <h1 style="letter-spacing: 2px;">${token}</h1>
 `
 
 
@@ -119,6 +119,7 @@ exports.verifyEmail = async (req, res) => {
 };
 
 // Resend verification email
+// Resend verification email
 exports.resendVerificationEmail = async (req, res) => {
   const { email } = req.body;
 
@@ -130,7 +131,7 @@ exports.resendVerificationEmail = async (req, res) => {
       return res.status(400).json({ msg: "Email already verified." });
     }
 
-    const newToken = crypto.randomBytes(20).toString("hex");
+    const newToken = Math.floor(100000 + Math.random() * 900000).toString();
     user.verifyToken = newToken;
     await user.save();
 
@@ -142,6 +143,7 @@ exports.resendVerificationEmail = async (req, res) => {
     res.status(500).json({ msg: "Server error." });
   }
 };
+
 
 
 // Login
