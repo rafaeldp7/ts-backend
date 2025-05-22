@@ -1,4 +1,4 @@
-const SavedDestination = require("../models/SavedDestination");
+const SavedDestination = require("../models/SavedDestinationModel");
 
 exports.getUserDestinations = async (req, res) => {
   try {
