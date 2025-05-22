@@ -3,6 +3,6 @@ const router = express.Router();
 const controller = require("../controllers/tripController");
 
 router.get("/:userId", controller.getUserTrips);
-router.post("/", controller.addTrip);
+router.post("/addTrip", controller.addTrip);
 
 module.exports = router;
