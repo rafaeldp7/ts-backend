@@ -29,12 +29,11 @@ const sendVerificationEmail = (email, token) => {
 html: `
   <h2>Your Traffic Slight OTP</h2>
   <p>Enter this code in the app to verify your email:</p>
-  <h1 style="letter-spacing: 2px;">${token}</h1>
+  <h1 style="letter-spacing: 2px;">${verificationToken}</h1>
 `
 
 
 };
-
 
   transporter.sendMail(mailOptions, (err, info) => {
     if (err) {
