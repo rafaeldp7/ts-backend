@@ -26,25 +26,12 @@ const sendVerificationEmail = (email, token) => {
   from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
   to: email,
   subject: "Verify Your Traffic Slight Account",
- html: `
-  <h2>Welcome to Traffic Slight!</h2>
-  <p>Please click the button below to verify your email:</p>
-  <a 
-    href="trafficslight://verify/${token}" 
-    style="
-      display: inline-block;
-      padding: 10px 20px;
-      background-color: #007AFF;
-      color: white;
-      text-decoration: none;
-      border-radius: 5px;
-      font-weight: bold;
-    "
-  >Verify Email</a>
-
-  <p>If the button doesn't work, copy and paste this into your browser:</p>
-  <p>trafficslight://verify/${token}</p>
+html: `
+  <h2>Your Traffic Slight OTP</h2>
+  <p>Enter this code in the app to verify your email:</p>
+  <h1 style="letter-spacing: 2px;">${token}</h1>
 `
+
 
 };
 
@@ -79,7 +66,8 @@ exports.register = async (req, res) => {
     if (existingUser) return res.status(400).json({ msg: "Email already registered" });
 
     // Generate verification token
-    const verificationToken = crypto.randomBytes(20).toString("hex");
+    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
+
 
     // Create new user instance
     const newUser = new User({
