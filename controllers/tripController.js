@@ -1,4 +1,4 @@
-const Trip = require("../models/Trip");
+const Trip = require("../models/TripModel");
 
 exports.getUserTrips = async (req, res) => {
   try {
