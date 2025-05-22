@@ -1,6 +1,3 @@
-// models/Report.js
-const mongoose = require("mongoose");
-
 const reportSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -12,6 +9,11 @@ const reportSchema = new mongoose.Schema({
     enum: ["Accident", "Traffic Jam", "Road Closure", "Hazard", "Police"],
     required: true
   },
+  description: {
+    type: String,
+    maxlength: 20,
+    required: true
+  },
   location: {
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true }
@@ -21,5 +23,3 @@ const reportSchema = new mongoose.Schema({
     default: Date.now
   }
 });
-
-module.exports = mongoose.model("Report", reportSchema);
