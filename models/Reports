@@ -1,9 +1,10 @@
+// models/Report.js
 const mongoose = require("mongoose");
 
 const reportSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // if linked to a user
+    ref: "User",
     required: false
   },
   reportType: {
@@ -13,11 +14,11 @@ const reportSchema = new mongoose.Schema({
   },
   location: {
     latitude: { type: Number, required: true },
-    longitude: { type: Number, required: true },
+    longitude: { type: Number, required: true }
   },
   timestamp: {
     type: Date,
-    default: Date.now,
+    default: Date.now
   }
 });
 

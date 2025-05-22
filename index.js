@@ -48,6 +48,10 @@ app.get("/", (req, res) => {
   res.send("🚀 Server is running!");
 });
 
+// index.js or app.js
+app.use(express.json());
+
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error("Unhandled Error:", err.stack);

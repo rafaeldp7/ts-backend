@@ -2,6 +2,7 @@ const Report = require("../models/Report");
 
 exports.createReport = async (req, res) => {
   try {
+    console.log("Incoming data:", req.body);
     const { reportType, location, userId } = req.body;
 
     if (!reportType || !location || !location.latitude || !location.longitude) {
@@ -21,6 +22,7 @@ exports.createReport = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 exports.getAllReports = async (req, res) => {
   try {
