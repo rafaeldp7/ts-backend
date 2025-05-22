@@ -18,6 +18,11 @@ router.get("/new-users-this-month", authController.getNewUsersThisMonth);
 router.post("/resend-verification", authController.resendVerificationEmail);
 router.post("/location/:userId", authController.userLocation);
 
+router.post("/request-reset", forgotPasswordController.requestReset);
+router.post("/verify-reset-otp", forgotPasswordController.verifyResetOtp);
+router.post("/reset-password", forgotPasswordController.resetPassword);
+
+
 
 // PROTECTED ROUTES
 //mga wala munang middleware para madali ang testing

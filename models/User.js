@@ -34,6 +34,13 @@ const UserSchema = new mongoose.Schema(
   lat: { type: Number, default: null },
   lng: { type: Number, default: null },
 },
+resetToken: {
+  type: String,
+},
+resetTokenExpiry: {
+  type: Date,
+},
+
 
   },
   {

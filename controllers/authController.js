@@ -302,3 +302,75 @@ exports.userLocation = async (req, res) => {
 };
 
 
+// 1. Request OTP
+exports.requestReset = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ msg: "User not found." });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetToken = otp;
+    user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    await transporter.sendMail({
+      to: email,
+      subject: "Reset Your Password",
+      html: `
+        <h2>Traffic Slight - Password Reset OTP</h2>
+        <p>Use the code below to reset your password:</p>
+        <h1>${otp}</h1>
+        <p>This code will expire in 10 minutes.</p>
+      `,
+    });
+
+    res.json({ msg: "OTP sent to email." });
+  } catch (error) {
+    console.error("Request Reset Error:", error);
+    res.status(500).json({ msg: "Server error." });
+  }
+};
+
+// 2. Verify OTP
+exports.verifyResetOtp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  try {
+    const user = await User.findOne({ email, resetToken: otp });
+
+    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < Date.now()) {
+      return res.status(400).json({ msg: "Invalid or expired OTP." });
+    }
+
+    res.json({ msg: "OTP verified." });
+  } catch (error) {
+    console.error("Verify OTP Error:", error);
+    res.status(500).json({ msg: "Server error." });
+  }
+};
+
+// 3. Reset Password
+exports.resetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({ email, resetToken: otp });
+
+    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < Date.now()) {
+      return res.status(400).json({ msg: "Invalid or expired OTP." });
+    }
+
+    user.password = newPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiry = undefined;
+    await user.save();
+
+    res.json({ msg: "Password reset successful. You may now log in." });
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    res.status(500).json({ msg: "Server error." });
+  }
+};
+
