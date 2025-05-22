@@ -10,6 +10,8 @@ const trackingRoutes = require("./routes/trackingRoutes");
 const gasSessionRoutes = require("./routes/gasSessionRoutes");
 const motorcycleRoutes = require("./routes/motorcycleRoutes");
 const userMotorRoutes = require("./routes/userMotorRoutes");
+const reportRoutes = require("./routes/reportRoutes");
+
 
 const app = express();
 
@@ -40,7 +42,7 @@ app.use("/api/tracking", trackingRoutes);
 app.use("/api/motorcycles", motorcycleRoutes);
 app.use("/api/gas-sessions", gasSessionRoutes);
 app.use("/api/user-motors", userMotorRoutes);
-
+app.use("/api/reports", reportRoutes);
 // Default Route
 app.get("/", (req, res) => {
   res.send("🚀 Server is running!");

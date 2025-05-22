@@ -4,7 +4,6 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const authController = require("../controllers/authController.js");
 
 
-
 console.log("authController:", authController);
 
 // PUBLIC ROUTES
