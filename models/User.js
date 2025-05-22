@@ -30,6 +30,11 @@ const UserSchema = new mongoose.Schema(
     verifyToken: {
       type: String,
     },
+    location: {
+  lat: { type: Number, default: null },
+  lng: { type: Number, default: null },
+},
+
   },
   {
     timestamps: true,

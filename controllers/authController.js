@@ -285,3 +285,30 @@ exports.deleteAccount = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
+// Update user location
+exports.userLocation = async (req, res) => {
+  const { lat, lng } = req.body;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ msg: "Latitude and longitude required." });
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { location: { lat, lng } },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ msg: "User not found." });
+
+    res.json({ msg: "Location updated", location: user.location });
+  } catch (error) {
+    console.error("Error updating location:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+

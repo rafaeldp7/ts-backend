@@ -17,11 +17,15 @@ router.get("/user-growth", authController.getUserGrowth);
 router.get("/user-count", authController.getUserCount);
 router.get("/new-users-this-month", authController.getNewUsersThisMonth);
 router.post("/resend-verification", authController.resendVerificationEmail);
+router.post("/location/:userId", userController.userLocation);
 
 
 // PROTECTED ROUTES
-router.get("/profile", authMiddleware, authController.getProfile);
-router.get("/users", authMiddleware, authController.getAllUsers);
-router.delete("/delete-account", authMiddleware, authController.deleteAccount);
+//mga wala munang middleware para madali ang testing
+router.get("/profile", authController.getProfile);
+// router.get("/users", authMiddleware, authController.getAllUsers);
+
+router.get("/users", authController.getAllUsers);
+router.delete("/delete-account", authController.deleteAccount);
 
 module.exports = router;
