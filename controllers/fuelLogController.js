@@ -1,4 +1,4 @@
-const FuelLog = require("../models/FuelLog");
+const FuelLog = require("../models/FuelLogModel");
 
 exports.getFuelLogsByUser = async (req, res) => {
   try {
