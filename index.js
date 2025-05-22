@@ -7,11 +7,12 @@ const cors = require("cors");
 
 const authRoutes = require("./routes/auth");
 const trackingRoutes = require("./routes/trackingRoutes");
-const gasSessionRoutes = require("./routes/gasSessionRoutes");
+const tripRoutes = require("./routes/tripRoutes");
 const motorcycleRoutes = require("./routes/motorcycleRoutes");
 const userMotorRoutes = require("./routes/userMotorRoutes");
 const reportRoutes = require("./routes/reportRoutes");
-
+const savedDestinationRoutes = require("./routes/savedDestinationRoutes");
+const fuelLogRoutes = require("./routes/fuelLogRoutes");
 
 const app = express();
 
@@ -40,9 +41,12 @@ mongoose
 app.use("/api/auth", authRoutes);
 app.use("/api/tracking", trackingRoutes);
 app.use("/api/motorcycles", motorcycleRoutes);
-app.use("/api/gas-sessions", gasSessionRoutes);
+app.use("/api/trips", tripRoutes);
 app.use("/api/user-motors", userMotorRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/fuel-logs", fuelLogRoutes);
+app.use("/api/saved-destinations", savedDestinationRoutes);
+
 // Default Route
 app.get("/", (req, res) => {
   res.send("🚀 Server is running!");
