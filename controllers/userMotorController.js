@@ -13,20 +13,28 @@ exports.getAllUserMotors = async (req, res) => {
   }
 };
 
-// GET all motors for a specific user
+
+// GET all motors for a specific user (extracted properly)
 exports.getUserMotorsByUserId = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const motors = await UserMotor.find({ userId: req.params.id }).populate("motorcycleId");
 
-    const userMotors = await UserMotor.find({ userId })
-      .populate("motorcycleId")
-      .populate("userId");
+    const formatted = motors.map((motor) => ({
+      name: motor.motorcycleId.model,
+      fuelEfficiency: motor.motorcycleId.fuelConsumption,
+      plateNumber: motor.plateNumber,
+      nickname: motor.nickname,
+      _id: motor._id,
+    }));
 
-    res.status(200).json(userMotors);
-  } catch (error) {
-    res.status(500).json({ msg: "Failed to fetch motors for user", error: error.message });
+    res.json(formatted);
+  } catch (err) {
+    console.error("Failed to get user motors:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };
+
+
 
 // POST a new user motor
 exports.createUserMotor = async (req, res) => {

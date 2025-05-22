@@ -1,20 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const userMotorController = require("../controllers/userMotorController");
+const controller = require("../controllers/userMotorController");
 
-// All motors
-router.get("/", userMotorController.getAllUserMotors);
-
-// Motors by specific user
-router.get("/:userId", userMotorController.getUserMotorsByUserId);
-
-// Create
-router.post("/", userMotorController.createUserMotor);
-
-// Update
-router.put("/:id", userMotorController.updateUserMotor);
-
-// Delete
-router.delete("/:id", userMotorController.deleteUserMotor);
+router.get("/user-motors/:id", controller.getUserMotorsByUserId);
+router.get("/user-motors", controller.getAllUserMotors);
+router.post("/user-motors", controller.createUserMotor);
+router.put("/user-motors/:id", controller.updateUserMotor);
+router.delete("/user-motors/:id", controller.deleteUserMotor);
 
 module.exports = router;
