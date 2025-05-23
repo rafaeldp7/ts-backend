@@ -44,7 +44,7 @@ exports.createFuelLog = async (req, res) => {
   }
 };
 
-const FuelLog = require("../models/FuelLogModel");
+
 
 exports.getFuelLogCount = async (req, res) => {
   try {

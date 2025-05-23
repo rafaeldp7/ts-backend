@@ -42,7 +42,7 @@ exports.getAllReports = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-const Report = require("../models/Reports.js");
+
 
 exports.getReportCount = async (req, res) => {
   try {

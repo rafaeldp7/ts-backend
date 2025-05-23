@@ -118,7 +118,6 @@ exports.restoreMotorcycle = async (req, res) => {
   }
 };
 
-const Motorcycle = require("../models/motorcycleModel");
 
 exports.getMotorcycleCount = async (req, res) => {
   try {
