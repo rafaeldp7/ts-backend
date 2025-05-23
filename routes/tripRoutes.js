@@ -1,8 +1,16 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../controllers/tripController");
+const tripController = require("../controllers/tripController");
 
-router.get("/:userId", controller.getUserTrips);
-router.post("/addTrip", controller.addTrip);
+// User-side
+router.get("/user/:userId", tripController.getUserTrips);
+router.post("/", tripController.addTrip);
+
+// Admin-side
+router.get("/", tripController.getAllTrips);
+router.get("/user-trips/:userId", tripController.getTripsByUser);
+router.get("/date-range", tripController.getTripsByDateRange);
+router.get("/paginated", tripController.getPaginatedTrips);
+router.delete("/:id", tripController.deleteTrip);
 
 module.exports = router;
