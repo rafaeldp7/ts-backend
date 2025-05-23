@@ -101,3 +101,14 @@ exports.deleteUserMotor = async (req, res) => {
     res.status(500).json({ msg: "Failed to delete", error: error.message });
   }
 };
+
+const UserMotor = require("../models/userMotorModel");
+
+exports.getUserMotorCount = async (req, res) => {
+  try {
+    const count = await UserMotor.countDocuments();
+    res.status(200).json({ totalUserMotors: count });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to count user motors", error: err.message });
+  }
+};

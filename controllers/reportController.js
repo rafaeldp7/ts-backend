@@ -42,3 +42,13 @@ exports.getAllReports = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+const Report = require("../models/Reports.js");
+
+exports.getReportCount = async (req, res) => {
+  try {
+    const count = await Report.countDocuments();
+    res.status(200).json({ totalReports: count });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to count reports", error: err.message });
+  }
+};

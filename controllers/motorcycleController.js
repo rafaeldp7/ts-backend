@@ -117,3 +117,14 @@ exports.restoreMotorcycle = async (req, res) => {
     });
   }
 };
+
+const Motorcycle = require("../models/motorcycleModel");
+
+exports.getMotorcycleCount = async (req, res) => {
+  try {
+    const count = await Motorcycle.countDocuments({ isDeleted: { $ne: true } });
+    res.status(200).json({ totalMotorcycles: count });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to count motorcycles", error: err.message });
+  }
+};

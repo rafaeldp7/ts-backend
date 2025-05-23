@@ -43,3 +43,14 @@ exports.createFuelLog = async (req, res) => {
     res.status(500).json({ msg: "Failed to create fuel log", error: err.message });
   }
 };
+
+const FuelLog = require("../models/FuelLogModel");
+
+exports.getFuelLogCount = async (req, res) => {
+  try {
+    const count = await FuelLog.countDocuments();
+    res.status(200).json({ totalFuelLogs: count });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to count fuel logs", error: err.message });
+  }
+};
