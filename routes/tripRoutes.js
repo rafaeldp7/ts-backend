@@ -13,4 +13,8 @@ router.get("/date-range", tripController.getTripsByDateRange);
 router.get("/paginated", tripController.getPaginatedTrips);
 router.delete("/:id", tripController.deleteTrip);
 
+router.get("/count", tripController.getTripCount);
+router.get("/count/:userId", tripController.getTripCountByUser);
+
+
 module.exports = router;
