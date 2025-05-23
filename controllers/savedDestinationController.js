@@ -30,6 +30,28 @@ exports.addDestination = async (req, res) => {
     res.status(500).json({ msg: "Failed to save destination", error: err.message });
   }
 };
+exports.updateDestination = async (req, res) => {
+  try {
+    const { label, location, category } = req.body;
+    const updateData = {};
+
+    if (label) updateData.label = label;
+    if (location?.latitude && location?.longitude) updateData.location = location;
+    if (category) updateData.category = category;
+
+    const updated = await SavedDestination.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ msg: "Destination not found" });
+
+    res.status(200).json({ msg: "Destination updated", destination: updated });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to update", error: err.message });
+  }
+};
 
 
 exports.deleteDestination = async (req, res) => {
