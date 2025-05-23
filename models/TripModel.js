@@ -3,18 +3,18 @@ const mongoose = require("mongoose");
 const TripSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // Link to actual user
+    ref: "User",
     required: true,
   },
   motorId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "UserMotor", // Link to the user's selected motorcycle
+    ref: "UserMotor",
     required: true,
   },
-  distance: { type: String, required: true },
-  fuelUsed: { type: String, required: true },
-  timeArrived: { type: String, required: true },
-  eta: { type: String, required: true },
+  distance: { type: Number, required: true },     // in kilometers
+  fuelUsed: { type: Number, required: true },     // in liters
+  timeArrived: { type: Number, required: true },  // in minutes
+  eta: { type: Number, required: true },          // in minutes
   destination: { type: String, required: true },
 }, {
   timestamps: true,
