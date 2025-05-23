@@ -2,24 +2,25 @@ const express = require("express");
 const router = express.Router();
 const motorcycleController = require("../controllers/motorcycleController");
 
-// GET active motorcycles
+// Get all motorcycles (excluding soft-deleted)
 router.get("/", motorcycleController.getAllMotorcycles);
 
-// (Optional) GET all motorcycles including deleted
-// router.get("/all", motorcycleController.getAllIncludingDeleted); 
+// Get all motorcycles including soft-deleted (for admin view)
+router.get("/all", motorcycleController.getAllIncludingDeleted);
 
-// POST new motorcycle
+// Get total count of active motorcycles
+router.get("/count", motorcycleController.getMotorcycleCount);
+
+// Add a new motorcycle
 router.post("/", motorcycleController.createMotorcycle);
 
-// PUT update motorcycle
+// Update an existing motorcycle by ID
 router.put("/:id", motorcycleController.updateMotorcycle);
 
-// DELETE (soft-delete) motorcycle
+// Soft delete a motorcycle by ID
 router.delete("/:id", motorcycleController.deleteMotorcycle);
 
-// PUT restore soft-deleted motorcycle
+// Restore a soft-deleted motorcycle by ID
 router.put("/restore/:id", motorcycleController.restoreMotorcycle);
-
-
 
 module.exports = router;
