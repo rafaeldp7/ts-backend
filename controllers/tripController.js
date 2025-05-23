@@ -126,3 +126,14 @@ exports.getPaginatedTrips = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch paginated trips", error: err.message });
   }
 };
+
+// GET total trip count
+exports.getTripCount = async (req, res) => {
+  try {
+    const count = await Trip.countDocuments();
+    res.status(200).json({ totalTrips: count });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to count trips", error: err.message });
+  }
+};
+
