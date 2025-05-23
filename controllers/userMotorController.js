@@ -102,7 +102,7 @@ exports.deleteUserMotor = async (req, res) => {
   }
 };
 
-const UserMotor = require("../models/userMotorModel");
+
 
 exports.getUserMotorCount = async (req, res) => {
   try {

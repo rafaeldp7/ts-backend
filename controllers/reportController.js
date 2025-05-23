@@ -52,3 +52,56 @@ exports.getReportCount = async (req, res) => {
     res.status(500).json({ msg: "Failed to count reports", error: err.message });
   }
 };
+
+exports.getReportsByType = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const reports = await Report.find({ reportType: type }).sort({ createdAt: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching reports by type", error: err.message });
+  }
+};
+
+exports.getReportsByDateRange = async (req, res) => {
+  const { startDate, endDate } = req.body;
+  try {
+    const reports = await Report.find({
+      createdAt: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    }).sort({ createdAt: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to get reports by date", error: err.message });
+  }
+};
+
+exports.getReportsByUser = async (req, res) => {
+  try {
+    const reports = await Report.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching user's reports", error: err.message });
+  }
+};
+
+exports.getAllReportLocations = async (req, res) => {
+  try {
+    const reports = await Report.find({}, { location: 1, reportType: 1, description: 1, createdAt: 1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch report locations", error: err.message });
+  }
+};
+
+exports.deleteReport = async (req, res) => {
+  try {
+    const deleted = await Report.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ msg: "Report not found" });
+    res.status(200).json({ msg: "Report deleted successfully", deleted });
+  } catch (err) {
+    res.status(500).json({ msg: "Error deleting report", error: err.message });
+  }
+};
