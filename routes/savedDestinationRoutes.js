@@ -7,3 +7,4 @@ router.post("/", controller.addDestination);
 router.delete("/:id", controller.deleteDestination);
 
 module.exports = router;
+ 

@@ -13,7 +13,12 @@ const SavedDestinationSchema = new mongoose.Schema({
   location: {
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true }
-  }
+  },
+  category: {
+  type: String,
+  enum: ["Home", "Work", "School", "Other"],
+  default: "Other"
+} 
 }, {
   timestamps: true
 });

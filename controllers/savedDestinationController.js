@@ -8,22 +8,29 @@ exports.getUserDestinations = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch destinations", error: err.message });
   }
 };
-
+ 
 exports.addDestination = async (req, res) => {
   try {
-    const { userId, label, location } = req.body;
+    const { userId, label, location, category } = req.body;
 
     if (!userId || !label || !location || !location.latitude || !location.longitude) {
       return res.status(400).json({ msg: "Missing required fields" });
     }
 
-    const newDest = new SavedDestination({ userId, label, location });
+    const newDest = new SavedDestination({
+      userId,
+      label,
+      location,
+      category: category || "Other", // ← make sure category is passed
+    });
+
     await newDest.save();
     res.status(201).json({ msg: "Destination saved", destination: newDest });
   } catch (err) {
     res.status(500).json({ msg: "Failed to save destination", error: err.message });
   }
 };
+
 
 exports.deleteDestination = async (req, res) => {
   try {
