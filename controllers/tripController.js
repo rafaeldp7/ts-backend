@@ -137,3 +137,91 @@ exports.getTripCount = async (req, res) => {
   }
 };
 
+// GET /api/trips/analytics
+exports.getTripAnalytics = async (req, res) => {
+  try {
+    const trips = await Trip.find();
+
+    const totalDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
+    const totalTime = trips.reduce((sum, t) => sum + parseFloat(t.timeArrived || 0), 0);
+    const totalFuel = trips.reduce((sum, t) => sum + parseFloat(t.fuelUsed || 0), 0);
+
+    res.status(200).json({
+      totalTrips: trips.length,
+      totalDistance,
+      totalTime,
+      totalFuel,
+      totalExpense: totalFuel * 100, // assuming ₱100/L
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to compute analytics", error: err.message });
+  }
+};
+
+// GET /api/trips/summary/month
+exports.getMonthlyTripSummary = async (req, res) => {
+  try {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const trips = await Trip.find({ createdAt: { $gte: start, $lte: end } });
+
+    const monthlyDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
+    const monthlyFuel = trips.reduce((sum, t) => sum + parseFloat(t.fuelUsed || 0), 0);
+    const monthlyTime = trips.reduce((sum, t) => sum + parseFloat(t.timeArrived || 0), 0);
+
+    res.status(200).json({
+      tripsThisMonth: trips.length,
+      monthlyDistance,
+      monthlyFuel,
+      monthlyTime,
+      monthlyExpense: monthlyFuel * 100,
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch monthly summary", error: err.message });
+  }
+};
+
+// GET /api/trips/leaderboard
+exports.getTopUsersByTripCount = async (req, res) => {
+  try {
+    const results = await Trip.aggregate([
+      { $group: { _id: "$userId", tripCount: { $sum: 1 } } },
+      { $sort: { tripCount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to compute top users", error: err.message });
+  }
+};
+
+// GET /api/trips/motors/most-used
+exports.getMostUsedMotors = async (req, res) => {
+  try {
+    const results = await Trip.aggregate([
+      { $group: { _id: "$motorId", usageCount: { $sum: 1 } } },
+      { $sort: { usageCount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    res.status(200).json(results);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch top motors", error: err.message });
+  }
+};
+
+// GET /api/trips/date-range?startDate=2024-01-01&endDate=2024-12-31
+exports.getTripsByDateRange = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const trips = await Trip.find({
+      createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    });
+    res.status(200).json(trips);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to filter trips by date", error: err.message });
+  }
+};
