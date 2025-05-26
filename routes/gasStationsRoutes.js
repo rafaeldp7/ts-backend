@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const gasStationController = require("../controllers/gasStationController");
+const gasStationController = require("../controllers/gasStationsController");
 const isAdmin = require("../middleware/isAdmin"); // 🔒 Protect admin routes
 const auth = require("../middleware/auth"); // For token validation
 
