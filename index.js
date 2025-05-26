@@ -13,6 +13,7 @@ const userMotorRoutes = require("./routes/userMotorRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const savedDestinationRoutes = require("./routes/savedDestinationRoutes");
 const fuelLogRoutes = require("./routes/fuelLogRoutes");
+const gasStationRoutes = require("./routes/gasStationsRoutes");
 
 const app = express();
 
@@ -46,6 +47,8 @@ app.use("/api/user-motors", userMotorRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/fuel-logs", fuelLogRoutes);
 app.use("/api/saved-destinations", savedDestinationRoutes);
+app.use("/api/gas-stations", gasStationRoutes);
+
 
 // Default Route
 app.get("/", (req, res) => {
