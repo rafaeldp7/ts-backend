@@ -1,3 +1,8 @@
+
+
+
+// NOTE: THIS IS THE FIRST VERSION OF THE MOTOR SCHEMA
+// MEDYO MARAMING MGA COMPLICATED FIELDS KAYA PINASIPMPLE NA LANG SA ISANG SCHEMA.
 const mongoose = require("mongoose");
 
 const MotorSchema = new mongoose.Schema({

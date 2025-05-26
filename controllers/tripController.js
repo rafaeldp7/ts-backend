@@ -2,11 +2,17 @@ const Trip = require("../models/TripModel");
 
 // ================= USER SIDE =================
 
-// Get all trips for a specific user
 exports.getUserTrips = async (req, res) => {
   try {
     const trips = await Trip.find({ userId: req.params.userId })
-      .populate("motorId") // show motor info like nickname, plateNumber
+      .populate("userId")
+      .populate({
+        path: "motorId",
+        populate: {
+          path: "motorcycleId",
+          model: "Motorcycle",
+        },
+      })
       .sort({ createdAt: -1 });
 
     res.status(200).json(trips);
@@ -15,7 +21,6 @@ exports.getUserTrips = async (req, res) => {
   }
 };
 
-// Add a new trip
 exports.addTrip = async (req, res) => {
   try {
     const { userId, motorId, distance, fuelUsed, timeArrived, eta, destination } = req.body;
@@ -31,7 +36,6 @@ exports.addTrip = async (req, res) => {
     });
 
     await newTrip.save();
-
     res.status(201).json({ msg: "Trip recorded", trip: newTrip });
   } catch (err) {
     res.status(500).json({ msg: "Failed to add trip", error: err.message });
@@ -40,12 +44,17 @@ exports.addTrip = async (req, res) => {
 
 // ================= ADMIN SIDE =================
 
-// Get all trips (admin)
 exports.getAllTrips = async (req, res) => {
   try {
     const trips = await Trip.find()
       .populate("userId")
-      .populate("motorId")
+      .populate({
+        path: "motorId",
+        populate: {
+          path: "motorcycleId",
+          model: "Motorcycle",
+        },
+      })
       .sort({ createdAt: -1 });
 
     res.status(200).json(trips);
@@ -54,7 +63,6 @@ exports.getAllTrips = async (req, res) => {
   }
 };
 
-// Delete a trip (hard delete)
 exports.deleteTrip = async (req, res) => {
   try {
     const deleted = await Trip.findByIdAndDelete(req.params.id);
@@ -66,12 +74,17 @@ exports.deleteTrip = async (req, res) => {
   }
 };
 
-// Get all trips by a specific user (admin)
 exports.getTripsByUser = async (req, res) => {
   try {
     const trips = await Trip.find({ userId: req.params.userId })
       .populate("userId")
-      .populate("motorId")
+      .populate({
+        path: "motorId",
+        populate: {
+          path: "motorcycleId",
+          model: "Motorcycle",
+        },
+      })
       .sort({ createdAt: -1 });
 
     res.status(200).json(trips);
@@ -80,7 +93,6 @@ exports.getTripsByUser = async (req, res) => {
   }
 };
 
-// Get trips within a date range
 exports.getTripsByDateRange = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -92,7 +104,13 @@ exports.getTripsByDateRange = async (req, res) => {
       },
     })
       .populate("userId")
-      .populate("motorId");
+      .populate({
+        path: "motorId",
+        populate: {
+          path: "motorcycleId",
+          model: "Motorcycle",
+        },
+      });
 
     res.status(200).json(trips);
   } catch (err) {
@@ -100,7 +118,6 @@ exports.getTripsByDateRange = async (req, res) => {
   }
 };
 
-// Get paginated trips
 exports.getPaginatedTrips = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -109,7 +126,13 @@ exports.getPaginatedTrips = async (req, res) => {
 
     const trips = await Trip.find()
       .populate("userId")
-      .populate("motorId")
+      .populate({
+        path: "motorId",
+        populate: {
+          path: "motorcycleId",
+          model: "Motorcycle",
+        },
+      })
       .skip(skip)
       .limit(limit)
       .sort({ createdAt: -1 });
@@ -127,7 +150,6 @@ exports.getPaginatedTrips = async (req, res) => {
   }
 };
 
-// GET total trip count
 exports.getTripCount = async (req, res) => {
   try {
     const count = await Trip.countDocuments();
@@ -137,28 +159,28 @@ exports.getTripCount = async (req, res) => {
   }
 };
 
-// GET /api/trips/analytics
+// ================= ANALYTICS =================
+
 exports.getTripAnalytics = async (req, res) => {
   try {
     const trips = await Trip.find();
 
     const totalDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
-    const totalTime = trips.reduce((sum, t) => sum + parseFloat(t.timeArrived || 0), 0);
     const totalFuel = trips.reduce((sum, t) => sum + parseFloat(t.fuelUsed || 0), 0);
+    const totalTime = 0; // You can customize this if actual trip duration is stored
 
     res.status(200).json({
       totalTrips: trips.length,
       totalDistance,
       totalTime,
       totalFuel,
-      totalExpense: totalFuel * 100, // assuming ₱100/L
+      totalExpense: totalFuel * 100,
     });
   } catch (err) {
     res.status(500).json({ msg: "Failed to compute analytics", error: err.message });
   }
 };
 
-// GET /api/trips/summary/month
 exports.getMonthlyTripSummary = async (req, res) => {
   try {
     const now = new Date();
@@ -169,7 +191,7 @@ exports.getMonthlyTripSummary = async (req, res) => {
 
     const monthlyDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
     const monthlyFuel = trips.reduce((sum, t) => sum + parseFloat(t.fuelUsed || 0), 0);
-    const monthlyTime = trips.reduce((sum, t) => sum + parseFloat(t.timeArrived || 0), 0);
+    const monthlyTime = 0;
 
     res.status(200).json({
       tripsThisMonth: trips.length,
@@ -183,13 +205,14 @@ exports.getMonthlyTripSummary = async (req, res) => {
   }
 };
 
-// GET /api/trips/leaderboard
+// ================= INSIGHTS =================
+
 exports.getTopUsersByTripCount = async (req, res) => {
   try {
     const results = await Trip.aggregate([
       { $group: { _id: "$userId", tripCount: { $sum: 1 } } },
       { $sort: { tripCount: -1 } },
-      { $limit: 5 }
+      { $limit: 5 },
     ]);
 
     res.status(200).json(results);
@@ -198,30 +221,16 @@ exports.getTopUsersByTripCount = async (req, res) => {
   }
 };
 
-// GET /api/trips/motors/most-used
 exports.getMostUsedMotors = async (req, res) => {
   try {
     const results = await Trip.aggregate([
       { $group: { _id: "$motorId", usageCount: { $sum: 1 } } },
       { $sort: { usageCount: -1 } },
-      { $limit: 5 }
+      { $limit: 5 },
     ]);
 
     res.status(200).json(results);
   } catch (err) {
     res.status(500).json({ msg: "Failed to fetch top motors", error: err.message });
-  }
-};
-
-// GET /api/trips/date-range?startDate=2024-01-01&endDate=2024-12-31
-exports.getTripsByDateRange = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    const trips = await Trip.find({
-      createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
-    });
-    res.status(200).json(trips);
-  } catch (err) {
-    res.status(500).json({ msg: "Failed to filter trips by date", error: err.message });
   }
 };
