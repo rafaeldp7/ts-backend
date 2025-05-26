@@ -1,5 +1,5 @@
 const GasStation = require("../models/GasStation");
-const PriceHistory = require("../models/PriceHistory");
+const PriceHistory = require("../models/PriceHistoryModel");
 
 // USER: Get Nearby Stations
 exports.getNearbyStations = async (req, res) => {
