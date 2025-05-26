@@ -13,8 +13,8 @@ const TripSchema = new mongoose.Schema({
   },
   distance: { type: Number, required: true },     // in kilometers
   fuelUsed: { type: Number, required: true },     // in liters
-  timeArrived: { type: Number, required: true },  // in minutes
-  eta: { type: Number, required: true },          // in minutes
+  timeArrived: { type: String, required: true },  // in minutes
+  eta: { type: String, required: true },          // in minutes
   destination: { type: String, required: true },
 }, {
   timestamps: true,
