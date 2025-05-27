@@ -8,7 +8,7 @@ console.log("authController:", authController);
 
 // PUBLIC ROUTES
 // ✅ Update user profile info (name, email, address)
-router.put("/update-profile", protect, authController.updateProfile);
+router.put("/update-profile", authController.updateProfile);
 router.get("/", authController.status);
 router.post("/register", authController.register);
 router.get("/verify/:token", authController.verifyEmail);

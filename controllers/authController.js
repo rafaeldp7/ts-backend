@@ -341,6 +341,41 @@ exports.requestReset = async (req, res) => {
   }
 };
 
+// Update user basic profile information
+exports.updateProfile = async (req, res) => {
+  const { name, email, city, province, barangay, street } = req.body;
+
+  try {
+    // Check if email is already taken by another user
+    const existingEmailUser = await User.findOne({ email });
+    if (existingEmailUser && existingEmailUser._id.toString() !== req.user.id) {
+      return res.status(400).json({ msg: "Email is already in use by another account." });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        name,
+        email,
+        city,
+        province,
+        barangay,
+        street,
+      },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!updatedUser) return res.status(404).json({ msg: "User not found." });
+
+    res.status(200).json({ msg: "Profile updated successfully.", user: updatedUser });
+  } catch (error) {
+    console.error("Update Profile Error:", error);
+    res.status(500).json({ msg: "Server error." });
+  }
+};
+
+
+
 // 2. Verify OTP
 exports.verifyResetOtp = async (req, res) => {
   const { email, otp } = req.body;
