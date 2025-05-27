@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const moment = require("moment");
 
 const TripSchema = new mongoose.Schema({
   userId: {
@@ -11,13 +12,55 @@ const TripSchema = new mongoose.Schema({
     ref: "UserMotor",
     required: true,
   },
-  distance: { type: Number, required: true },     // in kilometers
-  fuelUsed: { type: Number, required: true },     // in liters
-  timeArrived: { type: String, required: true },  // in minutes
-  eta: { type: String, required: true },          
+
+  // 🟡 Estimated (Planned)
+  distance: { type: Number, required: true },
+  fuelUsedMin: { type: Number, required: true },
+  fuelUsedMax: { type: Number, required: true },
+  eta: { type: String, required: true },
+  timeArrived: { type: String, required: true },
+
+  // 🟢 Actual (Tracked)
+  actualDistance: { type: Number, default: null },
+  actualFuelUsedMin: { type: Number, default: null },
+  actualFuelUsedMax: { type: Number, default: null },
+  duration: { type: Number }, // in minutes
+
+  // 📍 Location
+  startLocation: {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
+  endLocation: {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
+
+  // 🛣 Routing
+  plannedPolyline: { type: String },
+  actualPolyline: { type: String },
+  wasRerouted: { type: Boolean, default: false },
+
+  // 🧭 Trip Summary
   destination: { type: String, required: true },
+  isSuccessful: { type: Boolean, default: true },
+  status: {
+    type: String,
+    enum: ["planned", "in-progress", "completed", "cancelled"],
+    default: "completed",
+  },
 }, {
   timestamps: true,
+});
+
+TripSchema.pre("save", function (next) {
+  if (this.timeArrived && this.eta) {
+    const arrival = moment(this.timeArrived, "HH:mm");
+    const etaTime = moment(this.eta, "HH:mm");
+    const duration = arrival.diff(etaTime, "minutes");
+    this.duration = Math.abs(duration);
+  }
+  next();
 });
 
 module.exports = mongoose.model("Trip", TripSchema);

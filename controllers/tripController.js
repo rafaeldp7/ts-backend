@@ -23,13 +23,23 @@ exports.getUserTrips = async (req, res) => {
 
 exports.addTrip = async (req, res) => {
   try {
-    const { userId, motorId, distance, fuelUsed, timeArrived, eta, destination } = req.body;
+    const {
+      userId,
+      motorId,
+      distance,
+      fuelUsedMin,
+      fuelUsedMax,
+      timeArrived,
+      eta,
+      destination,
+    } = req.body;
 
     const newTrip = new Trip({
       userId,
       motorId,
       distance,
-      fuelUsed,
+      fuelUsedMin,
+      fuelUsedMax,
       timeArrived,
       eta,
       destination,
@@ -166,15 +176,20 @@ exports.getTripAnalytics = async (req, res) => {
     const trips = await Trip.find();
 
     const totalDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
-    const totalFuel = trips.reduce((sum, t) => sum + parseFloat(t.fuelUsed || 0), 0);
-    const totalTime = 0; // You can customize this if actual trip duration is stored
+
+    const totalFuel = trips.reduce((sum, t) => {
+      const avg = ((t.fuelUsedMin || 0) + (t.fuelUsedMax || 0)) / 2;
+      return sum + avg;
+    }, 0);
+
+    const totalTime = trips.reduce((sum, t) => sum + parseFloat(t.duration || 0), 0);
 
     res.status(200).json({
       totalTrips: trips.length,
       totalDistance,
       totalTime,
       totalFuel,
-      totalExpense: totalFuel * 100,
+      totalExpense: totalFuel * 100, // Peso per liter
     });
   } catch (err) {
     res.status(500).json({ msg: "Failed to compute analytics", error: err.message });
@@ -190,8 +205,11 @@ exports.getMonthlyTripSummary = async (req, res) => {
     const trips = await Trip.find({ createdAt: { $gte: start, $lte: end } });
 
     const monthlyDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
-    const monthlyFuel = trips.reduce((sum, t) => sum + parseFloat(t.fuelUsed || 0), 0);
-    const monthlyTime = 0;
+    const monthlyFuel = trips.reduce((sum, t) => {
+      const avg = ((t.fuelUsedMin || 0) + (t.fuelUsedMax || 0)) / 2;
+      return sum + avg;
+    }, 0);
+    const monthlyTime = trips.reduce((sum, t) => sum + parseFloat(t.duration || 0), 0);
 
     res.status(200).json({
       tripsThisMonth: trips.length,
