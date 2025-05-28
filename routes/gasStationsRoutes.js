@@ -23,6 +23,7 @@ router.get("/:id", auth, gasStationController.getStationById);
 router.post("/", auth, gasStationController.createStation);
 router.put("/:id", auth, gasStationController.adminUpdateStation);
 router.delete("/:id", auth, gasStationController.deleteStation);
+router.get("/import", gasStationController.fetchAndSaveFromGoogle);
 
 
 module.exports = router;
