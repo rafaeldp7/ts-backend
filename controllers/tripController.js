@@ -1,48 +1,43 @@
 const Trip = require("../models/TripModel");
+const moment = require("moment");
 
-// ================= USER SIDE =================
+/**
+ * ================= USER SIDE =================
+ */
 
+// ✅ Get all trips made by a specific user
 exports.getUserTrips = async (req, res) => {
   try {
     const trips = await Trip.find({ userId: req.params.userId })
-      .populate("userId")
+      .populate("userId", "name email")
       .populate({
         path: "motorId",
         populate: {
           path: "motorcycleId",
           model: "Motorcycle",
+          select: "model engineDisplacement"
         },
+        select: "nickname"
       })
       .sort({ createdAt: -1 });
 
     res.status(200).json(trips);
   } catch (err) {
-    res.status(500).json({ msg: "Failed to fetch trips", error: err.message });
+    res.status(500).json({ msg: "Failed to fetch user trips", error: err.message });
   }
 };
 
+// ✅ Record a new trip from user side
 exports.addTrip = async (req, res) => {
   try {
     const {
-      userId,
-      motorId,
-      distance,
-      fuelUsedMin,
-      fuelUsedMax,
-      timeArrived,
-      eta,
-      destination,
+      userId, motorId, distance, fuelUsedMin, fuelUsedMax,
+      timeArrived, eta, destination
     } = req.body;
 
     const newTrip = new Trip({
-      userId,
-      motorId,
-      distance,
-      fuelUsedMin,
-      fuelUsedMax,
-      timeArrived,
-      eta,
-      destination,
+      userId, motorId, distance, fuelUsedMin, fuelUsedMax,
+      timeArrived, eta, destination
     });
 
     await newTrip.save();
@@ -52,18 +47,24 @@ exports.addTrip = async (req, res) => {
   }
 };
 
-// ================= ADMIN SIDE =================
 
+/**
+ * ================= ADMIN SIDE =================
+ */
+
+// ✅ Get all trips from all users
 exports.getAllTrips = async (req, res) => {
   try {
     const trips = await Trip.find()
-      .populate("userId")
+      .populate("userId", "name email")
       .populate({
         path: "motorId",
         populate: {
           path: "motorcycleId",
           model: "Motorcycle",
+          select: "model engineDisplacement"
         },
+        select: "nickname"
       })
       .sort({ createdAt: -1 });
 
@@ -73,27 +74,30 @@ exports.getAllTrips = async (req, res) => {
   }
 };
 
+// ✅ Delete a trip by ID
 exports.deleteTrip = async (req, res) => {
   try {
     const deleted = await Trip.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ msg: "Trip not found" });
-
     res.status(200).json({ msg: "Trip deleted successfully" });
   } catch (err) {
     res.status(500).json({ msg: "Failed to delete trip", error: err.message });
   }
 };
 
+// ✅ Admin view: Get trips by specific user
 exports.getTripsByUser = async (req, res) => {
   try {
     const trips = await Trip.find({ userId: req.params.userId })
-      .populate("userId")
+      .populate("userId", "name email")
       .populate({
         path: "motorId",
         populate: {
           path: "motorcycleId",
           model: "Motorcycle",
+          select: "model engineDisplacement"
         },
+        select: "nickname"
       })
       .sort({ createdAt: -1 });
 
@@ -103,23 +107,22 @@ exports.getTripsByUser = async (req, res) => {
   }
 };
 
+// ✅ Filter trips by date range
 exports.getTripsByDateRange = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-
     const trips = await Trip.find({
-      createdAt: {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
-      },
+      createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) }
     })
-      .populate("userId")
+      .populate("userId", "name email")
       .populate({
         path: "motorId",
         populate: {
           path: "motorcycleId",
           model: "Motorcycle",
+          select: "model engineDisplacement"
         },
+        select: "nickname"
       });
 
     res.status(200).json(trips);
@@ -128,60 +131,55 @@ exports.getTripsByDateRange = async (req, res) => {
   }
 };
 
+// ✅ Paginate all trips
 exports.getPaginatedTrips = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const trips = await Trip.find()
-      .populate("userId")
+      .populate("userId", "name email")
       .populate({
         path: "motorId",
         populate: {
           path: "motorcycleId",
           model: "Motorcycle",
+          select: "model engineDisplacement"
         },
+        select: "nickname"
       })
       .skip(skip)
-      .limit(limit)
+      .limit(parseInt(limit))
       .sort({ createdAt: -1 });
 
     const total = await Trip.countDocuments();
 
     res.status(200).json({
-      currentPage: page,
+      currentPage: parseInt(page),
       totalPages: Math.ceil(total / limit),
       totalRecords: total,
-      trips,
+      trips
     });
   } catch (err) {
     res.status(500).json({ msg: "Failed to fetch paginated trips", error: err.message });
   }
 };
 
-exports.getTripCount = async (req, res) => {
-  try {
-    const count = await Trip.countDocuments();
-    res.status(200).json({ totalTrips: count });
-  } catch (err) {
-    res.status(500).json({ msg: "Failed to count trips", error: err.message });
-  }
-};
 
-// ================= ANALYTICS =================
+/**
+ * ================= ANALYTICS =================
+ */
 
+// ✅ Get total distance, fuel, time, and cost across all trips
 exports.getTripAnalytics = async (req, res) => {
   try {
     const trips = await Trip.find();
 
     const totalDistance = trips.reduce((sum, t) => sum + parseFloat(t.distance || 0), 0);
-
     const totalFuel = trips.reduce((sum, t) => {
       const avg = ((t.fuelUsedMin || 0) + (t.fuelUsedMax || 0)) / 2;
       return sum + avg;
     }, 0);
-
     const totalTime = trips.reduce((sum, t) => sum + parseFloat(t.duration || 0), 0);
 
     res.status(200).json({
@@ -189,13 +187,14 @@ exports.getTripAnalytics = async (req, res) => {
       totalDistance,
       totalTime,
       totalFuel,
-      totalExpense: totalFuel * 100, // Peso per liter
+      totalExpense: totalFuel * 100 // Assume 100 PHP per liter
     });
   } catch (err) {
     res.status(500).json({ msg: "Failed to compute analytics", error: err.message });
   }
 };
 
+// ✅ Monthly summary: total distance, fuel, time, expense
 exports.getMonthlyTripSummary = async (req, res) => {
   try {
     const now = new Date();
@@ -216,21 +215,25 @@ exports.getMonthlyTripSummary = async (req, res) => {
       monthlyDistance,
       monthlyFuel,
       monthlyTime,
-      monthlyExpense: monthlyFuel * 100,
+      monthlyExpense: monthlyFuel * 100
     });
   } catch (err) {
     res.status(500).json({ msg: "Failed to fetch monthly summary", error: err.message });
   }
 };
 
-// ================= INSIGHTS =================
 
+/**
+ * ================= INSIGHTS =================
+ */
+
+// ✅ Top 5 users based on trip count
 exports.getTopUsersByTripCount = async (req, res) => {
   try {
     const results = await Trip.aggregate([
       { $group: { _id: "$userId", tripCount: { $sum: 1 } } },
       { $sort: { tripCount: -1 } },
-      { $limit: 5 },
+      { $limit: 5 }
     ]);
 
     res.status(200).json(results);
@@ -239,12 +242,13 @@ exports.getTopUsersByTripCount = async (req, res) => {
   }
 };
 
+// ✅ Top 5 most used motorcycles
 exports.getMostUsedMotors = async (req, res) => {
   try {
     const results = await Trip.aggregate([
       { $group: { _id: "$motorId", usageCount: { $sum: 1 } } },
       { $sort: { usageCount: -1 } },
-      { $limit: 5 },
+      { $limit: 5 }
     ]);
 
     res.status(200).json(results);
