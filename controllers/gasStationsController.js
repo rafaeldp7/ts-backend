@@ -1,3 +1,5 @@
+const axios = require("axios");
+
 const GasStation = require("../models/GasStation");
 const PriceHistory = require("../models/PriceHistoryModel");
 
@@ -136,7 +138,7 @@ exports.fetchAndSaveFromGoogle = async (req, res) => {
           location: `${lat},${lng}`,
           radius: 5000,
           type: "gas_station",
-          key: process.env.GOOGLE_MAPS_API_KEY,
+          key: "AIzaSyAzFeqvqzZUO9kfLVZZOrlOwP5Fg4LpLf4" || process.env.GOOGLE_MAPS_API_KEY ,
         },
       }
     );
