@@ -42,6 +42,8 @@
 
     "mongoose": "^8.12.1",
 
+    "node-cron": "^4.0.7",
+
     "nodemailer": "^7.0.3"
 
   },
