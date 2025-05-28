@@ -17,12 +17,12 @@ router.get("/nearby", gasStationController.getNearbyStations);
 
 
 // For now, just token validation (can add isAdmin later)
-router.get("/", auth, gasStationController.getAllStations);
-router.get("/analytics", auth, gasStationController.getAnalytics);
-router.get("/:id", auth, gasStationController.getStationById);
-router.post("/", auth, gasStationController.createStation);
-router.put("/:id", auth, gasStationController.adminUpdateStation);
-router.delete("/:id", auth, gasStationController.deleteStation);
+router.get("/", gasStationController.getAllStations);
+router.get("/analytics", gasStationController.getAnalytics);
+router.get("/:id", gasStationController.getStationById);
+router.post("/", gasStationController.createStation);
+router.put("/:id", gasStationController.adminUpdateStation);
+router.delete("/:id", gasStationController.deleteStation);
 router.get("/import", gasStationController.fetchAndSaveFromGoogle);
 
 
