@@ -61,7 +61,23 @@ exports.adminUpdateStation = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
     if (!station) return res.status(404).json({ msg: "Not found" });
 
-    const { fuelPrices, servicesOffered, openHours, brand } = req.body;
+    const {
+      name,
+      location,
+      fuelPrices,
+      servicesOffered,
+      openHours,
+      brand,
+    } = req.body;
+
+    if (name) station.name = name;
+
+    if (location?.lat && location?.lng) {
+      station.location = {
+        type: "Point",
+        coordinates: [location.lng, location.lat],
+      };
+    }
 
     if (fuelPrices) {
       await PriceHistory.create({
@@ -88,6 +104,7 @@ exports.adminUpdateStation = async (req, res) => {
     res.status(500).json({ msg: "Update failed", error: err.message });
   }
 };
+
 
 // ADMIN: Delete Station
 exports.deleteStation = async (req, res) => {
