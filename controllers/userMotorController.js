@@ -39,16 +39,16 @@ exports.getUserMotorsByUserId = async (req, res) => {
 // POST a new user motor
 exports.createUserMotor = async (req, res) => {
   try {
-    const { userId, motorcycleId, plateNumber, nickname } = req.body;
+    const { userId, motorcycleId, nickname } = req.body;
 
-    if (!userId || !motorcycleId || !plateNumber) {
+    if (!userId || !motorcycleId) {
       return res.status(400).json({ msg: "userId, motorcycleId, and plateNumber are required." });
     }
 
     const newUserMotor = new UserMotor({
       userId,
       motorcycleId,
-      plateNumber,
+    
       nickname,
     });
 
