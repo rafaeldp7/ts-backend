@@ -8,4 +8,3 @@ router.delete("/:id", controller.deleteDestination);
 router.put("/:id", controller.updateDestination);
 
 module.exports = router;
- 
