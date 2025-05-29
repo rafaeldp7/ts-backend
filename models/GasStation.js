@@ -28,7 +28,8 @@ const GasStationSchema = new mongoose.Schema(
       enum: ["admin", "user", "scraped", "unknown"],
       default: "unknown",
     },
-    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
+
     servicesOffered: { type: [String], default: [] },
     openHours: String,
     lastUpdated: { type: Date, default: Date.now },

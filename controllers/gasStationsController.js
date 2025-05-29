@@ -59,7 +59,7 @@ exports.createStation = async (req, res) => {
 exports.adminUpdateStation = async (req, res) => {
   try {
     const station = await GasStation.findById(req.params.id);
-    if (!station) return res.status(404).json({ msg: "Not found" });
+    if (!station) return res.status(404).json({ msg: "Station not found" });
 
     const {
       name,
@@ -70,40 +70,42 @@ exports.adminUpdateStation = async (req, res) => {
       brand,
     } = req.body;
 
+    // Optional updates
     if (name) station.name = name;
-
     if (location?.lat && location?.lng) {
       station.location = {
         type: "Point",
         coordinates: [location.lng, location.lat],
       };
     }
+    if (servicesOffered) station.servicesOffered = servicesOffered;
+    if (openHours) station.openHours = openHours;
+    if (brand) station.brand = brand;
 
-    if (fuelPrices) {
+    // Fuel price update with history
+    if (fuelPrices && (fuelPrices.gasoline || fuelPrices.diesel || fuelPrices.premium)) {
       await PriceHistory.create({
         stationId: station._id,
-        updatedBy: req.user._id,
+        updatedBy: req.user?._id || null, // optional user ref
         prices: fuelPrices,
         source: "admin",
       });
 
       station.fuelPrices = fuelPrices;
       station.priceSource = "admin";
-      station.updatedBy = req.user._id;
+      station.updatedBy = req.user?._id || null;
     }
 
-    if (servicesOffered) station.servicesOffered = servicesOffered;
-    if (openHours) station.openHours = openHours;
-    if (brand) station.brand = brand;
-
-    station.lastUpdated = Date.now();
+    station.lastUpdated = new Date();
     await station.save();
 
-    res.json({ msg: "Updated", station });
+    res.json({ msg: "Station updated", station });
   } catch (err) {
+    console.error("Update error:", err);
     res.status(500).json({ msg: "Update failed", error: err.message });
   }
 };
+
 
 
 // ADMIN: Delete Station
