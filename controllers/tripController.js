@@ -256,3 +256,59 @@ exports.getMostUsedMotors = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch top motors", error: err.message });
   }
 };
+
+// controller
+exports.getInProgressTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findOne({
+      userId: req.params.userId,
+      status: "in-progress",
+    }).sort({ createdAt: -1 });
+
+    if (!trip) return res.status(200).json(null); // no ongoing trip
+    res.status(200).json(trip);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// controller
+exports.getInProgressTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findOne({
+      userId: req.params.userId,
+      status: "in-progress",
+    }).sort({ createdAt: -1 });
+
+    if (!trip) return res.status(200).json(null); // no ongoing trip
+    res.status(200).json(trip);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// ✅ Update trip status (e.g., from in-progress ➝ completed)
+exports.updateTripStatus = async (req, res) => {
+  try {
+    const { tripId } = req.params;
+    const { status } = req.body;
+
+    if (!["planned", "in-progress", "completed", "cancelled"].includes(status)) {
+      return res.status(400).json({ msg: "Invalid status value." });
+    }
+
+    const updatedTrip = await Trip.findByIdAndUpdate(
+      tripId,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedTrip) {
+      return res.status(404).json({ msg: "Trip not found." });
+    }
+
+    res.status(200).json({ msg: "Trip status updated", trip: updatedTrip });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to update trip status", error: err.message });
+  }
+};
