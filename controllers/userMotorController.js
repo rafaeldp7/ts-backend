@@ -1,4 +1,6 @@
-const UserMotor = require("../models/userMotorModel");
+// controllers/userMotorController.js
+const UserMotor = require("../models/UserMotor");
+const FuelLog = require("../models/FuelLog");
 
 // GET all user-motor links (with full user and motor details)
 exports.getAllUserMotors = async (req, res) => {
@@ -13,8 +15,7 @@ exports.getAllUserMotors = async (req, res) => {
   }
 };
 
-
-// GET all motors for a specific user (extracted properly)
+// GET all motors for a specific user (formatted)
 exports.getUserMotorsByUserId = async (req, res) => {
   try {
     const motors = await UserMotor.find({ userId: req.params.id }).populate("motorcycleId");
@@ -34,22 +35,21 @@ exports.getUserMotorsByUserId = async (req, res) => {
   }
 };
 
-
-
 // POST a new user motor
 exports.createUserMotor = async (req, res) => {
   try {
-    const { userId, motorcycleId, nickname } = req.body;
+    const { userId, motorcycleId, nickname, plateNumber, registrationDate } = req.body;
 
     if (!userId || !motorcycleId) {
-      return res.status(400).json({ msg: "userId, motorcycleId, and plateNumber are required." });
+      return res.status(400).json({ msg: "userId and motorcycleId are required." });
     }
 
     const newUserMotor = new UserMotor({
       userId,
       motorcycleId,
-    
       nickname,
+      plateNumber,
+      registrationDate,
     });
 
     await newUserMotor.save();
@@ -67,11 +67,11 @@ exports.createUserMotor = async (req, res) => {
 exports.updateUserMotor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { motorcycleId, plateNumber, nickname } = req.body;
+    const { motorcycleId, plateNumber, nickname, registrationDate } = req.body;
 
     const updated = await UserMotor.findByIdAndUpdate(
       id,
-      { motorcycleId, plateNumber, nickname },
+      { motorcycleId, plateNumber, nickname, registrationDate },
       { new: true }
     );
 
@@ -89,7 +89,6 @@ exports.updateUserMotor = async (req, res) => {
 exports.deleteUserMotor = async (req, res) => {
   try {
     const { id } = req.params;
-
     const deleted = await UserMotor.findByIdAndDelete(id);
 
     if (!deleted) {
@@ -102,8 +101,7 @@ exports.deleteUserMotor = async (req, res) => {
   }
 };
 
-
-
+// GET total user motor count
 exports.getUserMotorCount = async (req, res) => {
   try {
     const count = await UserMotor.countDocuments();
@@ -111,4 +109,45 @@ exports.getUserMotorCount = async (req, res) => {
   } catch (err) {
     res.status(500).json({ msg: "Failed to count user motors", error: err.message });
   }
+};
+
+// POST log oil change date
+exports.logOilChange = async (req, res) => {
+  try {
+    await UserMotor.findByIdAndUpdate(req.params.id, {
+      $push: { changeOilHistory: { date: new Date() } },
+    });
+    res.status(200).json({ msg: "Oil change logged successfully." });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to log oil change", error: err.message });
+  }
+};
+
+// POST log tune-up date
+exports.logTuneUp = async (req, res) => {
+  try {
+    await UserMotor.findByIdAndUpdate(req.params.id, {
+      $push: { tuneUpHistory: { date: new Date() } },
+    });
+    res.status(200).json({ msg: "Tune-up logged successfully." });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to log tune-up", error: err.message });
+  }
+};
+
+// Recalculate fuel consumption stats when logs are updated
+exports.recalculateFuelStats = async (motorId) => {
+  const logs = await FuelLog.find({ motorId });
+  if (logs.length === 0) return;
+
+  const allLiters = logs.map(log => log.liters);
+  const average = allLiters.reduce((a, b) => a + b, 0) / allLiters.length;
+  const max = Math.max(...allLiters);
+  const min = Math.min(...allLiters);
+
+  await UserMotor.findByIdAndUpdate(motorId, {
+    "fuelConsumptionStats.average": average,
+    "fuelConsumptionStats.max": max,
+    "fuelConsumptionStats.min": min,
+  });
 };

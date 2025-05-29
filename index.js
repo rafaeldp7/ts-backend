@@ -50,6 +50,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/fuel-logs", fuelLogRoutes);
 app.use("/api/saved-destinations", savedDestinationRoutes);
 app.use("/api/gas-stations", gasStationRoutes);
+app.use("/api/analytics", require("./routes/analyticsRoutes"));
 
 
 // Default Route

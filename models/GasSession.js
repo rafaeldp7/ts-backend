@@ -1,3 +1,5 @@
+// hindi rin nagamit ito kasi masyadong complex, though maganda sya pero hindi kinayang iimplement.
+
 const mongoose = require("mongoose");
 
 const GasSessionSchema = new mongoose.Schema({
