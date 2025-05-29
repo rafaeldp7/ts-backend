@@ -25,6 +25,8 @@ router.post("/", gasStationController.createStation);
 router.put("/:id", gasStationController.adminUpdateStation);
 router.delete("/:id", gasStationController.deleteStation);
 
+router.get("/history/:id", priceHistoryController.getPriceHistoryByStation);
+
 
 
 module.exports = router;

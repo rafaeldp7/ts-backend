@@ -210,4 +210,20 @@ exports.fetchAndSaveFromGoogle = async (req, res) => {
   }
 };
 
+exports.getPriceHistoryByStation = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const history = await PriceHistory.find({ stationId: id })
+      .populate("updatedBy", "name email")
+      .sort({ createdAt: -1 });
+
+    if (!history.length)
+      return res.status(404).json({ msg: "No history found for this station." });
+
+    res.status(200).json(history);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch price history", error: err.message });
+  }
+};
 

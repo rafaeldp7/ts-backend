@@ -151,3 +151,59 @@ exports.recalculateFuelStats = async (motorId) => {
     "fuelConsumptionStats.min": min,
   });
 };
+
+exports.getUserOverviewAnalytics = async (req, res) => {
+  try {
+    const motors = await UserMotor.find({ userId: req.params.userId });
+
+    let totalTrips = 0;
+    let totalDistance = 0;
+    let totalFuelUsed = 0;
+
+    motors.forEach(motor => {
+      totalTrips += motor.analytics?.tripsCompleted || 0;
+      totalDistance += motor.analytics?.totalDistance || 0;
+      totalFuelUsed += motor.analytics?.totalFuelUsed || 0;
+    });
+
+    res.status(200).json({
+      totalMotors: motors.length,
+      totalTrips,
+      totalDistance,
+      totalFuelUsed,
+      avgFuelPerKm: totalDistance > 0 ? (totalFuelUsed / totalDistance).toFixed(2) : 0,
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to compute user overview", error: err.message });
+  }
+};
+exports.getMotorOverviewAnalytics = async (req, res) => {
+  try {
+    const motor = await UserMotor.findById(req.params.motorId);
+
+    if (!motor) return res.status(404).json({ msg: "Motor not found" });
+
+    const analytics = motor.analytics || {};
+    const fuelStats = motor.fuelConsumptionStats || {};
+
+    res.status(200).json({
+      motorId: motor._id,
+      nickname: motor.nickname,
+      plateNumber: motor.plateNumber,
+      totalTrips: analytics.tripsCompleted || 0,
+      totalDistance: analytics.totalDistance || 0,
+      totalFuelUsed: analytics.totalFuelUsed || 0,
+      fuelEfficiency: analytics.totalDistance > 0
+        ? (analytics.totalFuelUsed / analytics.totalDistance).toFixed(2)
+        : null,
+      alerts: analytics.maintenanceAlerts || [],
+      fuelStats: {
+        average: fuelStats.average || 0,
+        max: fuelStats.max || 0,
+        min: fuelStats.min || 0,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch motor analytics", error: err.message });
+  }
+};

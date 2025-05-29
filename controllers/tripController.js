@@ -31,13 +31,47 @@ exports.getUserTrips = async (req, res) => {
 exports.addTrip = async (req, res) => {
   try {
     const {
-      userId, motorId, distance, fuelUsedMin, fuelUsedMax,
-      timeArrived, eta, destination
+      userId,
+      motorId,
+      distance,
+      fuelUsedMin,
+      fuelUsedMax,
+      timeArrived,
+      eta,
+      destination,
+
+      // 🔽 NEW FIELDS
+      actualDistance,
+      actualFuelUsedMin,
+      actualFuelUsedMax,
+      kmph,
+      rerouteCount,
+      wasInBackground,
+      showAnalyticsModal,
+      analyticsNotes,
+      trafficCondition = "moderate" // default if not sent
     } = req.body;
 
     const newTrip = new Trip({
-      userId, motorId, distance, fuelUsedMin, fuelUsedMax,
-      timeArrived, eta, destination
+      userId,
+      motorId,
+      distance,
+      fuelUsedMin,
+      fuelUsedMax,
+      timeArrived,
+      eta,
+      destination,
+
+      // ✅ NEW
+      actualDistance,
+      actualFuelUsedMin,
+      actualFuelUsedMax,
+      kmph,
+      rerouteCount,
+      wasInBackground,
+      showAnalyticsModal,
+      analyticsNotes,
+      trafficCondition
     });
 
     await newTrip.save();
@@ -257,20 +291,6 @@ exports.getMostUsedMotors = async (req, res) => {
   }
 };
 
-// controller
-exports.getInProgressTrip = async (req, res) => {
-  try {
-    const trip = await Trip.findOne({
-      userId: req.params.userId,
-      status: "in-progress",
-    }).sort({ createdAt: -1 });
-
-    if (!trip) return res.status(200).json(null); // no ongoing trip
-    res.status(200).json(trip);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
 
 // controller
 exports.getInProgressTrip = async (req, res) => {
@@ -286,6 +306,7 @@ exports.getInProgressTrip = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // ✅ Update trip status (e.g., from in-progress ➝ completed)
 exports.updateTripStatus = async (req, res) => {

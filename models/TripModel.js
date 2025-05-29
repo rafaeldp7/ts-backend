@@ -25,6 +25,7 @@ const TripSchema = new mongoose.Schema({
   actualFuelUsedMin: { type: Number, default: null },
   actualFuelUsedMax: { type: Number, default: null },
   duration: { type: Number }, // in minutes
+  kmph: { type: Number, default: 0 },
 
   // 📍 Location
   startLocation: {
@@ -35,11 +36,22 @@ const TripSchema = new mongoose.Schema({
     lat: { type: Number },
     lng: { type: Number },
   },
-
+  
   // 🛣 Routing
   plannedPolyline: { type: String },
   actualPolyline: { type: String },
   wasRerouted: { type: Boolean, default: false },
+  rerouteCount: { type: Number, default: 0 },
+
+  // 🔁 Background & Analytics
+  wasInBackground: { type: Boolean, default: false },
+  showAnalyticsModal: { type: Boolean, default: false },
+  analyticsNotes: { type: String },
+  trafficCondition: {
+    type: String,
+    enum: ["light", "moderate", "heavy"],
+    default: "moderate",
+  },
 
   // 🧭 Trip Summary
   destination: { type: String, required: true },
@@ -53,6 +65,7 @@ const TripSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+// 🕒 Auto-calculate duration
 TripSchema.pre("save", function (next) {
   if (this.timeArrived && this.eta) {
     const arrival = moment(this.timeArrived, "HH:mm");

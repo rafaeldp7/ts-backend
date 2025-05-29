@@ -1,23 +1,31 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../controllers/userMotorController");
+const {
+  getAllUserMotors,
+  getUserMotorsByUserId,
+  createUserMotor,
+  updateUserMotor,
+  deleteUserMotor,
+  getUserMotorCount,
+  logOilChange,
+  logTuneUp,
+  getUserOverviewAnalytics,
+  getMotorOverviewAnalytics,
+} = require("../controllers/userMotorController");
 
-// Get all user-motor links with populated data
-router.get("/", controller.getAllUserMotors);
+// 🚗 User-Motor CRUD
+router.get("/", getAllUserMotors); // GET all
+router.get("/count", getUserMotorCount); // GET total count
+router.get("/user/:id", getUserMotorsByUserId); // GET by userId
+router.post("/", createUserMotor); // POST new motor
+router.put("/:id", updateUserMotor); // PUT update motor
+router.delete("/:id", deleteUserMotor); // DELETE motor
 
-// Get all motors for a specific user by user ID
-router.get("/user/:id", controller.getUserMotorsByUserId);
+router.get("/user-overview/:userId", getUserOverviewAnalytics);
+router.get("/motor-overview/:motorId", getMotorOverviewAnalytics);
 
-// Create a new user motor link
-router.post("/", controller.createUserMotor);
-
-// Update an existing user motor by its ID
-router.put("/:id", controller.updateUserMotor);
-
-// Delete a user motor entry by ID
-router.delete("/:id", controller.deleteUserMotor);
-
-// Get count of all user-motor entries
-router.get("/count/all", controller.getUserMotorCount);
+// 🛠️ Maintenance Logs
+router.post("/:id/oil-change", logOilChange); // Log oil change
+router.post("/:id/tune-up", logTuneUp); // Log tune-up
 
 module.exports = router;

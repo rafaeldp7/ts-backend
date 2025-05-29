@@ -16,6 +16,10 @@ const reportRoutes = require("./routes/reportRoutes");
 const savedDestinationRoutes = require("./routes/savedDestinationRoutes");
 const fuelLogRoutes = require("./routes/fuelLogRoutes");
 const gasStationRoutes = require("./routes/gasStationsRoutes");
+const leaderboardAnalyticsRoutes = require("./routes/leaderboardAnalyticsRoutes");
+const fuelStatsRoutes = require("./routes/fuelStatsRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+
 
 const app = express();
 
@@ -51,7 +55,10 @@ app.use("/api/fuel-logs", fuelLogRoutes);
 app.use("/api/saved-destinations", savedDestinationRoutes);
 app.use("/api/gas-stations", gasStationRoutes);
 app.use("/api/analytics", require("./routes/analyticsRoutes"));
-
+app.use("/api/general-analytics", require("./routes/generalAnalyticsRoutes"));
+app.use("/api/leaderboard-analytics", leaderboardAnalyticsRoutes);
+app.use("/api/fuel-stats", fuelStatsRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Default Route
 app.get("/", (req, res) => {
