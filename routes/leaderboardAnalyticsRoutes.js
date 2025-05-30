@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const controller = require("../controllers/leaderboardAnalyticsController");
+const controller = require("../controllers/leaderboardsAnalyticsController");
 
 router.get("/monthly", controller.getMonthlyLeaderboard);
 
