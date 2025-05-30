@@ -10,10 +10,10 @@ router.get("/generate-daily", generateDailyAnalytics);
 router.get("/daily-history/:motorId", getMotorDailyAnalyticsHistory);
 router.get("/user-timeline/:userId", analyticsController.getUserAnalyticsTimeline);
 
-router.get("/motor-efficiency", analyticsController.getMotorEfficiencyStats);
+
 router.get("/fuel-log-trend/:userId", analyticsController.getUserFuelLogTrend);
 
-router.get("/efficiency-ranking", getMotorEfficiencyRanking);
+
 
 
 module.exports = router;
