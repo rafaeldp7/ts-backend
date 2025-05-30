@@ -12,7 +12,7 @@ router.get("/type/:type", reportController.getReportsByType);
 router.post("/daterange", reportController.getReportsByDateRange);
 router.get("/user/:userId", reportController.getReportsByUser);
 router.get("/locations/all", reportController.getAllReportLocations);
-router.get("/in-progress/:userId", getInProgressTrip);
+
 
 // DELETE
 router.delete("/:id", reportController.deleteReport);

@@ -1,6 +1,6 @@
 const Trip = require("../models/TripModel");
 const moment = require("moment");
-
+const UserMotor = require("../models/UserMotor");
 /**
  * ================= USER SIDE =================
  */
@@ -331,5 +331,93 @@ exports.updateTripStatus = async (req, res) => {
     res.status(200).json({ msg: "Trip status updated", trip: updatedTrip });
   } catch (err) {
     res.status(500).json({ msg: "Failed to update trip status", error: err.message });
+  }
+};
+exports.completeTripAndUpdateMotor = async (req, res) => {
+  try {
+    const tripId = req.params.id;
+    const trip = await Trip.findById(tripId);
+    if (!trip) return res.status(404).json({ msg: "Trip not found." });
+
+    // Update Trip Status
+    trip.status = "completed";
+    await trip.save();
+
+    // Update related UserMotor predictive fields
+    const motor = await UserMotor.findById(trip.motorId);
+    if (!motor) return res.status(404).json({ msg: "UserMotor not found." });
+
+    const distance = trip.actualDistance || trip.distance || 0;
+    const fuelUsed = trip.actualFuelUsedMax || trip.fuelUsedMax || 0;
+
+    // Update analytics fields
+    motor.analytics.tripsCompleted += 1;
+    motor.analytics.totalDistance += distance;
+    motor.analytics.totalFuelUsed += fuelUsed;
+
+    // Update predictive mileage fields
+    motor.distanceSinceOilChange = (motor.distanceSinceOilChange || 0) + distance;
+    motor.distanceSinceTuneUp = (motor.distanceSinceTuneUp || 0) + distance;
+
+    await motor.save();
+
+    res.status(200).json({ msg: "Trip completed and motor updated." });
+  } catch (err) {
+    console.error("Error completing trip:", err);
+    res.status(500).json({ msg: "Server error", error: err.message });
+  }
+};
+
+// ✅ Predictive Summary API
+exports.getPredictiveSummary = async (req, res) => {
+  try {
+    const motor = await UserMotor.findById(req.params.motorId).populate("motorcycleId");
+    if (!motor) return res.status(404).json({ msg: "Motor not found." });
+
+    const oilChangeLimit = 2000;
+    const tuneUpLimit = 5000;
+    const ageLimit = 3; // in years
+
+    const now = new Date();
+    const registered = motor.registrationDate || now;
+    const ageYears = Math.floor((now - registered) / (1000 * 60 * 60 * 24 * 365));
+
+    res.json({
+      motorId: motor._id,
+      nickname: motor.nickname,
+      plateNumber: motor.plateNumber,
+      fuelType: motor.motorcycleId?.fuelType || "N/A",
+      age: ageYears,
+      distanceSinceOilChange: motor.distanceSinceOilChange || 0,
+      distanceSinceTuneUp: motor.distanceSinceTuneUp || 0,
+      oilChangeDue: (motor.distanceSinceOilChange || 0) >= oilChangeLimit,
+      tuneUpDue: (motor.distanceSinceTuneUp || 0) >= tuneUpLimit,
+      ageStatus: ageYears >= ageLimit ? "Consider replacing" : "Good condition",
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch predictive summary", error: err.message });
+  }
+};
+
+// ✅ Reset predictive data for motor
+exports.resetPredictiveCounters = async (req, res) => {
+  try {
+    const { motorId } = req.params;
+    const { resetType } = req.body; // e.g., "oil", "tuneUp", or "both"
+
+    const motor = await UserMotor.findById(motorId);
+    if (!motor) return res.status(404).json({ msg: "Motor not found." });
+
+    if (resetType === "oil" || resetType === "both") {
+      motor.distanceSinceOilChange = 0;
+    }
+    if (resetType === "tuneUp" || resetType === "both") {
+      motor.distanceSinceTuneUp = 0;
+    }
+
+    await motor.save();
+    res.status(200).json({ msg: "Predictive counters reset successfully", motor });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to reset predictive counters", error: err.message });
   }
 };
