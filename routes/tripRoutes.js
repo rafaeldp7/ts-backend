@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const tripController = require("../controllers/tripController");
+const { updateTripStatus } = tripController;
+
 
 // ============ USER SIDE ============
 router.get("/user/:userId", tripController.getUserTrips);         // 🟢 Get all trips of a specific user
 router.post("/", tripController.addTrip);                         // 🟢 Add a new trip
-
-router.put("/update-status/:tripId", updateTripStatus);
-
+router.put("/update-status/:tripId", tripController.updateTripStatus);
 
 
 // ============ ADMIN SIDE ============
