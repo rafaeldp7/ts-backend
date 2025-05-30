@@ -19,7 +19,7 @@ const gasStationRoutes = require("./routes/gasStationsRoutes");
 const leaderboardAnalyticsRoutes = require("./routes/leaderboardAnalyticsRoutes");
 const fuelStatsRoutes = require("./routes/fuelStatsRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
-
+const maintenanceRoutes = require("./routes/maintenanceRoutes");
 
 const app = express();
 
@@ -59,6 +59,8 @@ app.use("/api/general-analytics", require("./routes/generalAnalyticsRoutes"));
 app.use("/api/leaderboard-analytics", leaderboardAnalyticsRoutes);
 app.use("/api/fuel-stats", fuelStatsRoutes);
 app.use("/api/notifications", notificationRoutes);
+
+app.use("/api/maintenance-records", maintenanceRoutes);
 
 // Default Route
 app.get("/", (req, res) => {

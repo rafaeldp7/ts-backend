@@ -8,7 +8,7 @@ const reportSchema = new mongoose.Schema({
   },
   reportType: {
     type: String,
-    enum: ["Accident", "Traffic Jam", "Road Closure", "Hazard", "Police"],
+    enum: ["Accident", "Traffic Jam", "Road Closure", "Hazard"],
     required: true
   },
   description: {
