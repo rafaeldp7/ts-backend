@@ -1,11 +1,20 @@
 const express = require("express");
 const router = express.Router();
-const {
-  addMaintenanceRecord,
-  getMaintenanceByUser,
-} = require("../controllers/maintenanceController");
+const maintenanceController = require("../controllers/maintenanceController");
 
-router.post("/", addMaintenanceRecord);
-router.get("/user/:userId", getMaintenanceByUser);
+// Create
+router.post("/", maintenanceController.createMaintenanceRecord);
+
+// Get all by motorId
+router.get("/motor/:motorId", maintenanceController.getMotorMaintenanceRecords);
+
+// Get all by userId
+router.get("/user/:userId", maintenanceController.getUserMaintenanceRecords);
+
+// Get single record by ID
+router.get("/:id", maintenanceController.getMaintenanceRecordById);
+
+// Delete (optional)
+router.delete("/:id", maintenanceController.deleteMaintenanceRecord);
 
 module.exports = router;

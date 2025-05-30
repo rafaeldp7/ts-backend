@@ -2,19 +2,35 @@ const mongoose = require("mongoose");
 
 const MaintenanceRecordSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    motorId: { type: mongoose.Schema.Types.ObjectId, ref: "UserMotor", required: true },
-    type: {
-      type: String,
-      enum: ["change_oil", "tune_up", "repair", "other"],
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
     },
-    timestamp: { type: Date, default: Date.now },
-    location: {
-      lat: { type: Number },
-      lng: { type: Number },
+    motorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UserMotor",
+      required: true,
     },
-    details: { type: String },
+    type: {
+      type: String,
+      enum: ["refuel", "oil_change", "tune_up", "repair", "other"],
+      required: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+    location: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      address: { type: String },
+    },
+    details: {
+      cost: { type: Number },
+      quantity: { type: Number },
+      notes: { type: String },
+    },
   },
   { timestamps: true }
 );
