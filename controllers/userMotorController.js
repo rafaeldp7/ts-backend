@@ -1,6 +1,6 @@
 // controllers/userMotorController.js
 const UserMotor = require("../models/userMotorModel");
-const FuelLog = require("../models/FuelLog");
+const FuelLog = require("../models/FuelLogModel");
 
 // GET all user-motor links (with full user and motor details)
 exports.getAllUserMotors = async (req, res) => {
