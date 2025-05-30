@@ -25,7 +25,7 @@ router.post("/", gasStationController.createStation);
 router.put("/:id", gasStationController.adminUpdateStation);
 router.delete("/:id", gasStationController.deleteStation);
 
-router.get("/history/:id", priceHistoryController.getPriceHistoryByStation);
+router.get("/history/:id", gasStationController.getPriceHistoryByStation);
 
 
 
