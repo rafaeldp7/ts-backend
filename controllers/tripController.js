@@ -1,6 +1,6 @@
 const Trip = require("../models/TripModel");
 const moment = require("moment");
-const UserMotor = require("../models/UserMotor");
+const UserMotor = require("../models/userMotorModel");
 /**
  * ================= USER SIDE =================
  */
