@@ -5,7 +5,7 @@ const tripController = require("../controllers/tripController");
 // ============ USER SIDE ============
 router.get("/user/:userId", tripController.getUserTrips);         // 🟢 Get all trips of a specific user
 router.post("/", tripController.addTrip);                         // 🟢 Add a new trip
-router.get("/in-progress/:userId", getInProgressTrip);
+
 router.put("/update-status/:tripId", updateTripStatus);
 
 
