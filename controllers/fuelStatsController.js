@@ -1,4 +1,4 @@
-const FuelLog = require("../models/FuelLog");
+const FuelLog = require("../models/FuelLogModel");
 
 
 // GET: Fuel stats (min, max, average) for a given motor

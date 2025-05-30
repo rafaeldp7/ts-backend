@@ -50,7 +50,7 @@ router.get("/admin/overview", controller.getFuelLogOverview);
 // 📊 Average fuel used per motor
 // METHOD: GET
 // Returns: Array of { motorId, averageLiters }
-router.get("/admin/avg-per-motor", controller.getFuelLogAvgPerMotor);
+router.get("/admin/avg-per-motor", controller.getAvgFuelByMotor);
 
 // 🏆 Top 5 users by total fuel spending
 // METHOD: GET
