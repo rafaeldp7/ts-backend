@@ -45,7 +45,7 @@ router.delete("/:id", controller.deleteFuelLog);
 // 📊 Basic overview (total logs, liters, cost)
 // METHOD: GET
 // Returns: { totalLogs, totalLiters, totalSpent }
-router.get("/admin/overview", controller.getFuelLogAnalyticsOverview);
+router.get("/admin/overview", controller.getFuelLogOverview);
 
 // 📊 Average fuel used per motor
 // METHOD: GET
