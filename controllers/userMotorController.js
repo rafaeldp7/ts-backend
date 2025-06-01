@@ -1,6 +1,7 @@
 // controllers/userMotorController.js
 const UserMotor = require("../models/userMotorModel");
 const FuelLog = require("../models/FuelLogModel");
+const Trip = require("../models/TripModel");
 
 // GET all user-motor links (with full user and motor details)
 exports.getAllUserMotors = async (req, res) => {
@@ -44,8 +45,7 @@ exports.getUserMotorsByUserId = async (req, res) => {
 
 
 
-const UserMotor = require("../models/UserMotor");
-const Trip = require("../models/Trip");
+
 
 exports.recalculateAllMotorAnalytics = async (req, res) => {
   try {
