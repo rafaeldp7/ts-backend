@@ -49,7 +49,7 @@ exports.addTrip = async (req, res) => {
       wasInBackground,
       showAnalyticsModal,
       analyticsNotes,
-      trafficCondition = "moderate" // default if not sent
+      trafficCondition = "moderate",
     } = req.body;
 
     const newTrip = new Trip({
@@ -62,7 +62,6 @@ exports.addTrip = async (req, res) => {
       eta,
       destination,
 
-      // ✅ NEW
       actualDistance,
       actualFuelUsedMin,
       actualFuelUsedMax,
@@ -71,16 +70,60 @@ exports.addTrip = async (req, res) => {
       wasInBackground,
       showAnalyticsModal,
       analyticsNotes,
-      trafficCondition
+      trafficCondition,
     });
 
     await newTrip.save();
+
+    // ✅ Update UserMotor.analytics
+    const traveledDistance = actualDistance || distance;
+    const fuelUsed = actualFuelUsedMax || fuelUsedMax || 0;
+
+    await UserMotor.findByIdAndUpdate(motorId, {
+      $inc: {
+        "analytics.totalDistance": traveledDistance,
+        "analytics.totalFuelUsed": fuelUsed,
+        "analytics.tripsCompleted": 1,
+      },
+    });
+
     res.status(201).json({ msg: "Trip recorded", trip: newTrip });
   } catch (err) {
     res.status(500).json({ msg: "Failed to add trip", error: err.message });
   }
 };
 
+
+exports.updateTrip = async (req, res) => {
+  try {
+    const oldTrip = await Trip.findById(req.params.id);
+    if (!oldTrip) return res.status(404).json({ msg: "Trip not found" });
+
+    const oldDistance = oldTrip.actualDistance || oldTrip.distance;
+    const oldFuel = oldTrip.actualFuelUsedMax || oldTrip.fuelUsedMax || 0;
+
+    const updatedTrip = await Trip.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+
+    const newDistance = updatedTrip.actualDistance || updatedTrip.distance;
+    const newFuel = updatedTrip.actualFuelUsedMax || updatedTrip.fuelUsedMax || 0;
+
+    const distanceDiff = newDistance - oldDistance;
+    const fuelDiff = newFuel - oldFuel;
+
+    await UserMotor.findByIdAndUpdate(updatedTrip.motorId, {
+      $inc: {
+        "analytics.totalDistance": distanceDiff,
+        "analytics.totalFuelUsed": fuelDiff,
+      },
+    });
+
+    res.status(200).json(updatedTrip);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to update trip", error: err.message });
+  }
+};
 
 /**
  * ================= ADMIN SIDE =================
@@ -111,13 +154,29 @@ exports.getAllTrips = async (req, res) => {
 // ✅ Delete a trip by ID
 exports.deleteTrip = async (req, res) => {
   try {
-    const deleted = await Trip.findByIdAndDelete(req.params.id);
-    if (!deleted) return res.status(404).json({ msg: "Trip not found" });
-    res.status(200).json({ msg: "Trip deleted successfully" });
+    const trip = await Trip.findById(req.params.id);
+    if (!trip) return res.status(404).json({ msg: "Trip not found" });
+
+    const traveledDistance = trip.actualDistance || trip.distance;
+    const fuelUsed = trip.actualFuelUsedMax || trip.fuelUsedMax || 0;
+
+    // ✅ Reverse UserMotor.analytics
+    await UserMotor.findByIdAndUpdate(trip.motorId, {
+      $inc: {
+        "analytics.totalDistance": -traveledDistance,
+        "analytics.totalFuelUsed": -fuelUsed,
+        "analytics.tripsCompleted": -1,
+      },
+    });
+
+    await trip.deleteOne();
+
+    res.status(200).json({ msg: "Trip deleted successfully and motor stats updated." });
   } catch (err) {
     res.status(500).json({ msg: "Failed to delete trip", error: err.message });
   }
 };
+
 
 // ✅ Admin view: Get trips by specific user
 exports.getTripsByUser = async (req, res) => {
@@ -385,7 +444,7 @@ exports.getPredictiveSummary = async (req, res) => {
     res.json({
       motorId: motor._id,
       nickname: motor.nickname,
-      plateNumber: motor.plateNumber,
+
       fuelType: motor.motorcycleId?.fuelType || "N/A",
       age: ageYears,
       distanceSinceOilChange: motor.distanceSinceOilChange || 0,
