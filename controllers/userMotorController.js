@@ -44,9 +44,11 @@ exports.getUserMotorsByUserId = async (req, res) => {
 
 
 
+const UserMotor = require("../models/UserMotor");
+const Trip = require("../models/Trip");
+
 exports.recalculateAllMotorAnalytics = async (req, res) => {
   try {
-    // Fetch all motors
     const motors = await UserMotor.find();
 
     for (const motor of motors) {
@@ -56,7 +58,7 @@ exports.recalculateAllMotorAnalytics = async (req, res) => {
       let totalFuelUsed = 0;
       let tripsCompleted = trips.length;
 
-      trips.forEach(trip => {
+      trips.forEach((trip) => {
         const traveled = trip.actualDistance || trip.distance || 0;
         const fuel = trip.actualFuelUsedMax || trip.fuelUsedMax || 0;
 
@@ -64,7 +66,6 @@ exports.recalculateAllMotorAnalytics = async (req, res) => {
         totalFuelUsed += fuel;
       });
 
-      // Update analytics in UserMotor
       await UserMotor.findByIdAndUpdate(motor._id, {
         analytics: {
           totalDistance,
@@ -74,12 +75,19 @@ exports.recalculateAllMotorAnalytics = async (req, res) => {
       });
     }
 
-    res.status(200).json({ msg: "Motor analytics successfully recalculated." });
+    res.status(200).json({
+      msg: "✅ Motor analytics successfully recalculated.",
+      updatedMotors: motors.length,
+    });
   } catch (error) {
-    console.error("Recalculation failed:", error);
-    res.status(500).json({ msg: "Failed to recalculate motor analytics", error: error.message });
+    console.error("❌ Recalculation failed:", error);
+    res.status(500).json({
+      msg: "❌ Failed to recalculate motor analytics",
+      error: error.message,
+    });
   }
 };
+
 
 
 // POST a new user motor
