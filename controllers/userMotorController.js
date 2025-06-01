@@ -16,16 +16,23 @@ exports.getAllUserMotors = async (req, res) => {
 };
 
 // GET all motors for a specific user (formatted)
+// GET all motors for a specific user (formatted)
 exports.getUserMotorsByUserId = async (req, res) => {
   try {
     const motors = await UserMotor.find({ userId: req.params.id }).populate("motorcycleId");
 
     const formatted = motors.map((motor) => ({
-      name: motor.motorcycleId.model,
-      fuelEfficiency: motor.motorcycleId.fuelConsumption,
-      plateNumber: motor.plateNumber,
-      nickname: motor.nickname,
       _id: motor._id,
+      nickname: motor.nickname,
+      name: motor.motorcycleId?.model || "Unknown Model",
+      fuelEfficiency: motor.motorcycleId?.fuelConsumption || 0,
+      engineDisplacement: motor.motorcycleId?.engineDisplacement || null,
+
+      analytics: {
+        totalDistance: motor.analytics?.totalDistance || 0,
+        tripsCompleted: motor.analytics?.tripsCompleted || 0,
+        totalFuelUsed: motor.analytics?.totalFuelUsed || 0,
+      },
     }));
 
     res.json(formatted);
@@ -35,10 +42,11 @@ exports.getUserMotorsByUserId = async (req, res) => {
   }
 };
 
+
 // POST a new user motor
 exports.createUserMotor = async (req, res) => {
   try {
-    const { userId, motorcycleId, nickname, plateNumber, registrationDate } = req.body;
+    const { userId, motorcycleId, nickname,  registrationDate } = req.body;
 
     if (!userId || !motorcycleId) {
       return res.status(400).json({ msg: "userId and motorcycleId are required." });
@@ -48,7 +56,7 @@ exports.createUserMotor = async (req, res) => {
       userId,
       motorcycleId,
       nickname,
-      plateNumber,
+
       registrationDate,
     });
 
@@ -67,11 +75,11 @@ exports.createUserMotor = async (req, res) => {
 exports.updateUserMotor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { motorcycleId, plateNumber, nickname, registrationDate } = req.body;
+    const { motorcycleId, nickname, registrationDate } = req.body;
 
     const updated = await UserMotor.findByIdAndUpdate(
       id,
-      { motorcycleId, plateNumber, nickname, registrationDate },
+      { motorcycleId, nickname, registrationDate },
       { new: true }
     );
 
@@ -189,7 +197,7 @@ exports.getMotorOverviewAnalytics = async (req, res) => {
     res.status(200).json({
       motorId: motor._id,
       nickname: motor.nickname,
-      plateNumber: motor.plateNumber,
+
       totalTrips: analytics.tripsCompleted || 0,
       totalDistance: analytics.totalDistance || 0,
       totalFuelUsed: analytics.totalFuelUsed || 0,
