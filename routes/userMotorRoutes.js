@@ -11,6 +11,7 @@ const {
   logTuneUp,
   getUserOverviewAnalytics,
   getMotorOverviewAnalytics,
+  recalculateAllMotorAnalytics,
 } = require("../controllers/userMotorController");
 
 // 🚗 User-Motor CRUD
@@ -27,5 +28,9 @@ router.get("/motor-overview/:motorId", getMotorOverviewAnalytics);
 // 🛠️ Maintenance Logs
 router.post("/:id/oil-change", logOilChange); // Log oil change
 router.post("/:id/tune-up", logTuneUp); // Log tune-up
+
+// UPDATE DATA
+router.put("/fix-motor-analytics", recalculateAllMotorAnalytics);
+
 
 module.exports = router;

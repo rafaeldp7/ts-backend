@@ -43,6 +43,45 @@ exports.getUserMotorsByUserId = async (req, res) => {
 };
 
 
+
+exports.recalculateAllMotorAnalytics = async (req, res) => {
+  try {
+    // Fetch all motors
+    const motors = await UserMotor.find();
+
+    for (const motor of motors) {
+      const trips = await Trip.find({ motorId: motor._id });
+
+      let totalDistance = 0;
+      let totalFuelUsed = 0;
+      let tripsCompleted = trips.length;
+
+      trips.forEach(trip => {
+        const traveled = trip.actualDistance || trip.distance || 0;
+        const fuel = trip.actualFuelUsedMax || trip.fuelUsedMax || 0;
+
+        totalDistance += traveled;
+        totalFuelUsed += fuel;
+      });
+
+      // Update analytics in UserMotor
+      await UserMotor.findByIdAndUpdate(motor._id, {
+        analytics: {
+          totalDistance,
+          totalFuelUsed,
+          tripsCompleted,
+        },
+      });
+    }
+
+    res.status(200).json({ msg: "Motor analytics successfully recalculated." });
+  } catch (error) {
+    console.error("Recalculation failed:", error);
+    res.status(500).json({ msg: "Failed to recalculate motor analytics", error: error.message });
+  }
+};
+
+
 // POST a new user motor
 exports.createUserMotor = async (req, res) => {
   try {
