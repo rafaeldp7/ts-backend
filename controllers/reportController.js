@@ -4,27 +4,30 @@ const Report = require("../models/Reports.js");
 exports.createReport = async (req, res) => {
   try {
     console.log("Incoming data:", req.body);
-    const { reportType, location, userId, description } = req.body;
+    const { reportType, location, userId, description, address, verified } = req.body;
 
-    // Validation
-    if (
-      !reportType ||
-      !location ||
-      !location.latitude ||
-      !location.longitude ||
-      !description ||
-      description.length > 20
-    ) {
-      return res.status(400).json({ message: "Missing or invalid fields" });
-    }
+if (
+  !reportType ||
+  !location ||
+  !location.latitude ||
+  !location.longitude ||
+  !description ||
+  description.length > 20 ||
+  !address ||
+  !verified
+) {
+  return res.status(400).json({ message: "Missing or invalid fields" });
+}
 
-    // Create new report
-    const newReport = new Report({
-      userId: userId || null,
-      reportType,
-      description,
-      location,
-    });
+const newReport = new Report({
+  userId: userId || null,
+  reportType,
+  description,
+  address,
+  verified,
+  location
+});
+
 
     const saved = await newReport.save();
     res.status(201).json(saved);
