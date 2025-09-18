@@ -6,29 +6,32 @@ exports.createReport = async (req, res) => {
     console.log("Incoming data:", req.body);
     const { reportType, location, userId, description, address, verified } = req.body;
 
-if (
-  !reportType ||
-  !location ||
-  !location.latitude ||
-  !location.longitude ||
-  !description ||
-  description.length > 20 ||
-  !address ||
-  !verified
-) {
-  return res.status(400).json({ message: "Missing or invalid fields" });
-}
+    // basic required fields
+    if (
+      !reportType ||
+      !location ||
+      !location.latitude ||
+      !location.longitude ||
+      !description ||
+      !address ||
+      !verified
+    ) {
+      return res.status(400).json({ message: "Missing or invalid fields" });
+    }
 
-const newReport = new Report({
-  userId: userId || null,
-  reportType,
-  description,
-  address: address || "No address provided",
-  verified: verified || { verifiedByAdmin: 0, verifiedByUser: 0 },
-  location
-});
+    // check description length limit
+    if (description.length > 500) {
+      return res.status(400).json({ message: "Description too long" });
+    }
 
-
+    const newReport = new Report({
+      userId: userId || null,
+      reportType,
+      description,
+      address: address || "No address provided",
+      verified: verified || { verifiedByAdmin: 0, verifiedByUser: 0 },
+      location,
+    });
 
     const saved = await newReport.save();
     res.status(201).json(saved);
