@@ -23,10 +23,11 @@ const newReport = new Report({
   userId: userId || null,
   reportType,
   description,
-  address,
-  verified,
+  address: address || "No address provided",
+  verified: verified || { verifiedByAdmin: 0, verifiedByUser: 0 },
   location
 });
+
 
 
     const saved = await newReport.save();
