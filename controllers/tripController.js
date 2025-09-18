@@ -268,16 +268,15 @@ exports.getPaginatedTrips = async (req, res) => {
     let query = {};
 
     if (search) {
-      // Case-insensitive, partial matches across multiple fields
       query = {
         $or: [
-          { _id: { $regex: search, $options: "i" } },              // Trip ID
-          { status: { $regex: search, $options: "i" } },           // Trip status
-          { destination: { $regex: search, $options: "i" } },      // Destination (if present in schema)
-          { "motorId.nickname": { $regex: search, $options: "i" } }, // Motor nickname
-          { "motorId.motorcycleId.model": { $regex: search, $options: "i" } }, // Motorcycle model
-          { "userId.name": { $regex: search, $options: "i" } },    // User name
-          { "userId.email": { $regex: search, $options: "i" } },   // User email
+          { _id: { $regex: search, $options: "i" } },
+          { status: { $regex: search, $options: "i" } },
+          { destination: { $regex: search, $options: "i" } },
+          { "motorId.nickname": { $regex: search, $options: "i" } },
+          { "motorId.motorcycleId.model": { $regex: search, $options: "i" } },
+          { "userId.name": { $regex: search, $options: "i" } },
+          { "userId.email": { $regex: search, $options: "i" } },
         ],
       };
     }
@@ -295,7 +294,21 @@ exports.getPaginatedTrips = async (req, res) => {
       })
       .skip(skip)
       .limit(parseInt(limit))
-      .sor
+      .sort({ createdAt: -1 });  // ✅ missing part
+
+    const total = await Trip.countDocuments(query);
+
+    res.status(200).json({
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      trips,
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch paginated trips", error: err.message });
+  }
+};
+
 
 
 
