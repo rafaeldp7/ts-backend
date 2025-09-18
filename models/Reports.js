@@ -16,6 +16,10 @@ const reportSchema = new mongoose.Schema({
     maxlength: 20,
     required: true
   },
+  verified: {
+    verifiedByAdmin: {type: Number, required: true},
+    verifiedByUser:{type: Number, required: true},
+  }
   location: {
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true }
