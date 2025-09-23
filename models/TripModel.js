@@ -29,10 +29,12 @@ const TripSchema = new mongoose.Schema({
 
   // 📍 Location
   startLocation: {
+    address: { type: String },
     lat: { type: Number },
     lng: { type: Number },
   },
   endLocation: {
+    address: { type: String },
     lat: { type: Number },
     lng: { type: Number },
   },
