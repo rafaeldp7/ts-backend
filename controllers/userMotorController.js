@@ -118,17 +118,13 @@ exports.createUserMotor = async (req, res) => {
   }
 };
 
-// PUT update a user motor
+// PUT update a user motor (dynamic)
 exports.updateUserMotor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { motorcycleId, nickname, registrationDate } = req.body;
 
-    const updated = await UserMotor.findByIdAndUpdate(
-      id,
-      { motorcycleId, nickname, registrationDate },
-      { new: true }
-    );
+    // diretso gamit req.body para lahat ng fields na ipapasa pwedeng ma-update
+    const updated = await UserMotor.findByIdAndUpdate(id, req.body, { new: true });
 
     if (!updated) {
       return res.status(404).json({ msg: "Motor entry not found" });
@@ -139,6 +135,7 @@ exports.updateUserMotor = async (req, res) => {
     res.status(400).json({ msg: "Failed to update", error: error.message });
   }
 };
+
 
 // DELETE a user motor
 exports.deleteUserMotor = async (req, res) => {
