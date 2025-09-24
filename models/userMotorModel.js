@@ -32,7 +32,7 @@ const UserMotorSchema = new mongoose.Schema(
     ],
 
     // ⛽ Fuel Tracking
-    currentGas: { type: Number, default: 0 }, // liters currently in the tank
+    currentFuelLevel: { type: Number, default: 0 }, // liters currently in the tank
 
     // 📈 Fuel Consumption Analytics km/L
     fuelConsumptionStats: {
@@ -66,10 +66,10 @@ UserMotorSchema.virtual("totalDrivableDistance").get(function () {
   return this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank;
 });
 
-// Remaining drivable distance with currentGas
+// Remaining drivable distance with currentFuelLevel
 UserMotorSchema.virtual("gasLeft").get(function () {
   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
-  return this.motorcycleId.fuelConsumption * this.currentGas;
+  return this.motorcycleId.fuelConsumption * this.currentFuelLevel;
 });
 
 // 🚨 Low Fuel Alert (true if remaining distance < 10% of total drivable distance)
@@ -77,7 +77,7 @@ UserMotorSchema.virtual("isLowFuel").get(function () {
   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
 
   const totalDrivable = this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank;
-  const remaining = this.motorcycleId.fuelConsumption * this.currentGas;
+  const remaining = this.motorcycleId.fuelConsumption * this.currentFuelLevel;
 
   return remaining < totalDrivable * 0.1;
 });
