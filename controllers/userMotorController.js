@@ -16,7 +16,7 @@ exports.getAllUserMotors = async (req, res) => {
   }
 };
 
-// GET all motors for a specific user (formatted)
+
 // GET all motors for a specific user (formatted)
 exports.getUserMotorsByUserId = async (req, res) => {
   try {
@@ -24,16 +24,32 @@ exports.getUserMotorsByUserId = async (req, res) => {
 
     const formatted = motors.map((motor) => ({
       _id: motor._id,
-      nickname: motor.nickname,
+      userId: motor.userId,
+      motorcycleId: motor.motorcycleId?._id || null,
+      nickname: motor.nickname || "",
       name: motor.motorcycleId?.model || "Unknown Model",
       fuelEfficiency: motor.motorcycleId?.fuelConsumption || 0,
       engineDisplacement: motor.motorcycleId?.engineDisplacement || null,
-
+      plateNumber: motor.plateNumber || "",
+      registrationDate: motor.registrationDate || "",
+      dateAcquired: motor.dateAcquired || "",
+      odometerAtAcquisition: motor.odometerAtAcquisition || 0,
+      currentOdometer: motor.currentOdometer || 0,
+      age: motor.age || 0,
+      currentFuelLevel: motor.currentFuelLevel || 0,
+      fuelConsumptionStats: {
+        average: motor.fuelConsumptionStats?.average || 0,
+        max: motor.fuelConsumptionStats?.max || 0,
+        min: motor.fuelConsumptionStats?.min || 0,
+      },
       analytics: {
         totalDistance: motor.analytics?.totalDistance || 0,
         tripsCompleted: motor.analytics?.tripsCompleted || 0,
         totalFuelUsed: motor.analytics?.totalFuelUsed || 0,
+        maintenanceAlerts: motor.analytics?.maintenanceAlerts || [],
       },
+      createdAt: motor.createdAt,
+      updatedAt: motor.updatedAt,
     }));
 
     res.json(formatted);
@@ -42,6 +58,7 @@ exports.getUserMotorsByUserId = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 
