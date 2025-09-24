@@ -140,18 +140,64 @@ exports.updateUserMotor = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // diretso gamit req.body para lahat ng fields na ipapasa pwedeng ma-update
-    const updated = await UserMotor.findByIdAndUpdate(id, req.body, { new: true });
-
-    if (!updated) {
+    // Find the motor first
+    const motor = await UserMotor.findById(id).populate("motorcycleId");
+    if (!motor) {
       return res.status(404).json({ msg: "Motor entry not found" });
     }
 
-    res.status(200).json({ msg: "User motor updated", updated });
+    // Whitelisted fields
+    const allowedFields = [
+      "nickname",
+      "motorcycleId",
+      "currentFuelLevel",
+      "fuelConsumptionStats",
+      "analytics",
+      "plateNumber",
+      "registrationDate",
+      "dateAcquired",
+      "odometerAtAcquisition",
+      "currentOdometer",
+      "age",
+    ];
+
+    // Apply updates
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        // Merge nested objects
+        if (typeof req.body[field] === "object" && req.body[field] !== null && motor[field]) {
+          motor[field] = { ...motor[field].toObject(), ...req.body[field] };
+        } else {
+          motor[field] = req.body[field];
+        }
+      }
+    });
+
+    // Save the motor
+    const updatedMotor = await motor.save();
+
+    // Format like getUserMotorsByUserId
+    const formatted = {
+      _id: updatedMotor._id,
+      nickname: updatedMotor.nickname,
+      name: updatedMotor.motorcycleId?.model || "Unknown Model",
+      fuelEfficiency: updatedMotor.motorcycleId?.fuelConsumption || 0,
+      engineDisplacement: updatedMotor.motorcycleId?.engineDisplacement || null,
+      analytics: {
+        totalDistance: updatedMotor.analytics?.totalDistance || 0,
+        tripsCompleted: updatedMotor.analytics?.tripsCompleted || 0,
+        totalFuelUsed: updatedMotor.analytics?.totalFuelUsed || 0,
+        maintenanceAlerts: updatedMotor.analytics?.maintenanceAlerts || [],
+      },
+    };
+
+    res.status(200).json({ msg: "User motor updated", updated: formatted });
   } catch (error) {
+    console.error("Failed to update motor:", error);
     res.status(400).json({ msg: "Failed to update", error: error.message });
   }
 };
+
 
 
 // DELETE a user motor
