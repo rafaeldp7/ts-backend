@@ -6,7 +6,7 @@ const UserMotor = require("../models/userMotorModel");
  */
 
 // ✅ Get all trips made by a specific user
-exports.getUserTrips = async (req, res) => {
+ exports.getUserTrips = async (req, res) => {
   try {
     const trips = await Trip.find({ userId: req.params.userId })
       .populate("userId", "name email")
@@ -26,6 +26,7 @@ exports.getUserTrips = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch user trips", error: err.message });
   }
 };
+
 
 // ✅ Record a new trip from user side
 exports.addTrip = async (req, res) => {
@@ -225,7 +226,7 @@ exports.getTripsByDateRange = async (req, res) => {
 };
 
 // ✅ Paginate all trips
-exports.getPaginatedTrips = async (req, res) => {
+/** exports.getPaginatedTrips = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -257,6 +258,58 @@ exports.getPaginatedTrips = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch paginated trips", error: err.message });
   }
 };
+**/
+exports.getPaginatedTrips = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Default query (all trips)
+    let query = {};
+
+    if (search) {
+      query = {
+        $or: [
+          { _id: { $regex: search, $options: "i" } },
+          { status: { $regex: search, $options: "i" } },
+          { destination: { $regex: search, $options: "i" } },
+          { "motorId.nickname": { $regex: search, $options: "i" } },
+          { "motorId.motorcycleId.model": { $regex: search, $options: "i" } },
+          { "userId.name": { $regex: search, $options: "i" } },
+          { "userId.email": { $regex: search, $options: "i" } },
+        ],
+      };
+    }
+
+    const trips = await Trip.find(query)
+      .populate("userId", "name email")
+      .populate({
+        path: "motorId",
+        populate: {
+          path: "motorcycleId",
+          model: "Motorcycle",
+          select: "model engineDisplacement",
+        },
+        select: "nickname",
+      })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });  // ✅ missing part
+
+    const total = await Trip.countDocuments(query);
+
+    res.status(200).json({
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      totalRecords: total,
+      trips,
+    });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch paginated trips", error: err.message });
+  }
+};
+
+
 
 
 /**
