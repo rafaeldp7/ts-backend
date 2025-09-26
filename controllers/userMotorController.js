@@ -48,6 +48,12 @@ exports.getUserMotorsByUserId = async (req, res) => {
         totalFuelUsed: motor.analytics?.totalFuelUsed || 0,
         maintenanceAlerts: motor.analytics?.maintenanceAlerts || [],
       },
+
+      // 🚦 Add Virtual Fields here
+      totalDrivableDistance: motor.totalDrivableDistance ?? 0,
+      totalDrivableDistanceWithCurrentGas: motor.totalDrivableDistanceWithCurrentGas ?? 0,
+      isLowFuel: motor.isLowFuel ?? false,
+
       createdAt: motor.createdAt,
       updatedAt: motor.updatedAt,
     }));
@@ -58,6 +64,7 @@ exports.getUserMotorsByUserId = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 
