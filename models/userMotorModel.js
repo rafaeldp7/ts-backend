@@ -77,7 +77,7 @@ UserMotorSchema.virtual("isLowFuel").get(function () {
   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
 
   const totalDrivable = this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank;
-  const remaining = this.motorcycleId.fuelConsumption * this.currentFuelLevel;
+  const remaining = this.motorcycleId.fuelConsumption * (this.currentFuelLevel / 100);
 
   return remaining < totalDrivable * 0.1;
 });
