@@ -66,11 +66,16 @@ UserMotorSchema.virtual("totalDrivableDistance").get(function () {
   return this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank;
 });
 
-// Remaining drivable distance with currentFuelLevel
-UserMotorSchema.virtual("gasLeft").get(function () {
+UserMotorSchema.virtual("totalDrivableDistanceWithCurrentGas").get(function () {
   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
-  return this.motorcycleId.fuelConsumption * (this.currentFuelLevel / 100);
+  return this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank * (this.currentFuelLevel / 100);
 });
+
+// // Remaining drivable distance with currentFuelLevel
+// UserMotorSchema.virtual("gasLeft").get(function () {
+//   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
+//   return this.motorcycleId.fuelConsumption * (this.currentFuelLevel / 100);
+// });
 
 // 🚨 Low Fuel Alert (true if remaining distance < 10% of total drivable distance)
 UserMotorSchema.virtual("isLowFuel").get(function () {
