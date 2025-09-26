@@ -159,6 +159,9 @@ exports.updateUserMotor = async (req, res) => {
       "odometerAtAcquisition",
       "currentOdometer",
       "age",
+      "totalDrivableDistance",
+      "totalDrivableDistanceWithCurrentGas",
+      "isLowFuel",
     ];
 
     // Apply updates
