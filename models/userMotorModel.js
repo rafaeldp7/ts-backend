@@ -4,7 +4,7 @@ const UserMotorSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     motorcycleId: { type: mongoose.Schema.Types.ObjectId, ref: "Motorcycle", required: true },
-    
+
     // 🔖 Basic Info
     nickname: { type: String },
     plateNumber: { type: String },
@@ -13,7 +13,6 @@ const UserMotorSchema = new mongoose.Schema(
     odometerAtAcquisition: { type: Number }, // in kilometers
     currentOdometer: { type: Number, default: 0 }, // in kilometers
     age: { type: Number },
-
 
     // 📊 Speed Records
     kmphRecords: [
@@ -24,12 +23,8 @@ const UserMotorSchema = new mongoose.Schema(
     ],
 
     // 🛠 Maintenance Logs
-    changeOilHistory: [
-      { date: { type: Date } },
-    ],
-    tuneUpHistory: [
-      { date: { type: Date } },
-    ],
+    changeOilHistory: [{ date: { type: Date } }],
+    tuneUpHistory: [{ date: { type: Date } }],
 
     // ⛽ Fuel Tracking
     currentFuelLevel: { type: Number, default: 0 }, // liters currently in the tank
@@ -51,10 +46,12 @@ const UserMotorSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
+
+// 🔹 Enable virtuals globally for all toJSON / toObject calls
+UserMotorSchema.set("toJSON", { virtuals: true });
+UserMotorSchema.set("toObject", { virtuals: true });
 
 //
 // 🔮 Virtuals
@@ -66,16 +63,11 @@ UserMotorSchema.virtual("totalDrivableDistance").get(function () {
   return this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank;
 });
 
+// Total drivable distance with current fuel
 UserMotorSchema.virtual("totalDrivableDistanceWithCurrentGas").get(function () {
   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
   return this.motorcycleId.fuelConsumption * this.motorcycleId.fuelTank * (this.currentFuelLevel / 100);
 });
-
-// // Remaining drivable distance with currentFuelLevel
-// UserMotorSchema.virtual("gasLeft").get(function () {
-//   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
-//   return this.motorcycleId.fuelConsumption * (this.currentFuelLevel / 100);
-// });
 
 // 🚨 Low Fuel Alert (true if remaining distance < 10% of total drivable distance)
 UserMotorSchema.virtual("isLowFuel").get(function () {
