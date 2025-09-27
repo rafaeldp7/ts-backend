@@ -102,7 +102,7 @@ exports.updateFuelLevel = async (req, res) => {
     const updatedMotor = await motor.save();
 
     res.status(200).json({
-      msg: "Fuel level updated successfully",
+      msg: "Fuel level updated successfully (backend)",
       motor: {
         _id: updatedMotor._id,
         nickname: updatedMotor.nickname,
@@ -114,7 +114,7 @@ exports.updateFuelLevel = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Failed to update fuel level:", err);
-    res.status(500).json({ msg: "Failed to update fuel level", error: err.message });
+    res.status(500).json({ msg: "Failed to update fuel level in backend", error: err.message });
   }
 };
 
