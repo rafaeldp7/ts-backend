@@ -12,6 +12,7 @@ const {
   getUserOverviewAnalytics,
   getMotorOverviewAnalytics,
   recalculateAllMotorAnalytics,
+  updateFuelLevel,
 } = require("../controllers/userMotorController");
 
 
