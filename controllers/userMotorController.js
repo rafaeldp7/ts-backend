@@ -65,6 +65,58 @@ exports.getUserMotorsByUserId = async (req, res) => {
   }
 };
 
+// PUT update only the fuel level + derived fields
+exports.updateFuelLevel = async (req, res) => {
+  try {
+    const { id } = req.params; // motorId
+    const { currentFuelLevel } = req.body;
+
+    if (typeof currentFuelLevel !== "number") {
+      return res.status(400).json({ msg: "currentFuelLevel must be a number" });
+    }
+
+    // Find motor and its motorcycle info (for fuel efficiency)
+    const motor = await UserMotor.findById(id).populate("motorcycleId");
+    if (!motor) return res.status(404).json({ msg: "Motor not found" });
+
+    const fuelEfficiency = motor.motorcycleId?.fuelConsumption || 0; // km/L
+    const tankCapacity = motor.motorcycleId?.fuelTankCapacity || 0;  // optional, if you store it
+
+    // Calculate derived values
+    const totalDrivableDistance = tankCapacity && fuelEfficiency 
+      ? tankCapacity * fuelEfficiency 
+      : 0;
+
+    const totalDrivableDistanceWithCurrentGas = fuelEfficiency
+      ? currentFuelLevel * fuelEfficiency
+      : 0;
+
+    const isLowFuel = totalDrivableDistanceWithCurrentGas < 50; // 🚨 you can change threshold
+
+    // Update motor
+    motor.currentFuelLevel = currentFuelLevel;
+    motor.totalDrivableDistance = totalDrivableDistance;
+    motor.totalDrivableDistanceWithCurrentGas = totalDrivableDistanceWithCurrentGas;
+    motor.isLowFuel = isLowFuel;
+
+    const updatedMotor = await motor.save();
+
+    res.status(200).json({
+      msg: "Fuel level updated successfully",
+      motor: {
+        _id: updatedMotor._id,
+        nickname: updatedMotor.nickname,
+        currentFuelLevel: updatedMotor.currentFuelLevel,
+        totalDrivableDistance: updatedMotor.totalDrivableDistance,
+        totalDrivableDistanceWithCurrentGas: updatedMotor.totalDrivableDistanceWithCurrentGas,
+        isLowFuel: updatedMotor.isLowFuel,
+      }
+    });
+  } catch (err) {
+    console.error("❌ Failed to update fuel level:", err);
+    res.status(500).json({ msg: "Failed to update fuel level", error: err.message });
+  }
+};
 
 
 

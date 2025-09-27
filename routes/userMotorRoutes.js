@@ -28,6 +28,8 @@ router.get("/user/:id", getUserMotorsByUserId); // GET by userId
 router.post("/", createUserMotor); // POST new motor
 router.put("/:id", updateUserMotor); // PUT update motor
 router.delete("/:id", deleteUserMotor); // DELETE motor
+router.put("/:id/fuel", userMotorController.updateFuelLevel); // Update fuel level
+
 
 router.get("/user-overview/:userId", getUserOverviewAnalytics);
 router.get("/motor-overview/:motorId", getMotorOverviewAnalytics);
