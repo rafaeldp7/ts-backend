@@ -3,11 +3,8 @@ const mongoose = require("mongoose");
 const GasStationSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    brand: {
-      type: String,
-      enum: ["Petron", "Shell", "Caltex", "Unioil", "Phoenix", "Other"],
-      default: "Other",
-    },
+    brand: { type: String, default: "Other" },
+
     location: {
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number], required: true }, // [lng, lat]
