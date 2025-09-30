@@ -14,7 +14,7 @@ exports.updateReport = async (req, res) => {
     }
 
     // Optional: validate description length
-    if (updates.description && updates.description.length > 500) {
+    if (updates.description && updates.description.length > 100) {
       return res.status(400).json({ msg: "Description too long" });
     }
 
@@ -45,7 +45,39 @@ exports.updateReport = async (req, res) => {
   }
 };
 
+exports.voteReport = async (req, res) => {
+  try {
+    const { id } = req.params; // reportId
+    const { userId, vote } = req.body; // vote: +1 or -1
 
+    if (![1, -1].includes(vote)) {
+      return res.status(400).json({ msg: "Invalid vote value" });
+    }
+
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ msg: "Report not found" });
+    }
+
+    // initialize votes array if not exist
+    if (!report.votes) report.votes = [];
+
+    // check if user already voted
+    const existingVote = report.votes.find((v) => v.userId.toString() === userId);
+    if (existingVote) {
+      return res.status(400).json({ msg: "User already voted on this report" });
+    }
+
+    // push new vote
+    report.votes.push({ userId, vote });
+    await report.save();
+
+    res.status(200).json({ msg: "Vote recorded", report });
+  } catch (err) {
+    console.error("Vote report error:", err);
+    res.status(500).json({ msg: "Error voting report", error: err.message });
+  }
+};
 
 exports.createReport = async (req, res) => {
   try {
@@ -66,7 +98,7 @@ exports.createReport = async (req, res) => {
     }
 
     // check description length limit
-    if (description.length > 500) {
+    if (description.length > 100) {
       return res.status(400).json({ message: "Description too long" });
     }
 
