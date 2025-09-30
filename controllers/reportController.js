@@ -1,6 +1,40 @@
 // controllers/reportController.js
 const Report = require("../models/Reports.js");
 
+// ✅ Update an existing report
+exports.updateReport = async (req, res) => {
+  try {
+    const { id } = req.params; // report ID
+    const updates = req.body;
+
+    // Validate report existence
+    const existingReport = await Report.findById(id);
+    if (!existingReport) {
+      return res.status(404).json({ msg: "Report not found" });
+    }
+
+    // Optional: validate description length
+    if (updates.description && updates.description.length > 500) {
+      return res.status(400).json({ msg: "Description too long" });
+    }
+
+    // Optional: prevent overwriting critical fields directly
+    delete updates._id;
+    delete updates.createdAt;
+    delete updates.updatedAt;
+
+    // Update
+    const updatedReport = await Report.findByIdAndUpdate(id, updates, {
+      new: true, // return updated doc
+      runValidators: true, // apply schema validators
+    });
+
+    res.status(200).json(updatedReport);
+  } catch (err) {
+    console.error("Update report error:", err);
+    res.status(500).json({ msg: "Error updating report", error: err.message });
+  }
+};
 exports.createReport = async (req, res) => {
   try {
     console.log("Incoming data:", req.body);
