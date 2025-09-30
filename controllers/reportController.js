@@ -5,7 +5,7 @@ const Report = require("../models/Reports.js");
 exports.updateReport = async (req, res) => {
   try {
     const { id } = req.params; // report ID
-    const updates = req.body;
+    const updates = { ...req.body };
 
     // Validate report existence
     const existingReport = await Report.findById(id);
@@ -18,7 +18,16 @@ exports.updateReport = async (req, res) => {
       return res.status(400).json({ msg: "Description too long" });
     }
 
-    // Optional: prevent overwriting critical fields directly
+    // Handle address safely
+    if (
+      updates.address === undefined || 
+      updates.address === null || 
+      (typeof updates.address === "string" && updates.address.trim() === "")
+    ) {
+      delete updates.address; // don’t overwrite with empty/undefined
+    }
+
+    // Prevent overwriting critical fields
     delete updates._id;
     delete updates.createdAt;
     delete updates.updatedAt;
@@ -35,6 +44,9 @@ exports.updateReport = async (req, res) => {
     res.status(500).json({ msg: "Error updating report", error: err.message });
   }
 };
+
+
+
 exports.createReport = async (req, res) => {
   try {
     console.log("Incoming data:", req.body);
