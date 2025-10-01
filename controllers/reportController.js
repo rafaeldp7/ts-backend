@@ -1,6 +1,25 @@
 // controllers/reportController.js
 const Report = require("../models/Reports.js");
 
+exports.getArchivedReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ archived: true }).sort({ timestamp: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching archived reports", error: err.message });
+  }
+};
+
+exports.archiveReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const report = await Report.findByIdAndUpdate(id, { archived: true }, { new: true });
+    if (!report) return res.status(404).json({ msg: "Report not found" });
+    res.status(200).json({ msg: "Report archived", report });
+  } catch (err) {
+    res.status(500).json({ msg: "Error archiving report", error: err.message });
+  }
+};
 // ✅ Update an existing report
 exports.updateReport = async (req, res) => {
   try {
@@ -47,32 +66,37 @@ exports.updateReport = async (req, res) => {
 
 exports.voteReport = async (req, res) => {
   try {
-    const { id } = req.params; // reportId
-    const { userId, vote } = req.body; // vote: +1 or -1
+    const { id } = req.params;
+    const { userId, vote } = req.body; // vote = 1 or -1
 
     if (![1, -1].includes(vote)) {
-      return res.status(400).json({ msg: "Invalid vote value" });
+      return res.status(400).json({ msg: "Vote must be 1 or -1" });
     }
 
     const report = await Report.findById(id);
-    if (!report) {
-      return res.status(404).json({ msg: "Report not found" });
-    }
+    if (!report) return res.status(404).json({ msg: "Report not found" });
 
-    // initialize votes array if not exist
-    if (!report.votes) report.votes = [];
+    const existingVote = report.votes.find(v => v.userId.toString() === userId);
 
-    // check if user already voted
-    const existingVote = report.votes.find((v) => v.userId.toString() === userId);
     if (existingVote) {
-      return res.status(400).json({ msg: "User already voted on this report" });
+      if (existingVote.vote === vote) {
+        // same vote, remove it
+        report.votes = report.votes.filter(v => v.userId.toString() !== userId);
+      } else {
+        // switch vote
+        existingVote.vote = vote;
+      }
+    } else {
+      // new vote
+      report.votes.push({ userId, vote });
     }
 
-    // push new vote
-    report.votes.push({ userId, vote });
     await report.save();
 
-    res.status(200).json({ msg: "Vote recorded", report });
+    // Optional: return totalVotes
+    const totalVotes = report.votes.reduce((sum, v) => sum + v.vote, 0);
+
+    res.status(200).json({ report, totalVotes });
   } catch (err) {
     console.error("Vote report error:", err);
     res.status(500).json({ msg: "Error voting report", error: err.message });

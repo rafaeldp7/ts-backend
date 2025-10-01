@@ -13,9 +13,14 @@ router.post("/daterange", reportController.getReportsByDateRange);
 router.get("/user/:userId", reportController.getReportsByUser);
 router.get("/locations/all", reportController.getAllReportLocations);
 router.put("/:id", reportController.updateReport);
+
 router.post("/:id/vote", reportController.voteReport);
 
 // DELETE
 router.delete("/:id", reportController.deleteReport);
+
+// ARCHIVE
+router.put("/:id/archive", reportController.archiveReport);
+router.get("/archived/all", reportController.getArchivedReports);
 
 module.exports = router;

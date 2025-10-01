@@ -13,7 +13,7 @@ const reportSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    maxlength: 100, 
+    maxlength: 500, // allow longer description
     required: true,
   },
   address: {
@@ -34,6 +34,10 @@ const reportSchema = new mongoose.Schema({
     latitude: { type: Number, required: true },
     longitude: { type: Number, required: true },
   },
+  archived: { // New field
+    type: Boolean,
+    default: false,
+  },
   timestamp: {
     type: Date,
     default: Date.now,
@@ -44,5 +48,8 @@ const reportSchema = new mongoose.Schema({
 reportSchema.virtual("totalVotes").get(function () {
   return this.votes.reduce((sum, v) => sum + v.vote, 0);
 });
+
+// Optional index for faster vote lookups
+reportSchema.index({ "votes.userId": 1 });
 
 module.exports = mongoose.model("Report", reportSchema);
