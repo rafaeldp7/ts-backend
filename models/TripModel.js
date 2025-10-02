@@ -67,15 +67,15 @@ const TripSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// 🕒 Auto-calculate duration
-TripSchema.pre("save", function (next) {
-  if (this.timeArrived && this.eta) {
-    const arrival = moment(this.timeArrived, "HH:mm");
-    const etaTime = moment(this.eta, "HH:mm");
-    const duration = arrival.diff(etaTime, "minutes");
-    this.duration = Math.abs(duration);
-  }
-  next();
-});
+// // 🕒 Auto-calculate duration
+// TripSchema.pre("save", function (next) {
+//   if (this.timeArrived && this.eta) {
+//     const arrival = moment(this.timeArrived, "HH:mm");
+//     const etaTime = moment(this.eta, "HH:mm");
+//     const duration = arrival.diff(start, "minutes");
+//     this.duration = Math.abs(duration);
+//   }
+//   next();
+// });
 
 module.exports = mongoose.model("Trip", TripSchema);
