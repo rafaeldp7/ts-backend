@@ -67,14 +67,60 @@ exports.getAllUserMotors = async (req, res) => {
 exports.getUserMotorsByUserId = async (req, res) => {
   try {
     const motors = await UserMotor.find({ userId: req.params.id })
-      .populate("motorcycleId"); // ✅ full motorcycle details
+      .populate("motorcycleId");
 
-    res.json(motors); // ⚡ return as-is
+    const formatted = motors.map((motor) => ({
+      _id: motor._id,
+      userId: motor.userId,
+
+      // ✅ backward compatible field
+      motorcycleId: motor.motorcycleId?._id || null,
+
+      // ✅ summary fields
+      nickname: motor.nickname || "",
+      name: motor.motorcycleId?.model || "Unknown Model",
+      fuelEfficiency: motor.motorcycleId?.fuelConsumption || 0,
+      engineDisplacement: motor.motorcycleId?.engineDisplacement || null,
+      plateNumber: motor.plateNumber || "",
+      registrationDate: motor.registrationDate || "",
+      dateAcquired: motor.dateAcquired || "",
+      odometerAtAcquisition: motor.odometerAtAcquisition || 0,
+      currentOdometer: motor.currentOdometer || 0,
+      age: motor.age || 0,
+      currentFuelLevel: motor.currentFuelLevel || 0,
+
+      fuelConsumptionStats: {
+        average: motor.fuelConsumptionStats?.average || 0,
+        max: motor.fuelConsumptionStats?.max || 0,
+        min: motor.fuelConsumptionStats?.min || 0,
+      },
+
+      analytics: {
+        totalDistance: motor.analytics?.totalDistance || 0,
+        tripsCompleted: motor.analytics?.tripsCompleted || 0,
+        totalFuelUsed: motor.analytics?.totalFuelUsed || 0,
+        maintenanceAlerts: motor.analytics?.maintenanceAlerts || [],
+      },
+
+      // 🚦 virtuals
+      totalDrivableDistance: motor.totalDrivableDistance ?? 0,
+      totalDrivableDistanceWithCurrentGas: motor.totalDrivableDistanceWithCurrentGas ?? 0,
+      isLowFuel: motor.isLowFuel ?? false,
+
+      createdAt: motor.createdAt,
+      updatedAt: motor.updatedAt,
+
+      // ✅ full object included here
+      motorcycleData: motor.motorcycleId || null,
+    }));
+
+    res.json(formatted);
   } catch (err) {
     console.error("Failed to get user motors:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 // PUT update only the fuel level + derived fields
