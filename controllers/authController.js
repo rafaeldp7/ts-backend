@@ -337,7 +337,7 @@ exports.requestReset = async (req, res) => {
     res.json({ msg: "OTP sent to email." });
   } catch (error) {
     console.error("Request Reset Error:", error);
-    res.status(500).json({ msg: "Server error." });
+    res.status(500).json({ msg: "Server error.", error: error.message });
   }
 };
 
