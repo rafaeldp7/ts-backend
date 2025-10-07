@@ -343,6 +343,9 @@ transporter.verify()
 
 
 // 1. Request OTP
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
 exports.requestReset = async (req, res) => {
   const { email } = req.body;
 
@@ -355,9 +358,9 @@ exports.requestReset = async (req, res) => {
     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
 
-    await transporter.sendMail({
-      from: `"Traffic Slight" <noreply@trafficslight.com>`, // optional but good practice
+    const msg = {
       to: email,
+      from: "noreply@trafficslight.com", // must be verified in SendGrid
       subject: "Reset Your Password",
       html: `
         <h2>Traffic Slight - Password Reset OTP</h2>
@@ -365,14 +368,47 @@ exports.requestReset = async (req, res) => {
         <h1>${otp}</h1>
         <p>This code will expire in 10 minutes.</p>
       `,
-    });
+    };
 
+    await sgMail.send(msg);
     res.json({ msg: "OTP sent to email." });
   } catch (error) {
     console.error("Request Reset Error:", error);
     res.status(500).json({ msg: "Server error.", error: error.message });
   }
 };
+
+
+// exports.requestReset = async (req, res) => {
+//   const { email } = req.body;
+
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) return res.status(404).json({ msg: "User not found." });
+
+//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//     user.resetToken = otp;
+//     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+//     await user.save();
+
+//     await transporter.sendMail({
+//       from: `"Traffic Slight" <noreply@trafficslight.com>`, // optional but good practice
+//       to: email,
+//       subject: "Reset Your Password",
+//       html: `
+//         <h2>Traffic Slight - Password Reset OTP</h2>
+//         <p>Use the code below to reset your password:</p>
+//         <h1>${otp}</h1>
+//         <p>This code will expire in 10 minutes.</p>
+//       `,
+//     });
+
+//     res.json({ msg: "OTP sent to email." });
+//   } catch (error) {
+//     console.error("Request Reset Error:", error);
+//     res.status(500).json({ msg: "Server error.", error: error.message });
+//   }
+// };
 
 // Update user basic profile information (no authMiddleware required)
 exports.updateProfile = async (req, res) => {
