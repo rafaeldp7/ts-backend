@@ -310,15 +310,24 @@ exports.userLocation = async (req, res) => {
 //   },
 // });
 
-const transporter = nodemailer.createTransport({
+// const transporter = nodemailer.createTransport({
 
   
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // true for 465, false for 587
+//   host: "smtp.gmail.com",
+//   port: 465,
+//   secure: true, // true for 465, false for 587
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
+
+
+const transporter = nodemailer.createTransport({
+  service: "SendGrid",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: "apikey", // literally the word "apikey"
+    pass: process.env.SENDGRID_API_KEY,
   },
 });
 
