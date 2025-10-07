@@ -1,7 +1,7 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -323,14 +323,23 @@ exports.userLocation = async (req, res) => {
 // });
 
 
+
+const nodemailer = require("nodemailer");
+
+// ✅ SendGrid transporter
 const transporter = nodemailer.createTransport({
-  service: "SendGrid",
+  host: "smtp.sendgrid.net",
+  port: 587,
   auth: {
-    user: "apikey", // literally the word "apikey"
-    pass: process.env.SENDGRID_API_KEY,
+    user: "apikey", // must literally be "apikey"
+    pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
   },
 });
 
+// Optional: verify connection
+transporter.verify()
+  .then(() => console.log("✅ SendGrid SMTP connection OK"))
+  .catch(err => console.error("❌ SendGrid SMTP connection failed:", err));
 
 
 // 1. Request OTP
@@ -347,6 +356,7 @@ exports.requestReset = async (req, res) => {
     await user.save();
 
     await transporter.sendMail({
+      from: `"Traffic Slight" <noreply@trafficslight.com>`, // optional but good practice
       to: email,
       subject: "Reset Your Password",
       html: `
