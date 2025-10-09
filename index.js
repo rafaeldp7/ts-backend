@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config(); // Load environment variables first
 require("dotenv").config(); // Load environment variables first
 
 const express = require("express");
