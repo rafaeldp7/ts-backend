@@ -360,7 +360,11 @@ exports.requestReset = async (req, res) => {
 
     const msg = {
       to: email,
-      from: "noreply@trafficslight.com", // must be verified in SendGrid
+      
+      from: {
+      name: "Traffic Slight",
+      email: "delapazr0721@gmail.com", // must be verified in SendGrid
+      },
       subject: "Reset Your Password",
       html: `
         <h2>Traffic Slight - Password Reset OTP</h2>
