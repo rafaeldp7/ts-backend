@@ -39,9 +39,12 @@ const generateToken = (user) => {
 
 
 const sendVerificationEmail = async (email, otp) => {
-  const mailOptions = {
-    from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
+  const msg = {
     to: email,
+    from: {
+      email: process.env.EMAIL_USER, // Verified sender in SendGrid
+      name: "Traffic Slight",
+    },
     subject: "Verify Your Traffic Slight Account",
     html: `
       <div style="font-family: Arial, sans-serif; padding: 16px; background-color: #f9f9f9;">
@@ -57,10 +60,10 @@ const sendVerificationEmail = async (email, otp) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await sgMail.send(msg);
     console.log(`📨 Verification email sent to ${email}`);
   } catch (error) {
-    console.error("❌ Email sending failed:", error);
+    console.error("❌ Email sending failed:", error.response ? error.response.body : error);
     throw new Error("Failed to send verification email");
   }
 };
