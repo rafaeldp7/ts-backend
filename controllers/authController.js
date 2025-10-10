@@ -9,21 +9,21 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 
 
-// ✅ SendGrid transporter
-const transporter = nodemailer.createTransport({
-  host: "smtp.sendgrid.net",
-  port: 587,
-  auth: {
-    user: "apikey", // must literally be "apikey"
-    pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
-  },
-});
+// // ✅ SendGrid transporter
+// const transporter = nodemailer.createTransport({
+//   host: "smtp.sendgrid.net",
+//   port: 587,
+//   auth: {
+//     user: "apikey", // must literally be "apikey"
+//     pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
+//   },
+// });
 
 
-// Optional: verify connection
-transporter.verify()
-  .then(() => console.log("✅ SendGrid SMTP connection OK"))
-  .catch(err => console.error("❌ SendGrid SMTP connection failed:", err));
+// // Optional: verify connection
+// transporter.verify()
+//   .then(() => console.log("✅ SendGrid SMTP connection OK"))
+//   .catch(err => console.error("❌ SendGrid SMTP connection failed:", err));
 
 
 
