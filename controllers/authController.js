@@ -1,6 +1,19 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+
+
+const nodemailer = require("nodemailer");
+
+// ✅ SendGrid transporter
+const transporter = nodemailer.createTransport({
+  host: "smtp.sendgrid.net",
+  port: 587,
+  auth: {
+    user: "apikey", // must literally be "apikey"
+    pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
+  },
+});
 // const nodemailer = require("nodemailer");
 
 // Generate JWT token
@@ -15,10 +28,11 @@ const generateToken = (user) => {
 
 const sendVerificationEmail = (email, token) => {
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.sendgrid.net",
+    port: 587,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: "apikey", // must literally be "apikey"
+      pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
     },
   });
 
@@ -324,17 +338,7 @@ exports.userLocation = async (req, res) => {
 
 
 
-const nodemailer = require("nodemailer");
 
-// ✅ SendGrid transporter
-const transporter = nodemailer.createTransport({
-  host: "smtp.sendgrid.net",
-  port: 587,
-  auth: {
-    user: "apikey", // must literally be "apikey"
-    pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
-  },
-});
 
 // Optional: verify connection
 transporter.verify()
