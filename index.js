@@ -1,34 +1,16 @@
-import dotenv from "dotenv";
-dotenv.config(); // Load environment variables first
-
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import "./cron.js"; // must include .js extension for ESM
-
+// import dotenv from "dotenv";
+// dotenv.config(); // Load environment variables first
+require("dotenv").config(); // Load environment variables first
 console.log("Environment Variables:", {
   NODE_ENV: process.env.NODE_ENV,
   PORT: process.env.PORT,
   MONGO_URI: process.env.MONGO_URI ? "Defined" : "Not Defined",
 });
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
 
-// const app = express();
-
-// your server logic here...
-
-// import dotenv from "dotenv";
-// dotenv.config(); // Load environment variables first
-// require("dotenv").config(); // Load environment variables first
-// console.log("Environment Variables:", {
-//   NODE_ENV: process.env.NODE_ENV,
-//   PORT: process.env.PORT,
-//   MONGO_URI: process.env.MONGO_URI ? "Defined" : "Not Defined",
-// });
-// const express = require("express");
-// const mongoose = require("mongoose");
-// const cors = require("cors");
-
-// require("./cron");
+require("./cron");
 // const morgan = require("morgan");
 
 const authRoutes = require("./routes/auth");
