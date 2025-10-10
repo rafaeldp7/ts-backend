@@ -1,5 +1,4 @@
-// import dotenv from "dotenv";
-// dotenv.config(); // Load environment variables first
+
 require("dotenv").config(); // Load environment variables first
 console.log("Environment Variables:", {
   NODE_ENV: process.env.NODE_ENV,
