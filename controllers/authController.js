@@ -1,9 +1,13 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-
-
 const nodemailer = require("nodemailer");
+
+// 1. Request OTP
+const sgMail = require("@sendgrid/mail");
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+
 
 // ✅ SendGrid transporter
 const transporter = nodemailer.createTransport({
@@ -14,7 +18,15 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
   },
 });
-// const nodemailer = require("nodemailer");
+
+
+// Optional: verify connection
+transporter.verify()
+  .then(() => console.log("✅ SendGrid SMTP connection OK"))
+  .catch(err => console.error("❌ SendGrid SMTP connection failed:", err));
+
+
+
 
 // Generate JWT token
 const generateToken = (user) => {
@@ -26,36 +38,31 @@ const generateToken = (user) => {
 // Mock email function
 
 
-const sendVerificationEmail = (email, token) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.sendgrid.net",
-    port: 587,
-    auth: {
-      user: "apikey", // must literally be "apikey"
-      pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
-    },
-  });
-
+const sendVerificationEmail = async (email, otp) => {
   const mailOptions = {
-  from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
-  to: email,
-  subject: "Verify Your Traffic Slight Account",
-html: `
-  <h2>Your Traffic Slight OTP</h2>
-  <p>Enter this code in the app to verify your email:</p>
-  <h1 style="letter-spacing: 2px;">${token}</h1>
-`
+    from: `"Traffic Slight" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Verify Your Traffic Slight Account",
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 16px; background-color: #f9f9f9;">
+        <h2 style="color: #2c3e50;">Verify Your Email</h2>
+        <p>Thank you for signing up for <strong>Traffic Slight</strong> 🚦</p>
+        <p>Please enter the following OTP to verify your account:</p>
+        <div style="font-size: 24px; letter-spacing: 4px; font-weight: bold; color: #3498db; margin-top: 12px;">
+          ${otp}
+        </div>
+        <p style="margin-top: 20px;">This code will expire in 10 minutes.</p>
+      </div>
+    `,
+  };
 
-
-};
-
-  transporter.sendMail(mailOptions, (err, info) => {
-    if (err) {
-      console.error("Email sending failed:", err);
-    } else {
-      console.log("Verification email sent:", info.response);
-    }
-  });
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`📨 Verification email sent to ${email}`);
+  } catch (error) {
+    console.error("❌ Email sending failed:", error);
+    throw new Error("Failed to send verification email");
+  }
 };
 
 
@@ -199,122 +206,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Get profile
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ msg: "User not found" });
-    res.json(user);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get all users
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find({}, "-password");
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get first user name
-exports.getFirstUserName = async (req, res) => {
-  try {
-    const firstUser = await User.findOne({}, "name").sort({ _id: 1 });
-    if (!firstUser) return res.status(404).json({ msg: "No users found" });
-    res.json({ name: firstUser.name });
-  } catch (err) {
-    console.error("Error fetching first user:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get user growth
-exports.getUserGrowth = async (req, res) => {
-  try {
-    const now = new Date();
-    const currentYear = now.getFullYear().toString().slice(-2);
-    const monthlyData = new Array(12).fill(0);
-
-    for (let month = 0; month < 12; month++) {
-      const MM = (month + 1).toString().padStart(2, "0");
-      const YYMM = `${currentYear}${MM}`;
-      const count = await User.countDocuments({ id: new RegExp(`^${YYMM}`) });
-      monthlyData[month] = count;
-    }
-
-    res.json({ monthlyData });
-  } catch (error) {
-    console.error("Error fetching user growth:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Get user count
-exports.getUserCount = async (req, res) => {
-  try {
-    const count = await User.countDocuments();
-    res.json({ count });
-  } catch (err) {
-    console.error("Error fetching user count:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get new users this month
-exports.getNewUsersThisMonth = async (req, res) => {
-  try {
-    const now = new Date();
-    const YYMM = now.toISOString().slice(2, 7).replace("-", "");
-    const newUsers = await User.find({ id: new RegExp(`^${YYMM}`) });
-    res.json({ count: newUsers.length, users: newUsers });
-  } catch (error) {
-    console.error("Error fetching new users this month:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Delete account
-exports.deleteAccount = async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.user.id);
-    if (!user) return res.status(404).json({ msg: "User not found" });
-    res.json({ msg: "Account deleted successfully" });
-  } catch (err) {
-    console.error("Account Deletion Error:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-
-// Update user location
-exports.userLocation = async (req, res) => {
-  const { lat, lng } = req.body;
-
-  if (!lat || !lng) {
-    return res.status(400).json({ msg: "Latitude and longitude required." });
-  }
-
-  try {
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
-      { location: { lat, lng } },
-      { new: true }
-    );
-
-    if (!user) return res.status(404).json({ msg: "User not found." });
-
-    res.json({ msg: "Location updated", location: user.location });
-  } catch (error) {
-    console.error("Error updating location:", error);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
 
 // const transporter = nodemailer.createTransport({
 //   service: "gmail",
@@ -339,17 +230,7 @@ exports.userLocation = async (req, res) => {
 
 
 
-
-// Optional: verify connection
-transporter.verify()
-  .then(() => console.log("✅ SendGrid SMTP connection OK"))
-  .catch(err => console.error("❌ SendGrid SMTP connection failed:", err));
-
-
-// 1. Request OTP
-const sgMail = require("@sendgrid/mail");
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
+// 1. Request password reset
 exports.requestReset = async (req, res) => {
   const { email } = req.body;
 
@@ -494,3 +375,119 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
+
+// Get profile
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Get all users
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({}, "-password");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Get first user name
+exports.getFirstUserName = async (req, res) => {
+  try {
+    const firstUser = await User.findOne({}, "name").sort({ _id: 1 });
+    if (!firstUser) return res.status(404).json({ msg: "No users found" });
+    res.json({ name: firstUser.name });
+  } catch (err) {
+    console.error("Error fetching first user:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Get user growth
+exports.getUserGrowth = async (req, res) => {
+  try {
+    const now = new Date();
+    const currentYear = now.getFullYear().toString().slice(-2);
+    const monthlyData = new Array(12).fill(0);
+
+    for (let month = 0; month < 12; month++) {
+      const MM = (month + 1).toString().padStart(2, "0");
+      const YYMM = `${currentYear}${MM}`;
+      const count = await User.countDocuments({ id: new RegExp(`^${YYMM}`) });
+      monthlyData[month] = count;
+    }
+
+    res.json({ monthlyData });
+  } catch (error) {
+    console.error("Error fetching user growth:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get user count
+exports.getUserCount = async (req, res) => {
+  try {
+    const count = await User.countDocuments();
+    res.json({ count });
+  } catch (err) {
+    console.error("Error fetching user count:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Get new users this month
+exports.getNewUsersThisMonth = async (req, res) => {
+  try {
+    const now = new Date();
+    const YYMM = now.toISOString().slice(2, 7).replace("-", "");
+    const newUsers = await User.find({ id: new RegExp(`^${YYMM}`) });
+    res.json({ count: newUsers.length, users: newUsers });
+  } catch (error) {
+    console.error("Error fetching new users this month:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Delete account
+exports.deleteAccount = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.user.id);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    res.json({ msg: "Account deleted successfully" });
+  } catch (err) {
+    console.error("Account Deletion Error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+// Update user location
+exports.userLocation = async (req, res) => {
+  const { lat, lng } = req.body;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ msg: "Latitude and longitude required." });
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { location: { lat, lng } },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ msg: "User not found." });
+
+    res.json({ msg: "Location updated", location: user.location });
+  } catch (error) {
+    console.error("Error updating location:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
