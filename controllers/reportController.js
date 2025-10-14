@@ -111,12 +111,12 @@ exports.createReport = async (req, res) => {
     // basic required fields
     if (
       !reportType ||
-      !location ||
+      // !location ||
       !location.latitude ||
       !location.longitude ||
       !description ||
-      !address ||
-      !verified
+      !address 
+      // !verified
     ) {
       return res.status(400).json({ message: "Missing or invalid fields" });
     }
