@@ -29,68 +29,82 @@ const UserMotor = require("../models/userMotorModel");
 
 
 // ✅ Record a new trip from user side
-exports.addTrip = async (req, res) => {
+// exports.addTrip = async (req, res) => {
+//   try {
+//     const {
+//       userId,
+//       motorId,
+//       distance,
+//       fuelUsedMin,
+//       fuelUsedMax,
+//       timeArrived,
+//       eta,
+//       startLocation,
+//       destination,
+
+//       // 🔽 NEW FIELDS
+//       actualDistance,
+//       actualFuelUsedMin,
+//       actualFuelUsedMax,
+//       kmph,
+//       rerouteCount,
+//       wasInBackground,
+//       showAnalyticsModal,
+//       analyticsNotes,
+//       trafficCondition = "moderate",
+//     } = req.body;
+
+//     const newTrip = new Trip({
+//       userId,
+//       motorId,
+//       distance,
+//       fuelUsedMin,
+//       fuelUsedMax,
+//       timeArrived,
+//       eta,
+//       startLocation,
+//       destination,
+
+//       actualDistance,
+//       actualFuelUsedMin,
+//       actualFuelUsedMax,
+//       kmph,
+//       rerouteCount,
+//       wasInBackground,
+//       showAnalyticsModal,
+//       analyticsNotes,
+//       trafficCondition,
+//     });
+
+//     await newTrip.save();
+
+//     // ✅ Update UserMotor.analytics
+//     const traveledDistance = actualDistance || distance;
+//     const fuelUsed = actualFuelUsedMax || fuelUsedMax || 0;
+
+//     await UserMotor.findByIdAndUpdate(motorId, {
+//       $inc: {
+//         "analytics.totalDistance": traveledDistance,
+//         "analytics.totalFuelUsed": fuelUsed,
+//         "analytics.tripsCompleted": 1,
+//       },
+//     });
+
+//     res.status(201).json({ msg: "Trip recorded", trip: newTrip });
+//   } catch (err) {
+//     res.status(500).json({ msg: "Failed to add trip", error: err.message });
+//   }
+// };
+// 🟢 Create a new trip
+exports.createTrip = async (req, res) => {
   try {
-    const {
-      userId,
-      motorId,
-      distance,
-      fuelUsedMin,
-      fuelUsedMax,
-      timeArrived,
-      eta,
-      destination,
-
-      // 🔽 NEW FIELDS
-      actualDistance,
-      actualFuelUsedMin,
-      actualFuelUsedMax,
-      kmph,
-      rerouteCount,
-      wasInBackground,
-      showAnalyticsModal,
-      analyticsNotes,
-      trafficCondition = "moderate",
-    } = req.body;
-
-    const newTrip = new Trip({
-      userId,
-      motorId,
-      distance,
-      fuelUsedMin,
-      fuelUsedMax,
-      timeArrived,
-      eta,
-      destination,
-
-      actualDistance,
-      actualFuelUsedMin,
-      actualFuelUsedMax,
-      kmph,
-      rerouteCount,
-      wasInBackground,
-      showAnalyticsModal,
-      analyticsNotes,
-      trafficCondition,
-    });
-
-    await newTrip.save();
-
-    // ✅ Update UserMotor.analytics
-    const traveledDistance = actualDistance || distance;
-    const fuelUsed = actualFuelUsedMax || fuelUsedMax || 0;
-
-    await UserMotor.findByIdAndUpdate(motorId, {
-      $inc: {
-        "analytics.totalDistance": traveledDistance,
-        "analytics.totalFuelUsed": fuelUsed,
-        "analytics.tripsCompleted": 1,
-      },
-    });
-
-    res.status(201).json({ msg: "Trip recorded", trip: newTrip });
-  } catch (err) {
-    res.status(500).json({ msg: "Failed to add trip", error: err.message });
+    const tripData = req.body;
+    const newTrip = new Trip(tripData);
+    const savedTrip = await newTrip.save();
+    res.status(201).json({ success: true, trip: savedTrip });
+  } catch (error) {
+    console.error("❌ Error creating trip:", error);
+    res.status(500).json({ success: false, message: "Failed to create trip" });
   }
 };
 

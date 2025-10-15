@@ -21,6 +21,8 @@ const TripSchema = new mongoose.Schema({
   timeArrived: { type: String, required: true },
 
   // 🟢 Actual (Tracked)
+  tripStartTime: { type: Date, default: Date.now },
+  tripEndTime: { type: Date },
   actualDistance: { type: Number, default: null },
   actualFuelUsedMin: { type: Number, default: null },
   actualFuelUsedMax: { type: Number, default: null },
