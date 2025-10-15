@@ -96,7 +96,7 @@ const UserMotor = require("../models/userMotorModel");
 //   }
 // };
 // 🟢 Create a new trip
-exports.createTrip = async (req, res) => {
+exports.addTrip = async (req, res) => {
   try {
     const tripData = req.body;
     const newTrip = new Trip(tripData);
