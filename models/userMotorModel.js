@@ -13,7 +13,7 @@ const UserMotorSchema = new mongoose.Schema(
     odometerAtAcquisition: { type: Number }, // in kilometers
     currentOdometer: { type: Number, default: 0 }, // in kilometers
     age: { type: Number },
-    fuelTank: motorcycleId.fuelTank, // in liters
+    
     // 📊 Speed Records
     kmphRecords: [
       {
@@ -56,6 +56,11 @@ UserMotorSchema.set("toObject", { virtuals: true });
 //
 // 🔮 Virtuals
 //
+//fueltank
+UserMotorSchema.virtual("fuelTank").get(function () {
+  if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
+  return this.motorcycleId.fuelTank;
+});
 
 // Total drivable distance with full tank
 UserMotorSchema.virtual("totalDrivableDistance").get(function () {
