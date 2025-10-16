@@ -106,7 +106,7 @@ exports.getUserMotorsByUserId = async (req, res) => {
       totalDrivableDistance: motor.totalDrivableDistance ?? 0,
       totalDrivableDistanceWithCurrentGas: motor.totalDrivableDistanceWithCurrentGas ?? 0,
       isLowFuel: motor.isLowFuel ?? false,
-
+      fuelTank: motor.fuelTank ?? 0,
       createdAt: motor.createdAt,
       updatedAt: motor.updatedAt,
 
