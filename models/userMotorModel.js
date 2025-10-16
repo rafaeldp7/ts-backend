@@ -13,7 +13,7 @@ const UserMotorSchema = new mongoose.Schema(
     odometerAtAcquisition: { type: Number }, // in kilometers
     currentOdometer: { type: Number, default: 0 }, // in kilometers
     age: { type: Number },
-
+    fuelTank: motorcycleId.fuelTank, // in liters
     // 📊 Speed Records
     kmphRecords: [
       {
