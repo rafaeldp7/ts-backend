@@ -32,7 +32,7 @@ const UserMotorSchema = new mongoose.Schema(
         efficiency: { type: Number }, // in km/L
       },
     ],
-    currentFuelEfficiency: { type: Number, default: 0 }, // in km/L
+    currentFuelEfficiency: { type: Number, default: motorcycleId.fuelConsumption }, // in km/L
     // ⛽ Fuel Tracking
     currentFuelLevel: { type: Number, default: 0 }, // liters currently in the tank
 
