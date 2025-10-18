@@ -176,6 +176,42 @@ exports.updateFuelLevel = async (req, res) => {
   }
 };
 
+// PUT update fuel efficiency records and current efficiency
+exports.updateEfficiency = async (req, res) => {
+  const motorId = req.params.id;
+  const { fuelEfficiencyRecords, currentFuelEfficiency } = req.body;
+
+  if (!fuelEfficiencyRecords || typeof currentFuelEfficiency !== 'number') {
+    return res.status(400).json({
+      message: 'Missing or invalid efficiency data.',
+    });
+  }
+
+  try {
+    const updatedMotor = await UserMotor.findByIdAndUpdate(
+      motorId,
+      {
+        $set: {
+          fuelEfficiencyRecords,
+          currentFuelEfficiency,
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedMotor) {
+      return res.status(404).json({ message: 'Motor not found.' });
+    }
+
+    res.status(200).json({
+      message: 'Fuel efficiency updated successfully.',
+      data: updatedMotor,
+    });
+  } catch (error) {
+    console.error('Error updating efficiency:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
 
 
 

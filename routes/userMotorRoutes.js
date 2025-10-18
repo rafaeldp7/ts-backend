@@ -13,6 +13,7 @@ const {
   getMotorOverviewAnalytics,
   recalculateAllMotorAnalytics,
   updateFuelLevel,
+  updateEfficiency,
 } = require("../controllers/userMotorController");
 
 
@@ -30,6 +31,7 @@ router.post("/", createUserMotor); // POST new motor
 router.put("/:id", updateUserMotor); // PUT update motor
 router.delete("/:id", deleteUserMotor); // DELETE motor
 router.put("/:id/fuel", updateFuelLevel); // Update fuel level
+router.put("/:id/updateEfficiency", updateEfficiency); // Update fuel level
 
 
 router.get("/user-overview/:userId", getUserOverviewAnalytics);
