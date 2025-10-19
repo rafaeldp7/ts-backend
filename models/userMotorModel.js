@@ -32,7 +32,7 @@ const UserMotorSchema = new mongoose.Schema(
         efficiency: { type: Number }, // in km/L
       },
     ],
-    currentFuelEfficiency: { type: Number, default: motorcycleId.fuelConsumption }, // in km/L
+    currentFuelEfficiency: { type: Number, default: 55}, // in km/L
     // ⛽ Fuel Tracking
     currentFuelLevel: { type: Number, default: 0 }, // liters currently in the tank
 
@@ -63,6 +63,7 @@ UserMotorSchema.set("toObject", { virtuals: true });
 //
 // 🔮 Virtuals
 //
+
 //fueltank
 UserMotorSchema.virtual("fuelTank").get(function () {
   if (!this.motorcycleId || !this.populated("motorcycleId")) return null;
