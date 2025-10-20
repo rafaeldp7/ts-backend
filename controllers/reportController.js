@@ -13,11 +13,28 @@ exports.getArchivedReports = async (req, res) => {
 exports.archiveReport = async (req, res) => {
   try {
     const { id } = req.params;
-    const report = await Report.findByIdAndUpdate(id, { archived: true }, { new: true });
-    if (!report) return res.status(404).json({ msg: "Report not found" });
-    res.status(200).json({ msg: "Report archived", report });
+
+    // ✅ Validate the ID before using it
+    if (!id || id === 'null' || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: 'Invalid or missing report ID' });
+    }
+
+    const report = await Report.findByIdAndUpdate(
+      id,
+      { archived: true },
+      { new: true }
+    );
+
+    if (!report) {
+      return res.status(404).json({ msg: 'Report not found' });
+    }
+
+    res.status(200).json({ msg: 'Report archived', report });
   } catch (err) {
-    res.status(500).json({ msg: "Error archiving report", error: err.message });
+    res.status(500).json({
+      msg: 'Error archiving report',
+      error: err.message,
+    });
   }
 };
 // ✅ Update an existing report
