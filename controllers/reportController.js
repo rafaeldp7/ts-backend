@@ -81,6 +81,46 @@ exports.updateReport = async (req, res) => {
   }
 };
 
+exports.updateVerification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verifiedByAdmin, verifiedByUser } = req.body; // Expect either or both
+
+    // Find report
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ msg: "Report not found" });
+    }
+
+    // Ensure `verified` exists
+    if (!report.verified) {
+      report.verified = { verifiedByAdmin: 0, verifiedByUser: 0 };
+    }
+
+    // Update only the verification fields that were passed
+    if (typeof verifiedByAdmin === "number") {
+      report.verified.verifiedByAdmin = verifiedByAdmin;
+    }
+    if (typeof verifiedByUser === "number") {
+      report.verified.verifiedByUser = verifiedByUser;
+    }
+
+    await report.save();
+
+    res.status(200).json({
+      msg: "Verification updated successfully",
+      verified: report.verified,
+    });
+  } catch (err) {
+    console.error("Update verification error:", err);
+    res.status(500).json({
+      msg: "Error updating verification",
+      error: err.message,
+    });
+  }
+};
+
+
 exports.voteReport = async (req, res) => {
   try {
     const { id } = req.params;
