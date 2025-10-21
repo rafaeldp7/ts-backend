@@ -14,6 +14,7 @@ const mapRoutes = require('./map');
 
 // Import new route modules from root level
 const fuelLogRoutes = require('./fuelLogRoutes');
+const fuelRoutes = require('./fuelRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const savedDestinationRoutes = require('./savedDestinationRoutes');
 const dailyAnalyticsRoutes = require('./dailyAnalyticsRoutes');
@@ -34,6 +35,7 @@ router.use('/map', mapRoutes);
 
 // Mount new routes
 router.use('/fuel-logs', fuelLogRoutes);
+router.use('/fuel', fuelRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/saved-destinations', savedDestinationRoutes);
 router.use('/daily-analytics', dailyAnalyticsRoutes);
