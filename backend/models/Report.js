@@ -102,6 +102,11 @@ const reportSchema = new mongoose.Schema({
   verifiedAt: {
     type: Date
   },
+  verificationNotes: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
   resolvedAt: {
     type: Date
   },
