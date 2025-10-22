@@ -22,6 +22,14 @@ const fuelStatsRoutes = require('./fuelStatsRoutes');
 const generalAnalyticsRoutes = require('./generalAnalyticsRoutes');
 const leaderboardsAnalyticsRoutes = require('./leaderboardsAnalyticsRoutes');
 
+// Import new admin dashboard routes
+const dashboardRoutes = require('./dashboard');
+const adminManagementRoutes = require('./adminManagement');
+const geographyRoutes = require('./geography');
+const searchRoutes = require('./search');
+const exportRoutes = require('./export');
+const settingsRoutes = require('./settings');
+
 // Mount existing routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
@@ -42,5 +50,13 @@ router.use('/daily-analytics', dailyAnalyticsRoutes);
 router.use('/fuel-stats', fuelStatsRoutes);
 router.use('/general-analytics', generalAnalyticsRoutes);
 router.use('/leaderboard-analytics', leaderboardsAnalyticsRoutes);
+
+// Mount new admin dashboard routes
+router.use('/dashboard', dashboardRoutes);
+router.use('/admin-management', adminManagementRoutes);
+router.use('/geography', geographyRoutes);
+router.use('/search', searchRoutes);
+router.use('/export', exportRoutes);
+router.use('/settings', settingsRoutes);
 
 module.exports = router;

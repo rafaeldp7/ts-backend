@@ -207,6 +207,136 @@ class AuthController {
       }
     });
   }
+
+  // Get user growth data for admin dashboard
+  async getUserGrowth(req, res) {
+    try {
+      const currentYear = new Date().getFullYear();
+      
+      // Aggregate user registrations by month for current year
+      const monthlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: new Date(currentYear, 0, 1), // Start of current year
+              $lt: new Date(currentYear + 1, 0, 1) // Start of next year
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $month: "$createdAt" },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { "_id": 1 }
+        }
+      ]);
+
+      // Initialize array with 12 zeros (Jan-Dec)
+      const result = new Array(12).fill(0);
+      
+      // Fill in actual data (month - 1 because array is 0-indexed)
+      monthlyData.forEach(item => {
+        result[item._id - 1] = item.count;
+      });
+
+      res.json({
+        monthlyData: result
+      });
+    } catch (error) {
+      console.error('Error fetching user growth data:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch user growth data',
+        message: error.message 
+      });
+    }
+  }
+
+  // Get user count
+  async getUserCount(req, res) {
+    try {
+      const totalUsers = await User.countDocuments();
+      const newUsersThisMonth = await User.countDocuments({
+        createdAt: {
+          $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        }
+      });
+
+      res.json({
+        totalUsers,
+        newUsersThisMonth
+      });
+    } catch (error) {
+      console.error('Error fetching user count:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch user count',
+        message: error.message 
+      });
+    }
+  }
+
+  // Get all users with pagination
+  async getUsers(req, res) {
+    try {
+      const { page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+      
+      // Build filter
+      const filter = {};
+      if (search) {
+        filter.$or = [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      // Build sort options
+      const sortOptions = {};
+      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+      const users = await User.find(filter)
+        .select('-password')
+        .sort(sortOptions)
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+      const total = await User.countDocuments(filter);
+
+      res.json({
+        users,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        total
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch users',
+        message: error.message 
+      });
+    }
+  }
+
+  // Get first user name for dashboard
+  async getFirstUserName(req, res) {
+    try {
+      const firstUser = await User.findOne().sort({ createdAt: 1 });
+      
+      if (!firstUser) {
+        return res.json({ firstName: 'No users yet' });
+      }
+
+      res.json({ firstName: firstUser.firstName });
+    } catch (error) {
+      console.error('Error fetching first user name:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch first user name',
+        message: error.message 
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();
