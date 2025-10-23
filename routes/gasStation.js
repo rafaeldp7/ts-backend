@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const gasStationController = require('../controllers/gasStationController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 
 // Gas station routes
 router.get('/', authenticateToken, gasStationController.getGasStations);

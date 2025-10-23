@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const maintenanceController = require('../controllers/maintenanceController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 
 // Maintenance routes
 router.get('/', authenticateToken, maintenanceController.getMaintenanceRecords);

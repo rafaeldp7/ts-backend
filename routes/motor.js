@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const motorController = require('../controllers/motorController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 
 // Motor routes
 router.get('/', authenticateToken, motorController.getMotors);

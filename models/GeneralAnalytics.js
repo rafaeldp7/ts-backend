@@ -22,7 +22,7 @@ const GeneralAnalyticsSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-GeneralAnalyticsSchema.index({ key: 1 });
+// Key index is automatically created by unique: true
 GeneralAnalyticsSchema.index({ updatedAt: -1 });
 
 module.exports = mongoose.model('GeneralAnalytics', GeneralAnalyticsSchema);

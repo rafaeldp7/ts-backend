@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mapController = require('../controllers/mapController');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../middlewares/authMiddleware');
 
 // Google Maps API routes
 router.post('/geocode', authenticateToken, mapController.geocodeAddress);
