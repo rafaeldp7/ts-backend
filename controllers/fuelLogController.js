@@ -3,6 +3,30 @@ const moment = require('moment');
 
 // ====================== USER CONTROLLERS ======================
 
+// GET all fuel logs (public for testing)
+exports.getAllFuelLogs = async (req, res) => {
+  try {
+    const logs = await FuelLog.find()
+      .populate({
+        path: 'motorId',
+        select: 'nickname brand model'
+      })
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      count: logs.length,
+      data: logs
+    });
+  } catch (error) {
+    console.error('Error getting all fuel logs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error getting fuel logs'
+    });
+  }
+};
+
 // GET all fuel logs by user ID
 exports.getFuelLogsByUser = async (req, res) => {
   try {

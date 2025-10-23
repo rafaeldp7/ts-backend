@@ -1,5 +1,26 @@
 const Notification = require('../models/Notification');
 
+// 📄 Get all notifications (public for testing)
+exports.getAllNotifications = async (req, res) => {
+  try {
+    const notifications = await Notification.find()
+      .populate('userId', 'firstName lastName email')
+      .sort({ createdAt: -1 });
+    
+    res.json({
+      success: true,
+      count: notifications.length,
+      data: notifications
+    });
+  } catch (error) {
+    console.error('Error getting all notifications:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error getting notifications'
+    });
+  }
+};
+
 // 📥 Create new notification
 exports.createNotification = async (req, res) => {
   try {

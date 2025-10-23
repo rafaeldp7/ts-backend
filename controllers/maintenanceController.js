@@ -5,7 +5,7 @@ class MaintenanceController {
   // Get all maintenance records for user
   async getMaintenanceRecords(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { 
         page = 1, 
         limit = 10, 
@@ -18,7 +18,8 @@ class MaintenanceController {
       } = req.query;
 
       // Build filter object
-      const filter = { userId };
+      const filter = {};
+      if (userId) filter.userId = userId;
       if (type) filter.type = type;
       if (motorId) filter.motorId = motorId;
       

@@ -5,7 +5,7 @@ class TripController {
   // Get all trips for user
   async getTrips(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { 
         page = 1, 
         limit = 10, 
@@ -18,7 +18,8 @@ class TripController {
       } = req.query;
 
       // Build filter object
-      const filter = { userId };
+      const filter = {};
+      if (userId) filter.userId = userId;
       if (status) filter.status = status;
       if (motorId) filter.motorId = motorId;
       

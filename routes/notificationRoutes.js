@@ -3,6 +3,9 @@ const router = express.Router();
 const notificationController = require('../controllers/notificationController');
 const { protect } = require('../middlewares/authMiddleware');
 
+// GET /api/notifications (public for testing)
+router.get('/', notificationController.getAllNotifications);
+
 // POST /api/notifications
 router.post('/', protect, notificationController.createNotification);
 

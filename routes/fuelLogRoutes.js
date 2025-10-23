@@ -7,6 +7,11 @@ const { protect } = require('../middlewares/authMiddleware');
  * 👤 USER SIDE ROUTES
  */
 
+// 📄 Get all fuel logs (public for testing)
+// METHOD: GET
+// Returns: Array of all fuel logs
+router.get('/', controller.getAllFuelLogs);
+
 // 📥 Create new fuel log
 // METHOD: POST
 // BODY: { userId, motorId, liters, pricePerLiter, [notes] }
