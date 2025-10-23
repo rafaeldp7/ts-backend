@@ -56,7 +56,7 @@ const adminRoleSchema = new mongoose.Schema({
     },
     canViewAnalytics: {
       type: Boolean,
-      default: true
+      default: false
     },
     canExportData: {
       type: Boolean,
@@ -75,24 +75,14 @@ const adminRoleSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  createdAt: { 
-    type: Date, 
-    default: Date.now 
+  createdAt: {
+    type: Date,
+    default: Date.now
   },
-  updatedAt: { 
-    type: Date, 
-    default: Date.now 
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
-
-// Update updatedAt before saving
-adminRoleSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
-  next();
-});
-
-// Indexes
-adminRoleSchema.index({ name: 1 });
-adminRoleSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('AdminRole', adminRoleSchema);

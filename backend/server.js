@@ -12,6 +12,11 @@ dotenv.config();
 // Import routes
 const routes = require('./routes');
 
+// Import admin routes
+const adminAuthRoutes = require('./routes/adminAuth');
+const adminManagementRoutes = require('./routes/adminManagement');
+const adminSettingsRoutes = require('./routes/adminSettings');
+
 // Import middleware
 const errorHandler = require('./middleware/errorMiddleware');
 const { generalLimiter } = require('./middleware/rateLimitMiddleware');
@@ -44,6 +49,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api', routes);
+
+// Admin routes
+app.use('/api/admin-auth', adminAuthRoutes);
+app.use('/api/admin-management', adminManagementRoutes);
+app.use('/api/admin-settings', adminSettingsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

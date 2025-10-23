@@ -1,7 +1,6 @@
 const Admin = require('../models/Admin');
 const AdminRole = require('../models/AdminRole');
 const AdminLog = require('../models/AdminLog');
-const bcrypt = require('bcryptjs');
 
 class AdminController {
   // Get all admins with pagination and search
@@ -51,48 +50,44 @@ class AdminController {
       });
     } catch (error) {
       console.error('Error fetching admins:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch admins'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', null, null, {
+        description: 'Failed to retrieve admin list',
+        error: error.message
+      }, 'FAILED', 'HIGH');
+      res.status(500).json({ success: false, error: 'Failed to fetch admins' });
     }
   }
 
   // Get single admin by ID
   async getAdmin(req, res) {
     try {
-      const { id } = req.params;
-      
-      const admin = await Admin.findById(id)
+      const admin = await Admin.findById(req.params.id)
         .populate('role', 'name displayName permissions')
         .populate('createdBy', 'firstName lastName email');
 
       if (!admin) {
-        return res.status(404).json({
-          success: false,
-          error: 'Admin not found'
-        });
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.params.id, null, {
+          description: 'Attempted to retrieve non-existent admin'
+        }, 'FAILED', 'MEDIUM');
+        return res.status(404).json({ success: false, error: 'Admin not found' });
       }
 
-      // Log admin activity
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', id, admin.fullName, {
-        description: 'Retrieved admin details'
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', admin._id, admin.fullName, {
+        description: 'Retrieved single admin details'
       });
 
-      res.json({
-        success: true,
-        data: admin
-      });
+      res.json({ success: true, data: admin });
     } catch (error) {
       console.error('Error fetching admin:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch admin'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.params.id, null, {
+        description: 'Failed to retrieve single admin details',
+        error: error.message
+      }, 'FAILED', 'HIGH');
+      res.status(500).json({ success: false, error: 'Failed to fetch admin' });
     }
   }
 
-  // Create new admin
+  // Create new admin account
   async createAdmin(req, res) {
     try {
       const { firstName, lastName, email, password, roleId } = req.body;
@@ -100,6 +95,10 @@ class AdminController {
       // Check if admin already exists
       const existingAdmin = await Admin.findOne({ email });
       if (existingAdmin) {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, email, {
+          description: 'Attempted to create admin with existing email',
+          email
+        }, 'FAILED', 'MEDIUM');
         return res.status(400).json({
           success: false,
           error: 'Admin with this email already exists'
@@ -109,6 +108,10 @@ class AdminController {
       // Verify role exists
       const role = await AdminRole.findById(roleId);
       if (!role) {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, email, {
+          description: 'Attempted to create admin with invalid role',
+          roleId
+        }, 'FAILED', 'MEDIUM');
         return res.status(400).json({
           success: false,
           error: 'Invalid role specified'
@@ -133,183 +136,251 @@ class AdminController {
 
       // Log admin activity
       await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', admin._id, admin.fullName, {
-        description: `Created new admin: ${admin.fullName}`,
-        after: {
-          email: admin.email,
-          role: role.name
-        }
+        description: 'New admin account created',
+        newAdminEmail: admin.email,
+        assignedRole: role.displayName
       });
 
-      res.status(201).json({
-        success: true,
-        data: populatedAdmin,
-        message: 'Admin created successfully'
-      });
+      res.status(201).json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error creating admin:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create admin'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, req.body.email, {
+        description: 'Failed to create admin account',
+        error: error.message
+      }, 'FAILED', 'CRITICAL');
+      res.status(500).json({ success: false, error: 'Failed to create admin' });
     }
   }
 
-  // Update admin
+  // Update admin details
   async updateAdmin(req, res) {
     try {
-      const { id } = req.params;
-      const updates = req.body;
+      const { firstName, lastName, email, roleId, isActive } = req.body;
+      const adminId = req.params.id;
 
-      const admin = await Admin.findById(id);
+      const admin = await Admin.findById(adminId);
       if (!admin) {
-        return res.status(404).json({
-          success: false,
-          error: 'Admin not found'
-        });
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, null, {
+          description: 'Attempted to update non-existent admin'
+        }, 'FAILED', 'MEDIUM');
+        return res.status(404).json({ success: false, error: 'Admin not found' });
       }
 
-      const beforeData = {
-        firstName: admin.firstName,
-        lastName: admin.lastName,
-        email: admin.email,
-        isActive: admin.isActive
-      };
+      // Store before state for logging
+      const beforeState = { ...admin.toObject() };
+
+      // Check if email is being changed to an existing one
+      if (email && email !== admin.email) {
+        const existingAdmin = await Admin.findOne({ email });
+        if (existingAdmin && existingAdmin._id.toString() !== adminId) {
+          await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
+            description: 'Attempted to change email to an already existing one',
+            newEmail: email
+          }, 'FAILED', 'MEDIUM');
+          return res.status(400).json({ success: false, error: 'Email already in use by another admin' });
+        }
+      }
 
       // Update fields
-      Object.keys(updates).forEach(key => {
-        if (key !== 'password' && key !== 'role' && updates[key] !== undefined) {
-          admin[key] = updates[key];
-        }
-      });
+      admin.firstName = firstName || admin.firstName;
+      admin.lastName = lastName || admin.lastName;
+      admin.email = email || admin.email;
+      admin.isActive = typeof isActive === 'boolean' ? isActive : admin.isActive;
 
+      // If roleId is provided, update role
+      if (roleId && roleId.toString() !== admin.role.toString()) {
+        const newRole = await AdminRole.findById(roleId);
+        if (!newRole) {
+          await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
+            description: 'Attempted to assign invalid role',
+            roleId
+          }, 'FAILED', 'MEDIUM');
+          return res.status(400).json({ success: false, error: 'Invalid role specified' });
+        }
+        admin.role = roleId;
+      }
+
+      admin.updatedAt = Date.now();
       await admin.save();
 
+      const afterState = { ...admin.toObject() };
+
       // Log admin activity
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', id, admin.fullName, {
-        description: `Updated admin: ${admin.fullName}`,
-        before: beforeData,
-        after: {
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          email: admin.email,
-          isActive: admin.isActive
-        }
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', admin._id, admin.fullName, {
+        description: 'Admin details updated',
+        before: beforeState,
+        after: afterState
       });
 
-      res.json({
-        success: true,
-        data: admin,
-        message: 'Admin updated successfully'
-      });
+      const populatedAdmin = await Admin.findById(admin._id)
+        .populate('role', 'name displayName permissions')
+        .populate('createdBy', 'firstName lastName email');
+
+      res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error updating admin:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update admin'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', req.params.id, null, {
+        description: 'Failed to update admin details',
+        error: error.message
+      }, 'FAILED', 'CRITICAL');
+      res.status(500).json({ success: false, error: 'Failed to update admin' });
     }
   }
 
-  // Update admin role
+  // Update admin role (specific endpoint for role change)
   async updateAdminRole(req, res) {
     try {
-      const { id } = req.params;
       const { roleId } = req.body;
+      const adminId = req.params.id;
 
-      const admin = await Admin.findById(id);
+      const admin = await Admin.findById(adminId);
       if (!admin) {
-        return res.status(404).json({
-          success: false,
-          error: 'Admin not found'
-        });
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', adminId, null, {
+          description: 'Attempted to assign role to non-existent admin'
+        }, 'FAILED', 'MEDIUM');
+        return res.status(404).json({ success: false, error: 'Admin not found' });
       }
 
-      const role = await AdminRole.findById(roleId);
-      if (!role) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid role specified'
-        });
+      const beforeRole = admin.role.toString();
+
+      const newRole = await AdminRole.findById(roleId);
+      if (!newRole) {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', adminId, admin.fullName, {
+          description: 'Attempted to assign invalid role',
+          roleId
+        }, 'FAILED', 'MEDIUM');
+        return res.status(400).json({ success: false, error: 'Invalid role specified' });
       }
 
-      const oldRole = await AdminRole.findById(admin.role);
       admin.role = roleId;
+      admin.updatedAt = Date.now();
       await admin.save();
 
       // Log admin activity
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', id, admin.fullName, {
-        description: `Changed admin role from ${oldRole?.name} to ${role.name}`,
-        before: { role: oldRole?.name },
-        after: { role: role.name }
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', admin._id, admin.fullName, {
+        description: `Admin role changed from ${beforeRole} to ${newRole.displayName}`,
+        oldRoleId: beforeRole,
+        newRoleId: newRole._id,
+        newRoleName: newRole.displayName
       });
 
-      res.json({
-        success: true,
-        message: 'Admin role updated successfully'
-      });
+      const populatedAdmin = await Admin.findById(admin._id)
+        .populate('role', 'name displayName permissions')
+        .populate('createdBy', 'firstName lastName email');
+
+      res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error updating admin role:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to update admin role'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', req.params.id, null, {
+        description: 'Failed to update admin role',
+        error: error.message
+      }, 'FAILED', 'CRITICAL');
+      res.status(500).json({ success: false, error: 'Failed to update admin role' });
     }
   }
 
-  // Deactivate admin
+  // Deactivate admin account
   async deactivateAdmin(req, res) {
     try {
-      const { id } = req.params;
+      const adminId = req.params.id;
 
-      const admin = await Admin.findById(id);
+      const admin = await Admin.findById(adminId);
       if (!admin) {
-        return res.status(404).json({
-          success: false,
-          error: 'Admin not found'
-        });
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', adminId, null, {
+          description: 'Attempted to deactivate non-existent admin'
+        }, 'FAILED', 'MEDIUM');
+        return res.status(404).json({ success: false, error: 'Admin not found' });
+      }
+
+      if (admin._id.toString() === req.admin.id.toString()) {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', adminId, admin.fullName, {
+          description: 'Attempted to deactivate own admin account'
+        }, 'FAILED', 'HIGH');
+        return res.status(400).json({ success: false, error: 'Cannot deactivate your own account' });
       }
 
       admin.isActive = false;
+      admin.updatedAt = Date.now();
       await admin.save();
 
       // Log admin activity
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', id, admin.fullName, {
-        description: `Deactivated admin: ${admin.fullName}`
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', admin._id, admin.fullName, {
+        description: 'Admin account deactivated'
       });
 
-      res.json({
-        success: true,
-        message: 'Admin deactivated successfully'
-      });
+      const populatedAdmin = await Admin.findById(admin._id)
+        .populate('role', 'name displayName permissions')
+        .populate('createdBy', 'firstName lastName email');
+
+      res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error deactivating admin:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to deactivate admin'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', req.params.id, null, {
+        description: 'Failed to deactivate admin account',
+        error: error.message
+      }, 'FAILED', 'CRITICAL');
+      res.status(500).json({ success: false, error: 'Failed to deactivate admin' });
     }
   }
 
-  // Get admin roles
+  // Activate admin account
+  async activateAdmin(req, res) {
+    try {
+      const adminId = req.params.id;
+
+      const admin = await Admin.findById(adminId);
+      if (!admin) {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'ACTIVATE', 'ADMIN', adminId, null, {
+          description: 'Attempted to activate non-existent admin'
+        }, 'FAILED', 'MEDIUM');
+        return res.status(404).json({ success: false, error: 'Admin not found' });
+      }
+
+      admin.isActive = true;
+      admin.updatedAt = Date.now();
+      await admin.save();
+
+      // Log admin activity
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'ACTIVATE', 'ADMIN', admin._id, admin.fullName, {
+        description: 'Admin account activated'
+      });
+
+      const populatedAdmin = await Admin.findById(admin._id)
+        .populate('role', 'name displayName permissions')
+        .populate('createdBy', 'firstName lastName email');
+
+      res.json({ success: true, data: populatedAdmin });
+    } catch (error) {
+      console.error('Error activating admin:', error);
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'ACTIVATE', 'ADMIN', req.params.id, null, {
+        description: 'Failed to activate admin account',
+        error: error.message
+      }, 'FAILED', 'CRITICAL');
+      res.status(500).json({ success: false, error: 'Failed to activate admin' });
+    }
+  }
+
+  // Get all admin roles
   async getAdminRoles(req, res) {
     try {
-      const roles = await AdminRole.find({ isActive: true })
-        .sort({ createdAt: -1 });
+      const roles = await AdminRole.find({ isActive: true }).sort({ name: 1 });
 
-      res.json({
-        success: true,
-        data: roles
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_ROLE', null, null, {
+        description: 'Retrieved admin roles list'
       });
+
+      res.json({ success: true, data: roles });
     } catch (error) {
       console.error('Error fetching admin roles:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch admin roles'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_ROLE', null, null, {
+        description: 'Failed to retrieve admin roles',
+        error: error.message
+      }, 'FAILED', 'HIGH');
+      res.status(500).json({ success: false, error: 'Failed to fetch admin roles' });
     }
   }
 
-  // Create admin role
+  // Create new admin role
   async createAdminRole(req, res) {
     try {
       const { name, displayName, permissions, description } = req.body;
@@ -317,6 +388,10 @@ class AdminController {
       // Check if role already exists
       const existingRole = await AdminRole.findOne({ name });
       if (existingRole) {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN_ROLE', null, name, {
+          description: 'Attempted to create role with existing name',
+          roleName: name
+        }, 'FAILED', 'MEDIUM');
         return res.status(400).json({
           success: false,
           error: 'Role with this name already exists'
@@ -333,36 +408,33 @@ class AdminController {
       await role.save();
 
       // Log admin activity
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, 'Admin Role', {
-        description: `Created new admin role: ${displayName}`,
-        after: { name, displayName, permissions }
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN_ROLE', role._id, role.displayName, {
+        description: 'New admin role created',
+        roleName: role.name,
+        permissions: role.permissions
       });
 
-      res.status(201).json({
-        success: true,
-        data: role,
-        message: 'Admin role created successfully'
-      });
+      res.status(201).json({ success: true, data: role });
     } catch (error) {
       console.error('Error creating admin role:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create admin role'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN_ROLE', null, req.body.name, {
+        description: 'Failed to create admin role',
+        error: error.message
+      }, 'FAILED', 'CRITICAL');
+      res.status(500).json({ success: false, error: 'Failed to create admin role' });
     }
   }
 
-  // Get admin activity logs
+  // Get admin logs
   async getAdminLogs(req, res) {
     try {
-      const { page = 1, limit = 20, adminId, action, resource, startDate, endDate } = req.query;
-      
+      const { page = 1, limit = 50, adminId, action, resource, startDate, endDate } = req.query;
+
       // Build filter
       const filter = {};
       if (adminId) filter.adminId = adminId;
       if (action) filter.action = action;
       if (resource) filter.resource = resource;
-      
       if (startDate || endDate) {
         filter.timestamp = {};
         if (startDate) filter.timestamp.$gte = new Date(startDate);
@@ -370,13 +442,17 @@ class AdminController {
       }
 
       const logs = await AdminLog.find(filter)
-        .populate('adminId', 'firstName lastName email')
         .sort({ timestamp: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
       const total = await AdminLog.countDocuments(filter);
 
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+        description: 'Retrieved admin logs',
+        filters: { adminId, action, resource, startDate, endDate }
+      });
+
       res.json({
         success: true,
         data: {
@@ -390,24 +466,40 @@ class AdminController {
       });
     } catch (error) {
       console.error('Error fetching admin logs:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch admin logs'
-      });
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+        description: 'Failed to retrieve admin logs',
+        error: error.message
+      }, 'FAILED', 'HIGH');
+      res.status(500).json({ success: false, error: 'Failed to fetch admin logs' });
     }
   }
 
-  // Get current admin's activity logs
+  // Get current admin's logs
   async getMyAdminLogs(req, res) {
     try {
-      const { page = 1, limit = 20 } = req.query;
-      
-      const logs = await AdminLog.find({ adminId: req.admin.id })
+      const { page = 1, limit = 50, action, resource, startDate, endDate } = req.query;
+
+      // Build filter
+      const filter = { adminId: req.admin.id };
+      if (action) filter.action = action;
+      if (resource) filter.resource = resource;
+      if (startDate || endDate) {
+        filter.timestamp = {};
+        if (startDate) filter.timestamp.$gte = new Date(startDate);
+        if (endDate) filter.timestamp.$lte = new Date(endDate);
+      }
+
+      const logs = await AdminLog.find(filter)
         .sort({ timestamp: -1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
-      const total = await AdminLog.countDocuments({ adminId: req.admin.id });
+      const total = await AdminLog.countDocuments(filter);
+
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+        description: 'Retrieved personal admin logs',
+        filters: { action, resource, startDate, endDate }
+      });
 
       res.json({
         success: true,
@@ -421,31 +513,29 @@ class AdminController {
         }
       });
     } catch (error) {
-      console.error('Error fetching admin logs:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to fetch admin logs'
-      });
+      console.error('Error fetching my admin logs:', error);
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+        description: 'Failed to retrieve personal admin logs',
+        error: error.message
+      }, 'FAILED', 'HIGH');
+      res.status(500).json({ success: false, error: 'Failed to fetch my admin logs' });
     }
   }
 
   // Helper method to log admin activity
-  async logAdminActivity(adminId, adminEmail, action, resource, resourceId, resourceName, details = {}) {
+  async logAdminActivity(adminId, adminEmail, action, resource, resourceId, resourceName, details, status = 'SUCCESS', severity = 'MEDIUM') {
     try {
       const log = new AdminLog({
         adminId,
-        adminName: details.adminName || 'System',
+        adminName: adminEmail ? adminEmail.split('@')[0] : 'Unknown',
         adminEmail,
         action,
         resource,
         resourceId,
         resourceName,
         details,
-        ipAddress: details.ipAddress,
-        userAgent: details.userAgent,
-        sessionId: details.sessionId,
-        severity: details.severity || 'LOW',
-        status: details.status || 'SUCCESS'
+        status,
+        severity
       });
 
       await log.save();

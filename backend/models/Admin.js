@@ -53,51 +53,26 @@ const adminSchema = new mongoose.Schema({
 
 // Hash password before saving
 adminSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
+  if (!this.isModified('password')) {
+    return next();
   }
-});
-
-// Update updatedAt before saving
-adminSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
   next();
 });
 
 // Compare password method
-adminSchema.methods.comparePassword = async function(candidatePassword) {
-  try {
-    return await bcrypt.compare(candidatePassword, this.password);
-  } catch (error) {
-    throw new Error('Password comparison failed');
-  }
+adminSchema.methods.matchPassword = async function(enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Get full name
+// Virtual for admin's full name
 adminSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;
 });
 
-// Ensure virtual fields are serialized
-adminSchema.set('toJSON', {
-  virtuals: true,
-  transform: function(doc, ret) {
-    delete ret.password;
-    delete ret.__v;
-    return ret;
-  }
-});
-
-// Indexes
-adminSchema.index({ email: 1 });
-adminSchema.index({ role: 1 });
-adminSchema.index({ isActive: 1 });
-adminSchema.index({ createdAt: -1 });
+// Ensure virtuals are included in toJSON output
+adminSchema.set('toJSON', { virtuals: true });
+adminSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Admin', adminSchema);

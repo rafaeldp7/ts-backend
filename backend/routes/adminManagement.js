@@ -1,82 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { 
-  authenticateAdmin, 
-  checkAdminPermission, 
-  logAdminActivity,
-  canManageAdmins,
-  canAssignRoles,
-  canExportData
-} = require('../middleware/adminMiddleware');
+const { authenticateAdmin, checkPermission } = require('../middleware/adminAuth');
 
-// Admin management routes
-router.get('/admins', 
-  authenticateAdmin, 
-  checkAdminPermission('canRead'),
-  logAdminActivity('READ', 'ADMIN'),
-  adminController.getAdmins
-);
+// Admin CRUD operations
+router.get('/admins', authenticateAdmin, checkPermission('canRead'), adminController.getAdmins);
+router.get('/admins/:id', authenticateAdmin, checkPermission('canRead'), adminController.getAdmin);
+router.post('/admins', authenticateAdmin, checkPermission('canManageAdmins'), adminController.createAdmin);
+router.put('/admins/:id', authenticateAdmin, checkPermission('canUpdate'), adminController.updateAdmin);
+router.put('/admins/:id/role', authenticateAdmin, checkPermission('canAssignRoles'), adminController.updateAdminRole);
+router.put('/admins/:id/deactivate', authenticateAdmin, checkPermission('canManageAdmins'), adminController.deactivateAdmin);
+router.put('/admins/:id/activate', authenticateAdmin, checkPermission('canManageAdmins'), adminController.activateAdmin);
 
-router.get('/admins/:id', 
-  authenticateAdmin, 
-  checkAdminPermission('canRead'),
-  logAdminActivity('READ', 'ADMIN'),
-  adminController.getAdmin
-);
+// Role management
+router.get('/admin-roles', authenticateAdmin, checkPermission('canRead'), adminController.getAdminRoles);
+router.post('/admin-roles', authenticateAdmin, checkPermission('canManageAdmins'), adminController.createAdminRole);
 
-router.post('/admins', 
-  authenticateAdmin, 
-  canManageAdmins,
-  logAdminActivity('CREATE', 'ADMIN'),
-  adminController.createAdmin
-);
-
-router.put('/admins/:id', 
-  authenticateAdmin, 
-  checkAdminPermission('canUpdate'),
-  logAdminActivity('UPDATE', 'ADMIN'),
-  adminController.updateAdmin
-);
-
-router.put('/admins/:id/role', 
-  authenticateAdmin, 
-  canAssignRoles,
-  logAdminActivity('ASSIGN_ROLE', 'ADMIN'),
-  adminController.updateAdminRole
-);
-
-router.put('/admins/:id/deactivate', 
-  authenticateAdmin, 
-  canManageAdmins,
-  logAdminActivity('DEACTIVATE', 'ADMIN'),
-  adminController.deactivateAdmin
-);
-
-// Admin role management routes
-router.get('/admin-roles', 
-  authenticateAdmin, 
-  checkAdminPermission('canRead'),
-  adminController.getAdminRoles
-);
-
-router.post('/admin-roles', 
-  authenticateAdmin, 
-  canManageAdmins,
-  logAdminActivity('CREATE', 'ADMIN'),
-  adminController.createAdminRole
-);
-
-// Admin activity logging routes
-router.get('/admin-logs', 
-  authenticateAdmin, 
-  checkAdminPermission('canRead'),
-  adminController.getAdminLogs
-);
-
-router.get('/my-admin-logs', 
-  authenticateAdmin, 
-  adminController.getMyAdminLogs
-);
+// Activity logging
+router.get('/admin-logs', authenticateAdmin, checkPermission('canRead'), adminController.getAdminLogs);
+router.get('/my-admin-logs', authenticateAdmin, adminController.getMyAdminLogs);
 
 module.exports = router;
