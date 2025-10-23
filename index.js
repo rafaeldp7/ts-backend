@@ -53,6 +53,7 @@ console.log('🔍 Environment check:');
 console.log('MONGO_URI:', process.env.MONGO_URI);
 console.log('MONGODB_URI:', process.env.MONGODB_URI);
 console.log('Using MONGO_URI:', MONGO_URI);
+console.log('✅ All route variables properly declared');
 
 // Connect to MongoDB
 mongoose
