@@ -29,6 +29,7 @@ const geographyRoutes = require('./geography');
 const searchRoutes = require('./search');
 const exportRoutes = require('./export');
 const settingsRoutes = require('./settings');
+const uploadRoutes = require('./upload');
 
 // Mount existing routes
 router.use('/auth', authRoutes);
@@ -58,5 +59,6 @@ router.use('/geography', geographyRoutes);
 router.use('/search', searchRoutes);
 router.use('/export', exportRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/upload', uploadRoutes);
 
 module.exports = router;

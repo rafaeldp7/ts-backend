@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const geographyController = require('../controllers/geographyController');
-const { authenticateToken } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 
 // Geography routes
-router.get('/', authenticateToken, geographyController.getGeographyData);
-router.get('/barangay/:barangay', authenticateToken, geographyController.getBarangayData);
-router.get('/statistics', authenticateToken, geographyController.getGeographyStatistics);
+router.get('/', protect, geographyController.getGeographyData);
+router.get('/barangay/:barangay', protect, geographyController.getBarangayData);
+router.get('/statistics', protect, geographyController.getGeographyStatistics);
 
 module.exports = router;

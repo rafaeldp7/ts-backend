@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const exportController = require('../controllers/exportController');
-const { authenticateToken } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 
 // Export routes
-router.get('/users', authenticateToken, exportController.exportUsers);
-router.get('/reports', authenticateToken, exportController.exportReports);
-router.get('/gas-stations', authenticateToken, exportController.exportGasStations);
-router.get('/trips', authenticateToken, exportController.exportTrips);
+router.get('/users', protect, exportController.exportUsers);
+router.get('/reports', protect, exportController.exportReports);
+router.get('/gas-stations', protect, exportController.exportGasStations);
+router.get('/trips', protect, exportController.exportTrips);
 
 module.exports = router;

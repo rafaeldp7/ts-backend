@@ -4,8 +4,12 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { themeSettings } from "theme";
+import { AuthProvider } from "contexts/AuthContext";
+import ProtectedRoute from "components/ProtectedRoute";
 import Layout from "scenes/layout";
 import Overview from "scenes/overview";
+import Dashboard from "scenes/dashboard";
+import SearchPage from "scenes/search";
 import MapAndTraffic from "scenes/mapsAndTraffic";
 import Settings from "scenes/settings";
 import UserManagement from "scenes/userManagement";
@@ -19,22 +23,61 @@ function App() {
   return (
     <div className="app">
       <BrowserRouter>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/overview" replace />} />
-              <Route path="/overview" element={<Overview />} />
-              <Route path="/UserManagement" element={<UserManagement />} />
-              <Route path="/TripAnalytics" element={<TripAnalytics />} />
-              <Route path="/MapsAndTraffic" element={<MapAndTraffic />} />
-              <Route path="/Reports" element={<Reports />} />
-              <Route path="/SystemLogsAndSecurity" element={<SystemLogsAndSecurity />} />
-              <Route path="/Settings" element={<Settings />} />
-
-            </Route>
-          </Routes>
-        </ThemeProvider>
+        <AuthProvider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/overview" element={
+                  <ProtectedRoute>
+                    <Overview />
+                  </ProtectedRoute>
+                } />
+                <Route path="/search" element={
+                  <ProtectedRoute>
+                    <SearchPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/UserManagement" element={
+                  <ProtectedRoute>
+                    <UserManagement />
+                  </ProtectedRoute>
+                } />
+                <Route path="/TripAnalytics" element={
+                  <ProtectedRoute>
+                    <TripAnalytics />
+                  </ProtectedRoute>
+                } />
+                <Route path="/MapsAndTraffic" element={
+                  <ProtectedRoute>
+                    <MapAndTraffic />
+                  </ProtectedRoute>
+                } />
+                <Route path="/Reports" element={
+                  <ProtectedRoute>
+                    <Reports />
+                  </ProtectedRoute>
+                } />
+                <Route path="/SystemLogsAndSecurity" element={
+                  <ProtectedRoute>
+                    <SystemLogsAndSecurity />
+                  </ProtectedRoute>
+                } />
+                <Route path="/Settings" element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } />
+              </Route>
+            </Routes>
+          </ThemeProvider>
+        </AuthProvider>
       </BrowserRouter>
     </div>
   );

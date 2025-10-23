@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const searchController = require('../controllers/searchController');
-const { authenticateToken } = require('../middleware/auth');
+const { protect } = require('../middleware/authMiddleware');
 
 // Search routes
-router.get('/users', authenticateToken, searchController.searchUsers);
-router.get('/reports', authenticateToken, searchController.searchReports);
-router.get('/gas-stations', authenticateToken, searchController.searchGasStations);
-router.get('/motorcycles', authenticateToken, searchController.searchMotorcycles);
-router.get('/trips', authenticateToken, searchController.searchTrips);
+router.get('/users', protect, searchController.searchUsers);
+router.get('/reports', protect, searchController.searchReports);
+router.get('/gas-stations', protect, searchController.searchGasStations);
+router.get('/motorcycles', protect, searchController.searchMotorcycles);
+router.get('/trips', protect, searchController.searchTrips);
 
 module.exports = router;
