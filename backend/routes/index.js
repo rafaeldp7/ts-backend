@@ -25,6 +25,7 @@ const leaderboardsAnalyticsRoutes = require('./leaderboardsAnalyticsRoutes');
 // Import new admin dashboard routes
 const dashboardRoutes = require('./dashboard');
 const adminManagementRoutes = require('./adminManagement');
+const adminAuthRoutes = require('./adminAuth');
 const geographyRoutes = require('./geography');
 const searchRoutes = require('./search');
 const exportRoutes = require('./export');
@@ -55,6 +56,7 @@ router.use('/leaderboard-analytics', leaderboardsAnalyticsRoutes);
 // Mount new admin dashboard routes
 router.use('/dashboard', dashboardRoutes);
 router.use('/admin-management', adminManagementRoutes);
+router.use('/admin-auth', adminAuthRoutes);
 router.use('/geography', geographyRoutes);
 router.use('/search', searchRoutes);
 router.use('/export', exportRoutes);

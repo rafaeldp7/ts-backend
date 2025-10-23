@@ -21,6 +21,11 @@ const DailyAnalytics = require('./DailyAnalytics');
 const GeneralAnalytics = require('./GeneralAnalytics');
 const SavedDestination = require('./SavedDestinationModel');
 
+// Export admin models
+const Admin = require('./Admin');
+const AdminRole = require('./AdminRole');
+const AdminLog = require('./AdminLog');
+
 module.exports = {
   User,
   Motor,
@@ -41,5 +46,9 @@ module.exports = {
   FuelLog,
   DailyAnalytics,
   GeneralAnalytics,
-  SavedDestination
+  SavedDestination,
+  // Admin models
+  Admin,
+  AdminRole,
+  AdminLog
 };
