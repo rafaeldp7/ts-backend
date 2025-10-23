@@ -1,4 +1,4 @@
-const GeneralAnalytics = require("../models/GeneralAnalytics");
+const GeneralAnalytics = require('../models/GeneralAnalytics');
 
 // ✅ Create or Overwrite Analytics by Key
 exports.createOrUpdateAnalytics = async (req, res) => {

@@ -1,496 +1,342 @@
-const User = require("../models/User");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { validationResult } = require('express-validator');
 
-// 1. Request OTP
-const sgMail = require("@sendgrid/mail");
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+class AuthController {
+  // Register new user
+  async register(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
 
+      const { email, password, firstName, lastName, phone } = req.body;
 
+      // Check if user already exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
 
-// // ✅ SendGrid transporter
-// const transporter = nodemailer.createTransport({
-//   host: "smtp.sendgrid.net",
-//   port: 587,
-//   auth: {
-//     user: "apikey", // must literally be "apikey"
-//     pass: process.env.SENDGRID_API_KEY, // your actual SendGrid API key
-//   },
-// });
+      // Hash password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+      // Create user
+      const user = new User({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone,
+        preferences: {
+          units: 'metric',
+          language: 'en',
+          notifications: true
+        }
+      });
 
-// // Optional: verify connection
-// transporter.verify()
-//   .then(() => console.log("✅ SendGrid SMTP connection OK"))
-//   .catch(err => console.error("❌ SendGrid SMTP connection failed:", err));
+      await user.save();
 
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
-
-
-// Generate JWT token
-const generateToken = (user) => {
-  return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-  });
-};
-
-// Mock email function
-
-
-const sendVerificationEmail = async (email, otp) => {
-  const msg = {
-    to: email,
-    from: {
-      email: process.env.EMAIL_USER, // Verified sender in SendGrid
-      name: "Traffic Slight",
-    },
-    subject: "Verify Your Traffic Slight Account",
-    html: `
-      <div style="font-family: Arial, sans-serif; padding: 16px; background-color: #f9f9f9;">
-        <h2 style="color: #2c3e50;">Verify Your Email</h2>
-        <p>Thank you for signing up for <strong>Traffic Slight</strong> 🚦</p>
-        <p>Please enter the following OTP to verify your account:</p>
-        <div style="font-size: 24px; letter-spacing: 4px; font-weight: bold; color: #3498db; margin-top: 12px;">
-          ${otp}
-        </div>
-        <p style="margin-top: 20px;">This code will expire in 10 minutes.</p>
-      </div>
-    `,
-  };
-
-  try {
-    await sgMail.send(msg);
-    console.log(`📨 Verification email sent to ${email}`);
-  } catch (error) {
-    console.error("❌ Email sending failed:", error.response ? error.response.body : error);
-    throw new Error("Failed to send verification email");
-  }
-};
-
-
-// Check API status
-exports.status = (req, res) => {
-  res.send("Auth API is up and running");
-};
-
-// Register user
-exports.register = async (req, res) => {
-  try {
-    const { name, email, password, city, province, barangay, street } = req.body;
-
-    // Validate all required fields
-    if (!name || !email || !password || !city || !province || !barangay || !street) {
-      return res.status(400).json({ msg: "All fields are required" });
+      res.status(201).json({
+        message: 'User created successfully',
+        token,
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone
+        }
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ message: 'Server error during registration' });
     }
-
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ msg: "Email already registered" });
-
-    // Generate verification token
-    const verificationToken = Math.floor(100000 + Math.random() * 900000).toString();
-
-
-    // Create new user instance
-    const newUser = new User({
-      name,
-      email,
-      password,
-      city,
-      province,
-      barangay,
-      street,
-      verifyToken: verificationToken,
-    });
-
-    // Save user (runs pre-save hooks)
-    await newUser.save();
-
-    sendVerificationEmail(email, verificationToken);
-
-    res.status(201).json({
-      msg: "Registered successfully. Please check your email to verify.",
-      token: verificationToken,
-    });
-
-  } catch (error) {
-    console.error("Register error:", error);
-    res.status(500).json({ msg: "Server error", error: error.message, stack: error.stack });
-    console.log("Response status:", response.status);
-    console.log("Response data:", data);
-
-
   }
-};
 
-// Email verification
-exports.verifyEmail = async (req, res) => {
-  const { token } = req.params;
-  try {
-    const user = await User.findOne({ verifyToken: token });
-    if (!user) return res.status(400).json({ msg: "Invalid or expired token" });
+  // Login user
+  async login(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
 
-    user.isVerified = true;
-    user.verifyToken = undefined;
-    await user.save();
+      const { email, password } = req.body;
 
-    res.status(200).json({ msg: "Email verified successfully" });
-  } catch (error) {
-    console.error("Verify error:", error);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
+      // Find user
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
 
-// Resend verification email
-// Resend verification email
-exports.resendVerificationEmail = async (req, res) => {
-  const { email } = req.body;
+      // Check password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
 
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ msg: "User not found." });
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
-    if (user.isVerified) {
-      return res.status(400).json({ msg: "Email already verified." });
+      res.json({
+        message: 'Login successful',
+        token,
+        user: {
+          _id: user._id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          preferences: user.preferences
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Server error during login' });
     }
-
-    const newToken = Math.floor(100000 + Math.random() * 900000).toString();
-    user.verifyToken = newToken;
-    await user.save();
-
-    sendVerificationEmail(user.email, newToken);
-
-    res.status(200).json({ msg: "Verification email resent successfully." });
-  } catch (err) {
-    console.error("Resend verification error:", err);
-    res.status(500).json({ msg: "Server error." });
   }
-};
 
+  // Reset password request
+  async resetPassword(req, res) {
+    try {
+      const { email } = req.body;
 
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
 
-// Login
-exports.login = async (req, res) => {
-  const { email, password } = req.body;
+      // Generate reset token
+      const resetToken = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+      );
 
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ msg: "Invalid credentials - user not found" });
-
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) return res.status(401).json({ msg: "Invalid credentials - wrong password" });
-
-    if (!user.isVerified) {
-      return res.status(403).json({ msg: "Please verify your email before logging in." });
+      // TODO: Send email with reset link
+      // For now, just return the token (in production, send via email)
+      res.json({
+        message: 'Password reset instructions sent to your email',
+        resetToken // Remove this in production
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ message: 'Server error during password reset' });
     }
+  }
 
-    const token = generateToken(user);
-    res.status(200).json({
-      token,
+  // Verify reset token
+  async verifyReset(req, res) {
+    try {
+      const { token } = req.body;
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.userId);
+
+      if (!user) {
+        return res.status(400).json({ message: 'Invalid reset token' });
+      }
+
+      res.json({ message: 'Reset token is valid', userId: user._id });
+    } catch (error) {
+      res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+  }
+
+  // Change password
+  async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user.userId;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify current password
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password
+      user.password = hashedPassword;
+      await user.save();
+
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Change password error:', error);
+      res.status(500).json({ message: 'Server error during password change' });
+    }
+  }
+
+  // Logout
+  async logout(req, res) {
+    // In a stateless JWT system, logout is handled client-side
+    // You could implement token blacklisting here if needed
+    res.json({ message: 'Logged out successfully' });
+  }
+
+  // Verify token
+  async verifyToken(req, res) {
+    res.json({ 
+      message: 'Token is valid', 
       user: {
-        id:user.id,
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        city: user.city,
-        province: user.province,
-        barangay: user.barangay,
-        street: user.street,
-        isVerified: user.isVerified,
-        createdAt: user.createdAt,
-      },
+        _id: req.user.userId,
+        email: req.user.email
+      }
     });
-
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ msg: "Server error", error: error.message });
   }
-};
 
-
-// const transporter = nodemailer.createTransport({
-//   service: "gmail",
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASS,
-//   },
-// });
-
-// const transporter = nodemailer.createTransport({
-
-  
-//   host: "smtp.gmail.com",
-//   port: 465,
-//   secure: true, // true for 465, false for 587
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASS,
-//   },
-// });
-
-
-
-
-// 1. Request password reset
-exports.requestReset = async (req, res) => {
-  const { email } = req.body;
-
-  try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ msg: "User not found." });
-
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.resetToken = otp;
-    user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-    await user.save();
-
-    const msg = {
-      to: email,
+  // Get user growth data for admin dashboard
+  async getUserGrowth(req, res) {
+    try {
+      const currentYear = new Date().getFullYear();
       
-      from: {
-      name: "Traffic Slight",
-      email: "delapazr0721@gmail.com", // must be verified in SendGrid
-      },
-      subject: "Reset Your Password",
-      html: `
-        <h2>Traffic Slight - Password Reset OTP</h2>
-        <p>Use the code below to reset your password:</p>
-        <h1>${otp}</h1>
-        <p>This code will expire in 10 minutes.</p>
-      `,
-    };
+      // Aggregate user registrations by month for current year
+      const monthlyData = await User.aggregate([
+        {
+          $match: {
+            createdAt: {
+              $gte: new Date(currentYear, 0, 1), // Start of current year
+              $lt: new Date(currentYear + 1, 0, 1) // Start of next year
+            }
+          }
+        },
+        {
+          $group: {
+            _id: { $month: "$createdAt" },
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $sort: { "_id": 1 }
+        }
+      ]);
 
-    await sgMail.send(msg);
-    res.json({ msg: "OTP sent to email." });
-  } catch (error) {
-    console.error("Request Reset Error:", error);
-    res.status(500).json({ msg: "Server error.", error: error.message });
-  }
-};
+      // Initialize array with 12 zeros (Jan-Dec)
+      const result = new Array(12).fill(0);
+      
+      // Fill in actual data (month - 1 because array is 0-indexed)
+      monthlyData.forEach(item => {
+        result[item._id - 1] = item.count;
+      });
 
-
-// exports.requestReset = async (req, res) => {
-//   const { email } = req.body;
-
-//   try {
-//     const user = await User.findOne({ email });
-//     if (!user) return res.status(404).json({ msg: "User not found." });
-
-//     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-//     user.resetToken = otp;
-//     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
-//     await user.save();
-
-//     await transporter.sendMail({
-//       from: `"Traffic Slight" <noreply@trafficslight.com>`, // optional but good practice
-//       to: email,
-//       subject: "Reset Your Password",
-//       html: `
-//         <h2>Traffic Slight - Password Reset OTP</h2>
-//         <p>Use the code below to reset your password:</p>
-//         <h1>${otp}</h1>
-//         <p>This code will expire in 10 minutes.</p>
-//       `,
-//     });
-
-//     res.json({ msg: "OTP sent to email." });
-//   } catch (error) {
-//     console.error("Request Reset Error:", error);
-//     res.status(500).json({ msg: "Server error.", error: error.message });
-//   }
-// };
-
-// Update user basic profile information (no authMiddleware required)
-exports.updateProfile = async (req, res) => {
-  const { id, name, email, city, province, barangay, street } = req.body;
-
-  if (!id) {
-    return res.status(400).json({ msg: "User ID is required." });
-  }
-
-  try {
-    // Check if email is already taken by another user
-    const existingEmailUser = await User.findOne({ email });
-    if (existingEmailUser && existingEmailUser._id.toString() !== id) {
-      return res.status(400).json({ msg: "Email is already in use by another account." });
+      res.json({
+        monthlyData: result
+      });
+    } catch (error) {
+      console.error('Error fetching user growth data:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch user growth data',
+        message: error.message 
+      });
     }
+  }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
-      { name, email, city, province, barangay, street },
-      { new: true, runValidators: true }
-    ).select("-password");
+  // Get user count
+  async getUserCount(req, res) {
+    try {
+      const totalUsers = await User.countDocuments();
+      const newUsersThisMonth = await User.countDocuments({
+        createdAt: {
+          $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        }
+      });
 
-    if (!updatedUser) {
-      return res.status(404).json({ msg: "User not found." });
+      res.json({
+        totalUsers,
+        newUsersThisMonth
+      });
+    } catch (error) {
+      console.error('Error fetching user count:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch user count',
+        message: error.message 
+      });
     }
-
-    res.status(200).json({ msg: "Profile updated successfully.", user: updatedUser });
-  } catch (error) {
-    console.error("Update Profile Error:", error);
-    res.status(500).json({ msg: "Server error." });
   }
-};
 
+  // Get all users with pagination
+  async getUsers(req, res) {
+    try {
+      const { page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+      
+      // Build filter
+      const filter = {};
+      if (search) {
+        filter.$or = [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ];
+      }
 
+      // Build sort options
+      const sortOptions = {};
+      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
+      const users = await User.find(filter)
+        .select('-password')
+        .sort(sortOptions)
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
 
-// 2. Verify OTP
-exports.verifyResetOtp = async (req, res) => {
-  const { email, otp } = req.body;
+      const total = await User.countDocuments(filter);
 
-  try {
-    const user = await User.findOne({ email, resetToken: otp });
-
-    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < Date.now()) {
-      return res.status(400).json({ msg: "Invalid or expired OTP." });
+      res.json({
+        users,
+        totalPages: Math.ceil(total / limit),
+        currentPage: page,
+        total
+      });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch users',
+        message: error.message 
+      });
     }
-
-    res.json({ msg: "OTP verified." });
-  } catch (error) {
-    console.error("Verify OTP Error:", error);
-    res.status(500).json({ msg: "Server error." });
   }
-};
 
-// 3. Reset Password
-exports.resetPassword = async (req, res) => {
-  const { email, otp, newPassword } = req.body;
+  // Get first user name for dashboard
+  async getFirstUserName(req, res) {
+    try {
+      const firstUser = await User.findOne().sort({ createdAt: 1 });
+      
+      if (!firstUser) {
+        return res.json({ firstName: 'No users yet' });
+      }
 
-  try {
-    const user = await User.findOne({ email, resetToken: otp });
-
-    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < Date.now()) {
-      return res.status(400).json({ msg: "Invalid or expired OTP." });
+      res.json({ firstName: firstUser.firstName });
+    } catch (error) {
+      console.error('Error fetching first user name:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch first user name',
+        message: error.message 
+      });
     }
-
-    user.password = newPassword;
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
-    await user.save();
-
-    res.json({ msg: "Password reset successful. You may now log in." });
-  } catch (error) {
-    console.error("Reset Password Error:", error);
-    res.status(500).json({ msg: "Server error." });
   }
-};
+}
 
-
-// Get profile
-exports.getProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ msg: "User not found" });
-    res.json(user);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get all users
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find({}, "-password");
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get first user name
-exports.getFirstUserName = async (req, res) => {
-  try {
-    const firstUser = await User.findOne({}, "name").sort({ _id: 1 });
-    if (!firstUser) return res.status(404).json({ msg: "No users found" });
-    res.json({ name: firstUser.name });
-  } catch (err) {
-    console.error("Error fetching first user:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get user growth
-exports.getUserGrowth = async (req, res) => {
-  try {
-    const now = new Date();
-    const currentYear = now.getFullYear().toString().slice(-2);
-    const monthlyData = new Array(12).fill(0);
-
-    for (let month = 0; month < 12; month++) {
-      const MM = (month + 1).toString().padStart(2, "0");
-      const YYMM = `${currentYear}${MM}`;
-      const count = await User.countDocuments({ id: new RegExp(`^${YYMM}`) });
-      monthlyData[month] = count;
-    }
-
-    res.json({ monthlyData });
-  } catch (error) {
-    console.error("Error fetching user growth:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Get user count
-exports.getUserCount = async (req, res) => {
-  try {
-    const count = await User.countDocuments();
-    res.json({ count });
-  } catch (err) {
-    console.error("Error fetching user count:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-// Get new users this month
-exports.getNewUsersThisMonth = async (req, res) => {
-  try {
-    const now = new Date();
-    const YYMM = now.toISOString().slice(2, 7).replace("-", "");
-    const newUsers = await User.find({ id: new RegExp(`^${YYMM}`) });
-    res.json({ count: newUsers.length, users: newUsers });
-  } catch (error) {
-    console.error("Error fetching new users this month:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Delete account
-exports.deleteAccount = async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.user.id);
-    if (!user) return res.status(404).json({ msg: "User not found" });
-    res.json({ msg: "Account deleted successfully" });
-  } catch (err) {
-    console.error("Account Deletion Error:", err);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
-
-
-// Update user location
-exports.userLocation = async (req, res) => {
-  const { lat, lng } = req.body;
-
-  if (!lat || !lng) {
-    return res.status(400).json({ msg: "Latitude and longitude required." });
-  }
-
-  try {
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
-      { location: { lat, lng } },
-      { new: true }
-    );
-
-    if (!user) return res.status(404).json({ msg: "User not found." });
-
-    res.json({ msg: "Location updated", location: user.location });
-  } catch (error) {
-    console.error("Error updating location:", error);
-    res.status(500).json({ msg: "Server error" });
-  }
-};
+module.exports = new AuthController();

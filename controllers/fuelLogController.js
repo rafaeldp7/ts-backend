@@ -1,5 +1,5 @@
-const FuelLog = require("../models/FuelLogModel");
-const moment = require("moment");
+const FuelLog = require('../models/FuelLogModel');
+const moment = require('moment');
 
 // ====================== USER CONTROLLERS ======================
 

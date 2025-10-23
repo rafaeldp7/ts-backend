@@ -1,4 +1,4 @@
-const Trip = require("../models/TripModel");
+const Trip = require('../models/TripModel');
 
 exports.getMonthlyLeaderboard = async (req, res) => {
   try {

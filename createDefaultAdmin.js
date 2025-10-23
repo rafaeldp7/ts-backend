@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const Admin = require('./models/Admin');
-const AdminRole = require('./models/AdminRole');
+const Admin = require('../models/Admin');
+const AdminRole = require('../models/AdminRole');
 require('dotenv').config();
 
 const createDefaultAdmin = async () => {

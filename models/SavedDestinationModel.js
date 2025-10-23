@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const SavedDestinationSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: 'User',
     required: true
   },
   label: {
@@ -15,12 +15,17 @@ const SavedDestinationSchema = new mongoose.Schema({
     longitude: { type: Number, required: true }
   },
   category: {
-  type: String,
-  enum: ["Home", "Work", "School", "Other"],
-  default: "Other"
-} 
+    type: String,
+    enum: ['Home', 'Work', 'School', 'Other'],
+    default: 'Other'
+  }
 }, {
   timestamps: true
 });
 
-module.exports = mongoose.model("SavedDestination", SavedDestinationSchema);
+// Indexes for better query performance
+SavedDestinationSchema.index({ userId: 1 });
+SavedDestinationSchema.index({ category: 1 });
+SavedDestinationSchema.index({ userId: 1, category: 1 });
+
+module.exports = mongoose.model('SavedDestination', SavedDestinationSchema);

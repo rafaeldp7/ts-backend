@@ -1,20 +1,14 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const {
-  createOrUpdateAnalytics,
-  getAllAnalytics,
-  getAnalyticsByKey,
-} = require("../controllers/generalAnalyticsController");
+const controller = require('../controllers/generalAnalyticsController');
 
-// 🔒 (Optional) Add authentication middleware here if needed
+// POST /api/general-analytics
+router.post('/', controller.createOrUpdateAnalytics);
 
-// Admin: Add or update analytics
-router.post("/", createOrUpdateAnalytics);
+// GET /api/general-analytics
+router.get('/', controller.getAllAnalytics);
 
-// Admin: View all analytics entries
-router.get("/", getAllAnalytics);
-
-// App: Get analytics by key (e.g., "topReports", "trafficTrends")
-router.get("/:key", getAnalyticsByKey);
+// GET /api/general-analytics/:key
+router.get('/:key', controller.getAnalyticsByKey);
 
 module.exports = router;

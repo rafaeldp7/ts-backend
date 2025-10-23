@@ -1,4 +1,4 @@
-const SavedDestination = require("../models/SavedDestinationModel");
+const SavedDestination = require('../models/SavedDestinationModel');
 
 exports.getUserDestinations = async (req, res) => {
   try {
@@ -8,7 +8,7 @@ exports.getUserDestinations = async (req, res) => {
     res.status(500).json({ msg: "Failed to fetch destinations", error: err.message });
   }
 };
- 
+
 exports.addDestination = async (req, res) => {
   try {
     const { userId, label, location, category } = req.body;
@@ -30,6 +30,7 @@ exports.addDestination = async (req, res) => {
     res.status(500).json({ msg: "Failed to save destination", error: err.message });
   }
 };
+
 exports.updateDestination = async (req, res) => {
   try {
     const { label, location, category } = req.body;
@@ -52,7 +53,6 @@ exports.updateDestination = async (req, res) => {
     res.status(500).json({ msg: "Failed to update", error: err.message });
   }
 };
-
 
 exports.deleteDestination = async (req, res) => {
   try {

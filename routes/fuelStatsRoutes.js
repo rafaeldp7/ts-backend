@@ -1,7 +1,8 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const controller = require("../controllers/fuelStatsController");
+const controller = require('../controllers/fuelStatsController');
 
-router.get("/:motorId", controller.getFuelStatsByMotor);
+// GET /api/fuel-stats/:motorId
+router.get('/:motorId', controller.getFuelStatsByMotor);
 
 module.exports = router;

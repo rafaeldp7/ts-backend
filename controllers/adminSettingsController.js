@@ -29,14 +29,14 @@ class AdminSettingsController {
         }
       };
 
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'SETTINGS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'SETTINGS', null, null, {
         description: 'Retrieved dashboard settings'
       });
 
       res.json({ success: true, data: settings });
     } catch (error) {
       console.error('Error fetching dashboard settings:', error);
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'SETTINGS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'SETTINGS', null, null, {
         description: 'Failed to retrieve dashboard settings',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -57,7 +57,7 @@ class AdminSettingsController {
         notifications: notifications || {}
       };
 
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'SETTINGS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'SETTINGS', null, null, {
         description: 'Updated dashboard settings',
         settings: settings
       });
@@ -65,7 +65,7 @@ class AdminSettingsController {
       res.json({ success: true, data: settings });
     } catch (error) {
       console.error('Error updating dashboard settings:', error);
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'SETTINGS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'SETTINGS', null, null, {
         description: 'Failed to update dashboard settings',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -112,14 +112,14 @@ class AdminSettingsController {
         }
       };
 
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
         description: 'Retrieved system statistics'
       });
 
       res.json({ success: true, data: stats });
     } catch (error) {
       console.error('Error fetching system stats:', error);
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
         description: 'Failed to retrieve system statistics',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -159,7 +159,7 @@ class AdminSettingsController {
         recentActivity
       };
 
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
         description: 'Retrieved activity summary',
         days: days
       });
@@ -167,7 +167,7 @@ class AdminSettingsController {
       res.json({ success: true, data: summary });
     } catch (error) {
       console.error('Error fetching activity summary:', error);
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ANALYTICS', null, null, {
         description: 'Failed to retrieve activity summary',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -183,7 +183,7 @@ class AdminSettingsController {
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
-        await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, null, {
+        await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, null, {
           description: 'Attempted to reset password for non-existent admin'
         }, 'FAILED', 'MEDIUM');
         return res.status(404).json({ success: false, error: 'Admin not found' });
@@ -195,7 +195,7 @@ class AdminSettingsController {
       await admin.save();
 
       // Log password reset
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
         description: `Password reset for admin: ${admin.email}`,
         targetAdmin: admin.email
       }, 'SUCCESS', 'HIGH');
@@ -203,7 +203,7 @@ class AdminSettingsController {
       res.json({ success: true, message: 'Password reset successfully' });
     } catch (error) {
       console.error('Error resetting admin password:', error);
-      await AdminSettingsController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', req.params.adminId, null, {
+      await this.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', req.params.adminId, null, {
         description: 'Failed to reset admin password',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -212,13 +212,8 @@ class AdminSettingsController {
   }
 
   // Helper method to log admin activity
-  static async logAdminActivity(adminId, adminEmail, action, resource, resourceId, resourceName, details, status = 'SUCCESS', severity = 'MEDIUM') {
+  async logAdminActivity(adminId, adminEmail, action, resource, resourceId, resourceName, details, status = 'SUCCESS', severity = 'MEDIUM') {
     try {
-      // Only log if we have a valid adminId
-      if (!adminId) {
-        return; // Skip logging if no adminId
-      }
-
       const log = new AdminLog({
         adminId,
         adminName: adminEmail ? adminEmail.split('@')[0] : 'Unknown',

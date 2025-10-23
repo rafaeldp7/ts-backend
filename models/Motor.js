@@ -1,44 +1,139 @@
+const mongoose = require('mongoose');
 
-
-
-// NOTE: THIS IS THE FIRST VERSION OF THE MOTOR SCHEMA
-// MEDYO MARAMING MGA COMPLICATED FIELDS KAYA PINASIPMPLE NA LANG SA ISANG SCHEMA.
-const mongoose = require("mongoose");
-
-const MotorSchema = new mongoose.Schema({
-  motorId: { type: String, unique: true }, // Auto-generated ID
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Owner ID
-  motor_name: { type: String, required: true },
-  motor_type: { type: String, required: true },
-  cc: { type: String, required: true }, // Engine displacement
-  fuelEfficiency: { type: Number, default: null }, // Fuel efficiency in km/L
-  fuelEfficiencyHistory: [{ distance: Number, fuelUsed: Number, efficiency: Number }], // History of fuel efficiency calculations
-  motor_image: { type: String }, // URL or path to motor image (optional)
-});
-
-// Middleware to auto-generate `motorId` before saving
-MotorSchema.pre("save", async function (next) {
-  if (!this.motorId) {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
-    const month = String(now.getMonth() + 1).padStart(2, "0"); // 01-12
-    const day = String(now.getDate()).padStart(2, "0"); // 01-31
-
-    // Count existing motors for today
-    const count = await this.constructor.countDocuments({
-      motorId: new RegExp(`^${year}${month}${day}`),
-    });
-
-    // Generate ID: YYMMDD0001, YYMMDD0002, etc.
-    this.motorId = `${year}${month}${day}${String(count + 1).padStart(4, "0")}`;
+const motorSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  nickname: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  brand: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  model: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  year: {
+    type: Number,
+    min: 1900,
+    max: new Date().getFullYear() + 1
+  },
+  color: {
+    type: String,
+    trim: true
+  },
+  licensePlate: {
+    type: String,
+    trim: true,
+    uppercase: true
+  },
+  fuelTank: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 15 // Default 15L tank
+  },
+  fuelConsumption: {
+    type: Number,
+    min: 0,
+    max: 50,
+    default: 0 // km/L
+  },
+  fuelEfficiency: {
+    type: Number,
+    min: 0,
+    max: 50,
+    default: 0 // km/L - alternative field
+  },
+  currentFuelLevel: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: 100 // Percentage
+  },
+  odometer: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+  analytics: {
+    totalDistance: {
+      type: Number,
+      default: 0
+    },
+    totalTrips: {
+      type: Number,
+      default: 0
+    },
+    tripsCompleted: {
+      type: Number,
+      default: 0
+    },
+    totalFuelUsed: {
+      type: Number,
+      default: 0
+    },
+    avgFuelEfficiency: {
+      type: Number,
+      default: 0
+    },
+    lastUpdated: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  notes: {
+    type: String,
+    trim: true
   }
-  next();
+}, {
+  timestamps: true
 });
 
-// Virtual field for calculating the latest fuel efficiency (from the latest entry in fuelEfficiencyHistory)
-MotorSchema.virtual("latestFuelEfficiency").get(function () {
-  const latest = this.fuelEfficiencyHistory[this.fuelEfficiencyHistory.length - 1];
-  return latest ? latest.efficiency : this.fuelEfficiency;
+// Indexes for better query performance
+motorSchema.index({ userId: 1 });
+motorSchema.index({ userId: 1, isActive: 1 });
+motorSchema.index({ nickname: 1 });
+
+// Virtual for full name
+motorSchema.virtual('fullName').get(function() {
+  return `${this.brand} ${this.model}`;
 });
 
-module.exports = mongoose.model("Motor", MotorSchema);
+// Method to update fuel level
+motorSchema.methods.updateFuelLevel = function(newLevel, distanceTraveled = 0) {
+  if (distanceTraveled > 0 && this.fuelConsumption > 0) {
+    const fuelUsed = (distanceTraveled / this.fuelConsumption) * 100;
+    this.currentFuelLevel = Math.max(0, this.currentFuelLevel - fuelUsed);
+  } else {
+    this.currentFuelLevel = Math.max(0, Math.min(100, newLevel));
+  }
+  
+  this.analytics.lastUpdated = new Date();
+  return this.save();
+};
+
+// Method to calculate fuel efficiency
+motorSchema.methods.calculateFuelEfficiency = function(distance, fuelUsed) {
+  if (fuelUsed > 0) {
+    const efficiency = distance / fuelUsed;
+    this.analytics.avgFuelEfficiency = efficiency;
+    this.analytics.lastUpdated = new Date();
+    return efficiency;
+  }
+  return 0;
+};
+
+module.exports = mongoose.model('Motor', motorSchema);

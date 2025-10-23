@@ -1,38 +1,21 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const authMiddleware = require("../middlewares/authMiddleware");
-const authController = require("../controllers/authController.js");
+const authController = require('../controllers/authController');
+const { protect } = require('../middlewares/authMiddleware');
 
+// Authentication routes
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.post('/reset-password', authController.resetPassword);
+router.post('/verify-reset', authController.verifyReset);
+router.post('/change-password', protect, authController.changePassword);
+router.post('/logout', protect, authController.logout);
+router.get('/verify-token', protect, authController.verifyToken);
 
-console.log("authController:", authController);
-
-// PUBLIC ROUTES
-// ✅ Update user profile info (name, email, address)
-
-router.put("/update-profile", authController.updateProfile);
-router.get("/", authController.status);
-router.post("/register", authController.register);
-router.get("/verify/:token", authController.verifyEmail);
-router.post("/login", authController.login);
-router.get("/first-user-name", authController.getFirstUserName);
-router.get("/user-growth", authController.getUserGrowth);
-router.get("/user-count", authController.getUserCount);
-router.get("/new-users-this-month", authController.getNewUsersThisMonth);
-router.post("/resend-verification", authController.resendVerificationEmail);
-router.post("/location/:userId", authController.userLocation);
-
-router.post("/request-reset", authController.requestReset);
-router.post("/verify-reset-otp", authController.verifyResetOtp);
-router.post("/reset-password", authController.resetPassword);
-
-
-
-// PROTECTED ROUTES
-//mga wala munang middleware para madali ang testing
-router.get("/profile", authMiddleware, authController.getProfile);
-// router.get("/users", authMiddleware, authController.getAllUsers);
-
-router.get("/users", authController.getAllUsers);
-router.delete("/delete-account", authController.deleteAccount);
+// User analytics routes
+router.get('/user-growth', protect, authController.getUserGrowth);
+router.get('/user-count', protect, authController.getUserCount);
+router.get('/users', protect, authController.getUsers);
+router.get('/first-user-name', protect, authController.getFirstUserName);
 
 module.exports = router;

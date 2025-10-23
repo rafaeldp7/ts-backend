@@ -1,4 +1,4 @@
-const DailyAnalytics = require("../models/DailyAnalytics");
+const DailyAnalytics = require('../models/DailyAnalytics');
 
 exports.getMotorDailyAnalyticsHistory = async (req, res) => {
   try {

@@ -6,22 +6,23 @@ const reportController = require("../controllers/reportController");
 router.post("/", reportController.createReport);
 
 // READ
-router.get("/", reportController.getAllReports);
-router.get("/count", reportController.getReportCount);
-router.get("/type/:type", reportController.getReportsByType);
-router.post("/daterange", reportController.getReportsByDateRange);
-router.get("/user/:userId", reportController.getReportsByUser);
-router.get("/locations/all", reportController.getAllReportLocations);
-router.put("/:id", reportController.updateReport);
-router.put("/:id/verify", reportController.updateVerification);
+router.get("/", reportController.getReports);
+router.get("/nearby", reportController.getNearbyReports);
+router.get("/:id", reportController.getReport);
+router.get("/:id/votes", reportController.getReportVotes);
+router.get("/verified/all", reportController.getVerifiedReports);
+router.get("/:id/verification", reportController.getReportVerification);
 
+// UPDATE
+router.put("/:id", reportController.updateReport);
+router.put("/:id/status", reportController.updateReportStatus);
+router.put("/:id/verify", reportController.verifyReport);
+router.put("/bulk-verify", reportController.bulkVerifyReports);
+
+// VOTE
 router.post("/:id/vote", reportController.voteReport);
 
 // DELETE
 router.delete("/:id", reportController.deleteReport);
-
-// ARCHIVE
-router.put("/:id/archive", reportController.archiveReport);
-router.get("/archived/all", reportController.getArchivedReports);
 
 module.exports = router;
