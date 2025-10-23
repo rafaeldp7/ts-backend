@@ -10,7 +10,7 @@ const authenticateAdmin = async (req, res, next) => {
       return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-for-development');
     const admin = await Admin.findById(decoded.id).populate('role');
     
     if (!admin || !admin.isActive) {
