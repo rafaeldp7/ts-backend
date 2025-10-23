@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const gasStationController = require("../controllers/gasStationsController");
-// const isAdmin = require("../middleware/isAdmin"); // 🔒 Protect admin routes
-const auth = require("../middlewares/authMiddleware"); // For token validation
+// Authentication removed for smooth operation
 
 // USER
 router.get("/nearby", gasStationController.getNearbyStations);

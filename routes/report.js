@@ -1,23 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
-const { authenticateToken } = require('../middlewares/authMiddleware');
-
 // Report routes
-router.get('/', authenticateToken, reportController.getReports);
-router.get('/nearby', authenticateToken, reportController.getNearbyReports);
-router.get('/verified', authenticateToken, reportController.getVerifiedReports);
-router.get('/:id', authenticateToken, reportController.getReport);
-router.get('/:id/verification', authenticateToken, reportController.getReportVerification);
-router.post('/', authenticateToken, reportController.createReport);
-router.put('/:id', authenticateToken, reportController.updateReport);
-router.delete('/:id', authenticateToken, reportController.deleteReport);
-router.post('/:id/vote', authenticateToken, reportController.voteReport);
-router.get('/:id/votes', authenticateToken, reportController.getReportVotes);
-router.put('/:id/status', authenticateToken, reportController.updateReportStatus);
+router.get('/', reportController.getReports);
+router.get('/nearby', reportController.getNearbyReports);
+router.get('/verified', reportController.getVerifiedReports);
+router.get('/:id', reportController.getReport);
+router.get('/:id/verification', reportController.getReportVerification);
+router.post('/', reportController.createReport);
+router.put('/:id', reportController.updateReport);
+router.delete('/:id', reportController.deleteReport);
+router.post('/:id/vote', reportController.voteReport);
+router.get('/:id/votes', reportController.getReportVotes);
+router.put('/:id/status', reportController.updateReportStatus);
 
 // Admin verification routes
-router.put('/:id/verify', authenticateToken, reportController.verifyReport);
-router.post('/bulk-verify', authenticateToken, reportController.bulkVerifyReports);
+router.put('/:id/verify', reportController.verifyReport);
+router.post('/bulk-verify', reportController.bulkVerifyReports);
 
 module.exports = router;

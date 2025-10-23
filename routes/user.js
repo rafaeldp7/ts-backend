@@ -1,15 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticateToken } = require('../middlewares/authMiddleware');
-
 // User routes
-router.get('/profile', authenticateToken, userController.getProfile);
-router.put('/profile', authenticateToken, userController.updateProfile);
-router.get('/preferences', authenticateToken, userController.getPreferences);
-router.put('/preferences', authenticateToken, userController.updatePreferences);
-router.get('/cache', authenticateToken, userController.getCachedData);
-router.put('/cache', authenticateToken, userController.updateCachedData);
-router.delete('/cache', authenticateToken, userController.clearCache);
+router.get('/profile', userController.getProfile);
+router.put('/profile', userController.updateProfile);
+router.get('/preferences', userController.getPreferences);
+router.put('/preferences', userController.updatePreferences);
+router.get('/cache', userController.getCachedData);
+router.put('/cache', userController.updateCachedData);
+router.delete('/cache', userController.clearCache);
 
 module.exports = router;
