@@ -17,16 +17,16 @@ router.get('/', controller.getAllFuelLogs);
 // Returns: Created fuel log with computed totalCost
 router.post('/', controller.createFuelLog);
 
+// 📈 Count total fuel logs (admin or dashboard purpose)
+// METHOD: GET
+// Returns: { totalFuelLogs: number }
+router.get('/count',  controller.getFuelLogCount);
+
 // 📄 Get all fuel logs by user
 // METHOD: GET
 // PARAM: userId
 // Returns: Array of fuel logs for the specified user with populated motor info
 router.get('/:userId', controller.getFuelLogsByUser);
-
-// 📈 Count total fuel logs (admin or dashboard purpose)
-// METHOD: GET
-// Returns: { totalFuelLogs: number }
-router.get('/count',  controller.getFuelLogCount);
 
 // ✏️ Update specific fuel log
 // METHOD: PUT
