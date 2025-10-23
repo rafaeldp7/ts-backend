@@ -3,6 +3,9 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { authenticateAdmin, checkPermission } = require('../middlewares/adminAuth');
 
+// First admin creation (no authentication required)
+router.post('/first-admin', adminController.createFirstAdmin);
+
 // Admin CRUD operations
 router.get('/admins', authenticateAdmin, checkPermission('canRead'), adminController.getAdmins);
 router.get('/admins/:id', authenticateAdmin, checkPermission('canRead'), adminController.getAdmin);

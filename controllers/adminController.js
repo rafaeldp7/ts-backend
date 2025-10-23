@@ -87,6 +87,104 @@ class AdminController {
     }
   }
 
+  // Create first admin account (no authentication required)
+  async createFirstAdmin(req, res) {
+    try {
+      const { firstName, lastName, email, password } = req.body;
+
+      // Check if any admin already exists
+      const existingAdminCount = await Admin.countDocuments();
+      if (existingAdminCount > 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'First admin already exists. Use regular admin creation endpoint.'
+        });
+      }
+
+      // Check if admin with this email already exists
+      const existingAdmin = await Admin.findOne({ email });
+      if (existingAdmin) {
+        return res.status(400).json({
+          success: false,
+          error: 'Admin with this email already exists'
+        });
+      }
+
+      // Get or create super admin role
+      let role = await AdminRole.findOne({ name: 'super_admin' });
+      if (!role) {
+        role = new AdminRole({
+          name: 'super_admin',
+          displayName: 'Super Administrator',
+          permissions: {
+            canCreate: true,
+            canRead: true,
+            canUpdate: true,
+            canDelete: true,
+            canManageAdmins: true,
+            canAssignRoles: true,
+            canManageUsers: true,
+            canManageReports: true,
+            canManageTrips: true,
+            canManageGasStations: true,
+            canViewAnalytics: true,
+            canExportData: true,
+            canManageSettings: true
+          }
+        });
+        await role.save();
+      }
+
+      // Hash password
+      const bcrypt = require('bcryptjs');
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Create admin
+      const admin = new Admin({
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
+        role: role._id,
+        isActive: true,
+        createdBy: null // First admin has no creator
+      });
+
+      await admin.save();
+
+      // Log the creation (without admin context since it's the first admin)
+      await AdminController.logAdminActivity(null, email, 'CREATE', 'ADMIN', admin._id, `${firstName} ${lastName}`, {
+        description: 'First admin account created',
+        method: 'first-admin-endpoint'
+      }, 'SUCCESS', 'HIGH');
+
+      res.status(201).json({
+        success: true,
+        message: 'First admin account created successfully',
+        data: {
+          id: admin._id,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          email: admin.email,
+          role: {
+            name: role.name,
+            displayName: role.displayName,
+            permissions: role.permissions
+          },
+          isActive: admin.isActive,
+          createdAt: admin.createdAt
+        }
+      });
+    } catch (error) {
+      console.error('Error creating first admin:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Server error creating first admin'
+      });
+    }
+  }
+
   // Create new admin account
   async createAdmin(req, res) {
     try {
