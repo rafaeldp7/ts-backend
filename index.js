@@ -20,6 +20,11 @@ const fuelStatsRoutes = require("./routes/fuelStatsRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const maintenanceRoutes = require("./routes/maintenanceRoutes");
 
+// Admin routes
+const adminAuthRoutes = require("./routes/adminAuth");
+const adminManagementRoutes = require("./routes/adminManagement");
+const adminSettingsRoutes = require("./routes/adminSettings");
+
 const app = express();
 
 // Middleware
@@ -60,6 +65,11 @@ app.use("/api/fuel-stats", fuelStatsRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 app.use("/api/maintenance-records", maintenanceRoutes);
+
+// Admin routes
+app.use("/api/admin-auth", adminAuthRoutes);
+app.use("/api/admin-management", adminManagementRoutes);
+app.use("/api/admin-settings", adminSettingsRoutes);
 
 // Default Route
 app.get("/", (req, res) => {
