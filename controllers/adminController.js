@@ -135,17 +135,12 @@ class AdminController {
         await role.save();
       }
 
-      // Hash password
-      const bcrypt = require('bcryptjs');
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-      // Create admin
+      // Create admin (password will be hashed by pre-save middleware)
       const admin = new Admin({
         firstName,
         lastName,
         email,
-        password: hashedPassword,
+        password, // Let the pre-save middleware handle hashing
         role: role._id,
         isActive: true,
         createdBy: null // First admin has no creator
