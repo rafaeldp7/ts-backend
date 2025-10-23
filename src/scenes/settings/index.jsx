@@ -414,7 +414,7 @@ const Settings = () => {
             >
               {saving ? 'Saving...' : 'Save Settings'}
             </Button>
-          </Box>
+      </Box>
         </Box>
       </Card>
     </Box>

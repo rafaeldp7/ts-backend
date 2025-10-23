@@ -29,7 +29,7 @@ router.post("/reset-password", authController.resetPassword);
 
 // PROTECTED ROUTES
 //mga wala munang middleware para madali ang testing
-router.get("/profile", authController.getProfile);
+router.get("/profile", authMiddleware, authController.getProfile);
 // router.get("/users", authMiddleware, authController.getAllUsers);
 
 router.get("/users", authController.getAllUsers);

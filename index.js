@@ -33,7 +33,7 @@ app.use(cors()); // Enable CORS
 // app.use(morgan("dev")); // Log HTTP requests
 
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/trafficslight';
 
 // Connect to MongoDB
 mongoose
@@ -45,7 +45,8 @@ mongoose
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => {
     console.error("❌ MongoDB Connection Error:", err);
-    process.exit(1);
+    console.log("⚠️ Server will continue without database connection");
+    // Don't exit - let server run without database for testing
   });
 
 // Routes
