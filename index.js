@@ -35,11 +35,14 @@ app.use(cors()); // Enable CORS
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/trafficslight';
 
+console.log('🔍 Environment check:');
+console.log('MONGO_URI:', process.env.MONGO_URI);
+console.log('MONGODB_URI:', process.env.MONGODB_URI);
+console.log('Using MONGO_URI:', MONGO_URI);
+
 // Connect to MongoDB
 mongoose
   .connect(MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
     serverSelectionTimeoutMS: 5000,
   })
   .then(() => console.log("✅ MongoDB Connected"))
