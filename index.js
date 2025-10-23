@@ -25,6 +25,20 @@ const adminAuthRoutes = require("./routes/adminAuth");
 const adminManagementRoutes = require("./routes/adminManagement");
 const adminSettingsRoutes = require("./routes/adminSettings");
 
+// New optimization routes
+const calculationsRoutes = require("./routes/calculations");
+const dataRoutes = require("./routes/data");
+const mapRoutes = require("./routes/map");
+const tripRoutes = require("./routes/trip");
+const fuelRoutes = require("./routes/fuel");
+const routeRoutes = require("./routes/route");
+const locationRoutes = require("./routes/location");
+const cacheRoutes = require("./routes/cache");
+const performanceRoutes = require("./routes/performance");
+const motorRoutes = require("./routes/motor");
+const trackingRoutes = require("./routes/tracking");
+const permissionsRoutes = require("./routes/permissions");
+
 const app = express();
 
 // Middleware
@@ -75,6 +89,20 @@ app.use("/api/maintenance-records", maintenanceRoutes);
 app.use("/api/admin-auth", adminAuthRoutes);
 app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/admin-settings", adminSettingsRoutes);
+
+// New optimization routes
+app.use("/api/calculations", calculationsRoutes);
+app.use("/api/data", dataRoutes);
+app.use("/api/map", mapRoutes);
+app.use("/api/trip", tripRoutes);
+app.use("/api/fuel", fuelRoutes);
+app.use("/api/routes", routeRoutes);
+app.use("/api/location", locationRoutes);
+app.use("/api/cache", cacheRoutes);
+app.use("/api/performance", performanceRoutes);
+app.use("/api/motor", motorRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/permissions", permissionsRoutes);
 
 // Default Route
 app.get("/", (req, res) => {

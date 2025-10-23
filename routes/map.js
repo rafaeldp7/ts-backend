@@ -1,15 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const mapController = require('../controllers/mapController');
-// Google Maps API routes
-router.post('/geocode', mapController.geocodeAddress);
-router.post('/reverse-geocode', mapController.reverseGeocode);
-router.post('/routes', mapController.getRoutes);
-router.post('/directions', mapController.getDirections);
 
-// Server-side clustering and analytics routes
-router.get('/clustered-markers', mapController.getClusteredMarkers);
-router.get('/statistics', mapController.getMapStatistics);
-router.get('/nearby-gas-stations', mapController.getNearbyGasStations);
+// Map processing
+router.post('/cluster-markers', mapController.clusterMarkers);
+router.post('/process-markers', mapController.processMarkers);
+router.post('/apply-filters', mapController.applyMapFilters);
+router.post('/snap-to-roads', mapController.snapToRoads);
 
 module.exports = router;

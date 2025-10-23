@@ -1,303 +1,325 @@
-const Trip = require('../models/TripModel');
-const Motor = require('../models/Motor');
+const mongoose = require('mongoose');
+const TripModel = require('../models/TripModel');
 
-class TripController {
-  // Get all trips for user
-  async getTrips(req, res) {
-    try {
-      const userId = req.user?.userId;
-      const { 
-        page = 1, 
-        limit = 10, 
-        status,
-        motorId,
-        sortBy = 'tripStartTime',
-        sortOrder = 'desc',
-        startDate,
-        endDate
-      } = req.query;
-
-      // Build filter object
-      const filter = {};
-      if (userId) filter.userId = userId;
-      if (status) filter.status = status;
-      if (motorId) filter.motorId = motorId;
-      
-      // Add date range filter
-      if (startDate || endDate) {
-        filter.tripStartTime = {};
-        if (startDate) filter.tripStartTime.$gte = new Date(startDate);
-        if (endDate) filter.tripStartTime.$lte = new Date(endDate);
-      }
-
-      const sortOptions = {};
-      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-      const trips = await Trip.find(filter)
-        .sort(sortOptions)
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .populate('motorId', 'nickname brand model');
-
-      const total = await Trip.countDocuments(filter);
-
-      res.json({
-        trips,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
-        total
-      });
-    } catch (error) {
-      console.error('Get trips error:', error);
-      res.status(500).json({ message: 'Server error getting trips' });
+/**
+ * Calculate trip statistics
+ * POST /api/trip/calculate-statistics
+ */
+const calculateTripStatistics = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { tripData, motorData, locationData } = req.body;
+    
+    if (!tripData) {
+      return res.status(400).json({ error: 'Trip data is required' });
     }
-  }
-
-  // Get single trip
-  async getTrip(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-
-      const trip = await Trip.findOne({ _id: id, userId })
-        .populate('motorId', 'nickname brand model');
-
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
+    
+    const { startTime: tripStart, endTime: tripEnd, coordinates } = tripData;
+    const { fuelEfficiency, fuelTank, currentFuelLevel } = motorData || {};
+    
+    // Calculate duration
+    const duration = new Date(tripEnd) - new Date(tripStart);
+    const durationMinutes = Math.floor(duration / 60000);
+    const durationHours = Math.floor(durationMinutes / 60);
+    
+    // Calculate total distance
+    let totalDistance = 0;
+    if (coordinates && coordinates.length > 1) {
+      for (let i = 1; i < coordinates.length; i++) {
+        const dist = calculateDistance(
+          coordinates[i-1].latitude, coordinates[i-1].longitude,
+          coordinates[i].latitude, coordinates[i].longitude
+        );
+        totalDistance += dist;
       }
-
-      res.json(trip);
-    } catch (error) {
-      console.error('Get trip error:', error);
-      res.status(500).json({ message: 'Server error getting trip' });
     }
-  }
-
-  // Create new trip
-  async createTrip(req, res) {
-    try {
-      const userId = req.user?.userId;
-      const tripData = {
-        ...req.body,
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      const trip = new Trip(tripData);
-      await trip.save();
-
-      // Populate motor data
-      await trip.populate('motorId', 'nickname brand model');
-
-      res.status(201).json(trip);
-    } catch (error) {
-      console.error('Create trip error:', error);
-      res.status(500).json({ message: 'Server error creating trip' });
+    
+    // Calculate fuel consumption
+    let fuelConsumed = 0;
+    let newFuelLevel = currentFuelLevel;
+    if (fuelEfficiency && totalDistance > 0) {
+      fuelConsumed = totalDistance / fuelEfficiency;
+      const fuelConsumedPercentage = (fuelConsumed / fuelTank) * 100;
+      newFuelLevel = Math.max(0, currentFuelLevel - fuelConsumedPercentage);
     }
-  }
-
-  // Update trip
-  async updateTrip(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      const updates = { ...req.body, updatedAt: new Date() };
-
-      const trip = await Trip.findOneAndUpdate(
-        { _id: id, userId },
-        { $set: updates },
-        { new: true, runValidators: true }
-      ).populate('motorId', 'nickname brand model');
-
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
+    
+    // Calculate average speed
+    const averageSpeed = totalDistance / (duration / 3600000); // km/h
+    
+    // Generate maintenance alerts
+    const maintenanceAlerts = [];
+    if (motorData) {
+      if (totalDistance > 1000) {
+        maintenanceAlerts.push('Consider checking tire pressure after long trip');
       }
-
-      res.json(trip);
-    } catch (error) {
-      console.error('Update trip error:', error);
-      res.status(500).json({ message: 'Server error updating trip' });
-    }
-  }
-
-  // Delete trip
-  async deleteTrip(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-
-      const trip = await Trip.findOneAndDelete({ _id: id, userId });
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
+      if (averageSpeed > 100) {
+        maintenanceAlerts.push('High speed detected - check brake system');
       }
-
-      res.json({ message: 'Trip deleted successfully' });
-    } catch (error) {
-      console.error('Delete trip error:', error);
-      res.status(500).json({ message: 'Server error deleting trip' });
     }
+    
+    res.json({
+      duration: {
+        total: duration,
+        minutes: durationMinutes,
+        hours: durationHours,
+        formatted: `${durationHours}h ${durationMinutes % 60}m`
+      },
+      distance: {
+        total: totalDistance,
+        kilometers: totalDistance / 1000
+      },
+      fuel: {
+        consumed: fuelConsumed,
+        newLevel: newFuelLevel,
+        efficiency: fuelEfficiency
+      },
+      speed: {
+        average: averageSpeed
+      },
+      maintenanceAlerts,
+      recommendations: generateTripRecommendations(totalDistance, averageSpeed, fuelConsumed),
+      processingTime: Date.now() - startTime
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+};
 
-  // Get overall trip analytics summary
-  async getTripAnalytics(req, res) {
-    try {
-      const userId = req.user?.userId;
-
-      // Build filter
-      const filter = {};
-      if (userId) {
-        filter.userId = userId;
+/**
+ * Generate trip summary
+ * POST /api/trip/summary-analysis
+ */
+const generateTripSummary = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { tripData, motorData, locationData, maintenanceData } = req.body;
+    
+    if (!tripData) {
+      return res.status(400).json({ error: 'Trip data is required' });
+    }
+    
+    const { startTime: tripStart, endTime: tripEnd, coordinates } = tripData;
+    
+    // Calculate basic statistics
+    const duration = new Date(tripEnd) - new Date(tripStart);
+    const durationHours = Math.floor(duration / 3600000);
+    const durationMinutes = Math.floor((duration % 3600000) / 60000);
+    
+    let totalDistance = 0;
+    if (coordinates && coordinates.length > 1) {
+      for (let i = 1; i < coordinates.length; i++) {
+        const dist = calculateDistance(
+          coordinates[i-1].latitude, coordinates[i-1].longitude,
+          coordinates[i].latitude, coordinates[i].longitude
+        );
+        totalDistance += dist;
       }
-
-      // Get all trips
-      const trips = await Trip.find(filter);
-
-      // Calculate overall analytics
-      const totalTrips = trips.length;
-      const completedTrips = trips.filter(trip => trip.status === 'completed').length;
-      const totalDistance = trips.reduce((sum, trip) => sum + (trip.actualDistance || 0), 0);
-      const totalDuration = trips.reduce((sum, trip) => sum + (trip.duration || 0), 0);
-      const totalFuelUsed = trips.reduce((sum, trip) => sum + (trip.actualFuelUsedMin || 0), 0);
-      const avgSpeed = totalDuration > 0 ? totalDistance / (totalDuration / 60) : 0;
-      const fuelEfficiency = totalFuelUsed > 0 ? totalDistance / totalFuelUsed : 0;
-      const reroutedTrips = trips.filter(trip => trip.wasRerouted).length;
-
-      const analytics = {
-        totalTrips,
-        completedTrips,
-        completionRate: totalTrips > 0 ? (completedTrips / totalTrips) * 100 : 0,
+    }
+    
+    const averageSpeed = totalDistance / (duration / 3600000);
+    
+    // Generate summary
+    const summary = {
+      basicSummary: {
+        duration: `${durationHours}h ${durationMinutes}m`,
+        distance: `${(totalDistance / 1000).toFixed(2)} km`,
+        averageSpeed: `${averageSpeed.toFixed(1)} km/h`,
+        startTime: new Date(tripStart).toLocaleString(),
+        endTime: new Date(tripEnd).toLocaleString()
+      },
+      analytics: {
         totalDistance,
-        totalDuration,
-        totalFuelUsed,
-        avgSpeed: Math.round(avgSpeed * 100) / 100,
-        fuelEfficiency: Math.round(fuelEfficiency * 100) / 100,
-        reroutedTrips,
-        rerouteRate: totalTrips > 0 ? (reroutedTrips / totalTrips) * 100 : 0
-      };
-
-      res.json({
-        success: true,
-        data: analytics
-      });
-    } catch (error) {
-      console.error('Get trip analytics error:', error);
-      res.status(500).json({ message: 'Server error getting trip analytics' });
-    }
-  }
-
-  // Complete trip
-  async completeTrip(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      const { tripEndTime, finalStats } = req.body;
-
-      const trip = await Trip.findOneAndUpdate(
-        { _id: id, userId },
-        { 
-          $set: { 
-            status: 'completed',
-            tripEndTime: tripEndTime || new Date(),
-            ...finalStats,
-            updatedAt: new Date()
-          }
-        },
-        { new: true, runValidators: true }
-      ).populate('motorId', 'nickname brand model');
-
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
+        duration,
+        averageSpeed,
+        maxSpeed: calculateMaxSpeed(coordinates),
+        efficiency: motorData ? totalDistance / (motorData.fuelEfficiency || 1) : 0
+      },
+      maintenance: {
+        alerts: generateMaintenanceAlerts(totalDistance, averageSpeed, motorData),
+        recommendations: generateMaintenanceRecommendations(totalDistance, motorData)
+      },
+      recommendations: generateTripRecommendations(totalDistance, averageSpeed, 0)
+    };
+    
+    res.json({
+      summary: summary.basicSummary,
+      analytics: summary.analytics,
+      maintenance: summary.maintenance,
+      recommendations: summary.recommendations,
+      performance: {
+        processingTime: Date.now() - startTime,
+        coordinatesProcessed: coordinates ? coordinates.length : 0
       }
-
-      res.json(trip);
-    } catch (error) {
-      console.error('Complete trip error:', error);
-      res.status(500).json({ message: 'Server error completing trip' });
-    }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
+};
 
-  // Cancel trip
-  async cancelTrip(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-
-      const trip = await Trip.findOneAndUpdate(
-        { _id: id, userId },
-        { 
-          $set: { 
-            status: 'cancelled',
-            updatedAt: new Date()
-          }
-        },
-        { new: true, runValidators: true }
-      ).populate('motorId', 'nickname brand model');
-
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
+/**
+ * Manage trip cache
+ * POST /api/trip/cache-management
+ */
+const manageTripCache = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { action, tripData, userId, options = {} } = req.body;
+    
+    if (!action || !userId) {
+      return res.status(400).json({ error: 'Action and user ID are required' });
+    }
+    
+    let result;
+    
+    switch (action) {
+      case 'save':
+        result = await saveTripData(tripData, userId, options);
+        break;
+      case 'recover':
+        result = await recoverTripData(userId, options);
+        break;
+      case 'complete':
+        result = await completeTripData(tripData, userId, options);
+        break;
+      case 'clear':
+        result = await clearTripData(userId, options);
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid action' });
+    }
+    
+    res.json({
+      success: result.success,
+      tripData: result.tripData,
+      cacheInfo: result.cacheInfo,
+      performance: {
+        action,
+        processingTime: Date.now() - startTime,
+        dataSize: JSON.stringify(result.tripData).length
       }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
-      res.json(trip);
-    } catch (error) {
-      console.error('Cancel trip error:', error);
-      res.status(500).json({ message: 'Server error cancelling trip' });
+// Helper functions
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const calculateMaxSpeed = (coordinates) => {
+  if (!coordinates || coordinates.length < 2) return 0;
+  
+  let maxSpeed = 0;
+  for (let i = 1; i < coordinates.length; i++) {
+    const dist = calculateDistance(
+      coordinates[i-1].latitude, coordinates[i-1].longitude,
+      coordinates[i].latitude, coordinates[i].longitude
+    );
+    const timeDiff = (coordinates[i].timestamp - coordinates[i-1].timestamp) / 1000; // seconds
+    if (timeDiff > 0) {
+      const speed = (dist / timeDiff) * 3.6; // km/h
+      maxSpeed = Math.max(maxSpeed, speed);
     }
   }
+  return maxSpeed;
+};
 
-  // Get trip route
-  async getTripRoute(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-
-      const trip = await Trip.findOne({ _id: id, userId }).select('plannedPolyline actualPolyline');
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
-      }
-
-      res.json({
-        plannedRoute: trip.plannedPolyline,
-        actualRoute: trip.actualPolyline
-      });
-    } catch (error) {
-      console.error('Get trip route error:', error);
-      res.status(500).json({ message: 'Server error getting trip route' });
-    }
+const generateTripRecommendations = (distance, speed, fuelConsumed) => {
+  const recommendations = [];
+  
+  if (distance > 100000) { // 100km
+    recommendations.push('Long trip completed - consider taking a break');
   }
-
-  // Update trip route
-  async updateTripRoute(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      const { plannedPolyline, actualPolyline } = req.body;
-
-      const trip = await Trip.findOneAndUpdate(
-        { _id: id, userId },
-        { 
-          $set: { 
-            plannedPolyline,
-            actualPolyline,
-            updatedAt: new Date()
-          }
-        },
-        { new: true, runValidators: true }
-      );
-
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
-      }
-
-      res.json({
-        plannedRoute: trip.plannedPolyline,
-        actualRoute: trip.actualPolyline
-      });
-    } catch (error) {
-      console.error('Update trip route error:', error);
-      res.status(500).json({ message: 'Server error updating trip route' });
-    }
+  
+  if (speed > 120) {
+    recommendations.push('High speed detected - drive safely');
   }
-}
+  
+  if (fuelConsumed > 10) {
+    recommendations.push('High fuel consumption - check vehicle efficiency');
+  }
+  
+  return recommendations;
+};
 
-module.exports = new TripController();
+const generateMaintenanceAlerts = (distance, speed, motorData) => {
+  const alerts = [];
+  
+  if (distance > 1000) {
+    alerts.push('Trip distance exceeds 1000km - schedule maintenance check');
+  }
+  
+  if (speed > 150) {
+    alerts.push('Very high speed detected - check brake system');
+  }
+  
+  return alerts;
+};
+
+const generateMaintenanceRecommendations = (distance, motorData) => {
+  const recommendations = [];
+  
+  if (distance > 500) {
+    recommendations.push('Check tire pressure and condition');
+  }
+  
+  if (distance > 1000) {
+    recommendations.push('Schedule oil change if due');
+  }
+  
+  return recommendations;
+};
+
+// Cache management functions (simplified)
+const saveTripData = async (tripData, userId, options) => {
+  // In a real implementation, save to cache/database
+  return {
+    success: true,
+    tripData,
+    cacheInfo: { saved: true, timestamp: new Date() }
+  };
+};
+
+const recoverTripData = async (userId, options) => {
+  // In a real implementation, retrieve from cache/database
+  return {
+    success: true,
+    tripData: null,
+    cacheInfo: { recovered: false, timestamp: new Date() }
+  };
+};
+
+const completeTripData = async (tripData, userId, options) => {
+  // In a real implementation, mark trip as complete
+  return {
+    success: true,
+    tripData: { ...tripData, completed: true },
+    cacheInfo: { completed: true, timestamp: new Date() }
+  };
+};
+
+const clearTripData = async (userId, options) => {
+  // In a real implementation, clear cache
+  return {
+    success: true,
+    tripData: null,
+    cacheInfo: { cleared: true, timestamp: new Date() }
+  };
+};
+
+module.exports = {
+  calculateTripStatistics,
+  generateTripSummary,
+  manageTripCache
+};
