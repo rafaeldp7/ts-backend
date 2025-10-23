@@ -4,12 +4,10 @@ const analyticsController = require('../controllers/analyticsController');
 const { authenticateToken } = require('../middlewares/authMiddleware');
 
 // Analytics routes
-router.get('/dashboard', authenticateToken, analyticsController.getDashboard);
-router.get('/trips', authenticateToken, analyticsController.getTripAnalytics);
-router.get('/fuel', authenticateToken, analyticsController.getFuelAnalytics);
-router.get('/maintenance', authenticateToken, analyticsController.getMaintenanceAnalytics);
-router.get('/performance', authenticateToken, analyticsController.getPerformanceAnalytics);
-router.get('/reports', authenticateToken, analyticsController.getReportAnalytics);
-router.get('/export', authenticateToken, analyticsController.exportAnalytics);
+router.get('/daily', authenticateToken, analyticsController.generateDailyAnalytics);
+router.get('/motor-efficiency', authenticateToken, analyticsController.getMotorEfficiencyStats);
+router.get('/user-timeline', authenticateToken, analyticsController.getUserAnalyticsTimeline);
+router.get('/fuel-trend', authenticateToken, analyticsController.getUserFuelLogTrend);
+router.get('/motor-ranking', authenticateToken, analyticsController.getMotorEfficiencyRanking);
 
 module.exports = router;

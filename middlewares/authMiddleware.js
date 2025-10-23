@@ -73,4 +73,7 @@ const authMiddleware = function (req, res, next) {
   }
 };
 
-module.exports = { protect, admin, authMiddleware };
+// Alias for backward compatibility
+const authenticateToken = protect;
+
+module.exports = { protect, admin, authMiddleware, authenticateToken };

@@ -81,8 +81,7 @@ app.get("/", (req, res) => {
   res.send("🚀 Server is running!");
 });
 
-// index.js or app.js
-app.use(express.json());
+// Removed duplicate express.json() - already defined above
 
 
 // Global Error Handler
