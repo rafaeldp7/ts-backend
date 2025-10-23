@@ -182,7 +182,7 @@ const AdminManagement = () => {
             ) : (
               admins.map((admin) => (
                 <TableRow key={admin._id}>
-                  <TableCell>{admin.fullName}</TableCell>
+                  <TableCell>{`${admin.firstName} ${admin.lastName}`}</TableCell>
                   <TableCell>{admin.email}</TableCell>
                   <TableCell>
                     <Chip label={admin.role?.displayName} color="primary" />

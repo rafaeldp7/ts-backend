@@ -16,8 +16,13 @@ const Admin = () => {
       flex: 1,
     },
     {
-      field: "name",
-      headerName: "Name",
+      field: "firstName",
+      headerName: "First Name",
+      flex: 0.5,
+    },
+    {
+      field: "lastName",
+      headerName: "Last Name",
       flex: 0.5,
     },
     {
@@ -26,27 +31,28 @@ const Admin = () => {
       flex: 1,
     },
     {
-      field: "phoneNumber",
-      headerName: "Phone Number",
-      flex: 0.5,
-      renderCell: (params) => {
-        return params.value.replace(/^(\d{3})(\d{3})(\d{4})/, "($1)$2-$3");
-      },
-    },
-    {
-      field: "country",
-      headerName: "Country",
-      flex: 0.4,
-    },
-    {
-      field: "occupation",
-      headerName: "Occupation",
-      flex: 1,
-    },
-    {
       field: "role",
       headerName: "Role",
       flex: 0.5,
+      renderCell: (params) => {
+        return params.value?.displayName || params.value?.name || "No Role";
+      },
+    },
+    {
+      field: "isActive",
+      headerName: "Status",
+      flex: 0.5,
+      renderCell: (params) => {
+        return params.value ? "Active" : "Inactive";
+      },
+    },
+    {
+      field: "createdAt",
+      headerName: "Created",
+      flex: 0.5,
+      renderCell: (params) => {
+        return new Date(params.value).toLocaleDateString();
+      },
     },
   ];
 
