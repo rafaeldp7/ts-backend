@@ -148,9 +148,9 @@ const testAdminLogin = async () => {
   console.log('Data:', JSON.stringify(response.data, null, 2));
   console.log('Raw Response:', response.rawResponse);
   
-  if (response.success && response.data.token) {
+  if (response.success && (response.data.token || response.data.data?.token)) {
     logTest('Admin Login', 'PASS');
-    return response.data.token;
+    return response.data.token || response.data.data.token;
   } else {
     logTest('Admin Login', 'FAIL', response.data?.error || response.error || 'Admin login failed');
     return null;

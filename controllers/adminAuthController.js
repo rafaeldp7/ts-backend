@@ -1,6 +1,7 @@
 const Admin = require('../models/Admin');
 const AdminLog = require('../models/AdminLog');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 
 class AdminAuthController {
   // Admin login
@@ -273,6 +274,33 @@ class AdminAuthController {
         adminId,
         adminName: adminEmail ? adminEmail.split('@')[0] : 'Unknown',
         adminEmail,
+        action,
+        resource,
+        resourceId,
+        resourceName,
+        details,
+        status,
+        severity
+      });
+
+      await log.save();
+    } catch (error) {
+      console.error('Error logging admin activity:', error);
+    }
+  }
+
+  // Static method to log admin activity
+  static async logAdminActivity(adminId, adminEmail, action, resource, resourceId, resourceName, details, status = 'SUCCESS', severity = 'MEDIUM') {
+    try {
+      // Only log if we have a valid adminId or if it's a system action
+      if (!adminId && action !== 'LOGIN') {
+        return; // Skip logging if no adminId and not a login attempt
+      }
+
+      const log = new AdminLog({
+        adminId: adminId || new mongoose.Types.ObjectId(), // Use a dummy ObjectId if none provided
+        adminName: adminEmail ? adminEmail.split('@')[0] : 'System',
+        adminEmail: adminEmail || 'system@trafficslight.com',
         action,
         resource,
         resourceId,

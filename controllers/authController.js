@@ -7,11 +7,6 @@ class AuthController {
   // Register new user
   async register(req, res) {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
       const { email, password, firstName, lastName, phone } = req.body;
 
       // Check if user already exists
@@ -30,7 +25,11 @@ class AuthController {
         password: hashedPassword,
         firstName,
         lastName,
-        phone,
+        name: `${firstName} ${lastName}`,
+        phone: phone || '',
+        city: 'Default City',
+        province: 'Default Province',
+        barangay: 'Default Barangay',
         preferences: {
           units: 'metric',
           language: 'en',
