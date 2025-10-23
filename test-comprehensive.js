@@ -17,6 +17,9 @@ let testResults = {
   details: []
 };
 
+// Global test user email
+let testUserEmail = null;
+
 // Helper functions
 const logTest = (testName, status, details = '') => {
   testResults.total++;
@@ -160,10 +163,12 @@ const testAdminLogin = async () => {
 const testUserRegistration = async () => {
   console.log('\n👤 Testing User Registration...');
   
+  const timestamp = Date.now();
+  testUserEmail = `test${timestamp}@example.com`;
   const response = await makeRequest('POST', '/auth/register', {
     firstName: 'Test',
     lastName: 'User',
-    email: 'test@example.com',
+    email: testUserEmail,
     password: 'password123'
   });
   
@@ -184,7 +189,7 @@ const testUserLogin = async () => {
   console.log('\n👤 Testing User Login...');
   
   const response = await makeRequest('POST', '/auth/login', {
-    email: 'test@example.com',
+    email: testUserEmail || 'test@example.com',
     password: 'password123'
   });
   

@@ -27,6 +27,7 @@ class AuthController {
         lastName,
         name: `${firstName} ${lastName}`,
         phone: phone || '',
+        street: 'Default Street',
         city: 'Default City',
         province: 'Default Province',
         barangay: 'Default Barangay',
@@ -66,11 +67,6 @@ class AuthController {
   // Login user
   async login(req, res) {
     try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
       const { email, password } = req.body;
 
       // Find user
