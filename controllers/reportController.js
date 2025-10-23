@@ -5,7 +5,7 @@ class ReportController {
   // Get all reports with filtering and pagination
   async getReports(req, res) {
     try {
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const { 
         page = 1, 
         limit = 20, 
@@ -97,7 +97,7 @@ class ReportController {
   async getReport(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user._id;
+      const userId = req.user?._id;
 
       const report = await Report.findOne({ _id: id, userId })
         .populate('userId', 'firstName lastName');
@@ -116,7 +116,7 @@ class ReportController {
   // Create new report
   async createReport(req, res) {
     try {
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const reportData = {
         ...req.body,
         userId,
@@ -141,7 +141,7 @@ class ReportController {
   async updateReport(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const updates = { ...req.body, updatedAt: new Date() };
 
       const report = await Report.findOneAndUpdate(
@@ -165,7 +165,7 @@ class ReportController {
   async deleteReport(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user._id;
+      const userId = req.user?._id;
 
       const report = await Report.findOneAndDelete({ _id: id, userId });
       if (!report) {
@@ -183,7 +183,7 @@ class ReportController {
   async voteReport(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const { voteType } = req.body; // 'upvote', 'downvote', 'remove'
 
       const report = await Report.findById(id);
@@ -240,7 +240,7 @@ class ReportController {
   async updateReportStatus(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const { status, archived } = req.body;
 
       const updateData = { updatedAt: new Date() };
@@ -268,7 +268,7 @@ class ReportController {
   async verifyReport(req, res) {
     try {
       const { id } = req.params;
-      const adminId = req.user._id;
+      const adminId = req.user?._id;
       const { verified, notes } = req.body;
 
       // Check if user is admin (you might want to add role checking here)
@@ -376,7 +376,7 @@ class ReportController {
   async bulkVerifyReports(req, res) {
     try {
       const { reportIds, verified, notes } = req.body;
-      const adminId = req.user._id;
+      const adminId = req.user?._id;
 
       if (!Array.isArray(reportIds) || reportIds.length === 0) {
         return res.status(400).json({ message: 'Report IDs array is required' });

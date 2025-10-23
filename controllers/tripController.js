@@ -139,33 +139,47 @@ class TripController {
     }
   }
 
-  // Get trip analytics
+  // Get overall trip analytics summary
   async getTripAnalytics(req, res) {
     try {
-      const { id } = req.params;
       const userId = req.user?.userId;
 
-      const trip = await Trip.findOne({ _id: id, userId });
-      if (!trip) {
-        return res.status(404).json({ message: 'Trip not found' });
+      // Build filter
+      const filter = {};
+      if (userId) {
+        filter.userId = userId;
       }
 
-      // Calculate analytics
+      // Get all trips
+      const trips = await Trip.find(filter);
+
+      // Calculate overall analytics
+      const totalTrips = trips.length;
+      const completedTrips = trips.filter(trip => trip.status === 'completed').length;
+      const totalDistance = trips.reduce((sum, trip) => sum + (trip.actualDistance || 0), 0);
+      const totalDuration = trips.reduce((sum, trip) => sum + (trip.duration || 0), 0);
+      const totalFuelUsed = trips.reduce((sum, trip) => sum + (trip.actualFuelUsedMin || 0), 0);
+      const avgSpeed = totalDuration > 0 ? totalDistance / (totalDuration / 60) : 0;
+      const fuelEfficiency = totalFuelUsed > 0 ? totalDistance / totalFuelUsed : 0;
+      const reroutedTrips = trips.filter(trip => trip.wasRerouted).length;
+
       const analytics = {
-        distance: trip.actualDistance || 0,
-        duration: trip.duration || 0,
-        avgSpeed: trip.kmph || 0,
-        fuelUsed: trip.actualFuelUsedMin || 0,
-        fuelEfficiency: trip.actualDistance && trip.actualFuelUsedMin 
-          ? trip.actualDistance / trip.actualFuelUsedMin 
-          : 0,
-        wasRerouted: trip.wasRerouted || false,
-        rerouteCount: trip.rerouteCount || 0,
-        wasInBackground: trip.wasInBackground || false,
-        trafficCondition: trip.trafficCondition || 'unknown'
+        totalTrips,
+        completedTrips,
+        completionRate: totalTrips > 0 ? (completedTrips / totalTrips) * 100 : 0,
+        totalDistance,
+        totalDuration,
+        totalFuelUsed,
+        avgSpeed: Math.round(avgSpeed * 100) / 100,
+        fuelEfficiency: Math.round(fuelEfficiency * 100) / 100,
+        reroutedTrips,
+        rerouteRate: totalTrips > 0 ? (reroutedTrips / totalTrips) * 100 : 0
       };
 
-      res.json(analytics);
+      res.json({
+        success: true,
+        data: analytics
+      });
     } catch (error) {
       console.error('Get trip analytics error:', error);
       res.status(500).json({ message: 'Server error getting trip analytics' });

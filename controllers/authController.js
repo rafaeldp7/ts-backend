@@ -157,7 +157,7 @@ class AuthController {
   async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const user = await User.findById(userId);
       if (!user) {
@@ -197,8 +197,8 @@ class AuthController {
     res.json({ 
       message: 'Token is valid', 
       user: {
-        _id: req.user.userId,
-        email: req.user.email
+        _id: req.user?.userId,
+        email: req.user?.email
       }
     });
   }
@@ -206,7 +206,7 @@ class AuthController {
   // Get user profile
   async getProfile(req, res) {
     try {
-      const user = await User.findById(req.user.id).select('-password');
+      const user = await User.findById(req.user?.id).select('-password');
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }

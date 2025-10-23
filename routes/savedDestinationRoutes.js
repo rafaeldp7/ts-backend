@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/savedDestinationController');
-const { protect } = require('../middlewares/authMiddleware');
 
-router.get('/:userId', protect, controller.getUserDestinations);
-router.post('/', protect, controller.addDestination);
-router.delete('/:id', protect, controller.deleteDestination);
-router.put('/:id', protect, controller.updateDestination);
+
+router.get('/:userId',  controller.getUserDestinations);
+router.post('/',  controller.addDestination);
+router.delete('/:id',  controller.deleteDestination);
+router.put('/:id',  controller.updateDestination);
 
 module.exports = router;

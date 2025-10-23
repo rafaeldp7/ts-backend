@@ -6,7 +6,7 @@ class MotorController {
   // Get all motors for user
   async getMotors(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
       const sortOptions = {};
@@ -35,7 +35,7 @@ class MotorController {
   async getMotor(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const motor = await Motor.findOne({ _id: id, userId });
       if (!motor) {
@@ -52,7 +52,7 @@ class MotorController {
   // Create new motor
   async createMotor(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const motorData = { ...req.body, userId };
 
       const motor = new Motor(motorData);
@@ -69,7 +69,7 @@ class MotorController {
   async updateMotor(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const updates = req.body;
 
       const motor = await Motor.findOneAndUpdate(
@@ -93,7 +93,7 @@ class MotorController {
   async deleteMotor(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const motor = await Motor.findOneAndDelete({ _id: id, userId });
       if (!motor) {
@@ -111,7 +111,7 @@ class MotorController {
   async updateFuelLevel(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { fuelLevel, distanceTraveled, tripId } = req.body;
 
       const motor = await Motor.findOne({ _id: id, userId });
@@ -154,7 +154,7 @@ class MotorController {
   async getMotorAnalytics(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { period = '30d' } = req.query;
 
       const motor = await Motor.findOne({ _id: id, userId });
@@ -223,7 +223,7 @@ class MotorController {
   async updateMotorAnalytics(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const analyticsData = req.body;
 
       const motor = await Motor.findOneAndUpdate(

@@ -32,7 +32,7 @@ class AdminController {
       const total = await Admin.countDocuments(filter);
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', null, null, {
         description: 'Retrieved admin list',
         search: search || null
       });
@@ -50,7 +50,7 @@ class AdminController {
       });
     } catch (error) {
       console.error('Error fetching admins:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', null, null, {
         description: 'Failed to retrieve admin list',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -66,20 +66,20 @@ class AdminController {
         .populate('createdBy', 'firstName lastName email');
 
       if (!admin) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.params.id, null, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', req.params.id, null, {
           description: 'Attempted to retrieve non-existent admin'
         }, 'FAILED', 'MEDIUM');
         return res.status(404).json({ success: false, error: 'Admin not found' });
       }
 
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', admin._id, admin.fullName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', admin._id, admin.fullName, {
         description: 'Retrieved single admin details'
       });
 
       res.json({ success: true, data: admin });
     } catch (error) {
       console.error('Error fetching admin:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.params.id, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', req.params.id, null, {
         description: 'Failed to retrieve single admin details',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -188,7 +188,7 @@ class AdminController {
       // Check if admin already exists
       const existingAdmin = await Admin.findOne({ email });
       if (existingAdmin) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, email, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN', null, email, {
           description: 'Attempted to create admin with existing email',
           email
         }, 'FAILED', 'MEDIUM');
@@ -201,7 +201,7 @@ class AdminController {
       // Verify role exists
       const role = await AdminRole.findById(roleId);
       if (!role) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, email, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN', null, email, {
           description: 'Attempted to create admin with invalid role',
           roleId
         }, 'FAILED', 'MEDIUM');
@@ -217,7 +217,7 @@ class AdminController {
         email,
         password,
         role: roleId,
-        createdBy: req.admin.id
+        createdBy: req.admin?.id
       });
 
       await admin.save();
@@ -228,7 +228,7 @@ class AdminController {
         .populate('createdBy', 'firstName lastName email');
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', admin._id, admin.fullName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN', admin._id, admin.fullName, {
         description: 'New admin account created',
         newAdminEmail: admin.email,
         assignedRole: role.displayName
@@ -237,7 +237,7 @@ class AdminController {
       res.status(201).json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error creating admin:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN', null, req.body.email, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN', null, req.body.email, {
         description: 'Failed to create admin account',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -253,7 +253,7 @@ class AdminController {
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, null, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'UPDATE', 'ADMIN', adminId, null, {
           description: 'Attempted to update non-existent admin'
         }, 'FAILED', 'MEDIUM');
         return res.status(404).json({ success: false, error: 'Admin not found' });
@@ -266,7 +266,7 @@ class AdminController {
       if (email && email !== admin.email) {
         const existingAdmin = await Admin.findOne({ email });
         if (existingAdmin && existingAdmin._id.toString() !== adminId) {
-          await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
+          await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
             description: 'Attempted to change email to an already existing one',
             newEmail: email
           }, 'FAILED', 'MEDIUM');
@@ -284,7 +284,7 @@ class AdminController {
       if (roleId && roleId.toString() !== admin.role.toString()) {
         const newRole = await AdminRole.findById(roleId);
         if (!newRole) {
-          await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
+          await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
             description: 'Attempted to assign invalid role',
             roleId
           }, 'FAILED', 'MEDIUM');
@@ -299,7 +299,7 @@ class AdminController {
       const afterState = { ...admin.toObject() };
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', admin._id, admin.fullName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'UPDATE', 'ADMIN', admin._id, admin.fullName, {
         description: 'Admin details updated',
         before: beforeState,
         after: afterState
@@ -312,7 +312,7 @@ class AdminController {
       res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error updating admin:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'UPDATE', 'ADMIN', req.params.id, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'UPDATE', 'ADMIN', req.params.id, null, {
         description: 'Failed to update admin details',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -328,7 +328,7 @@ class AdminController {
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', adminId, null, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ASSIGN_ROLE', 'ADMIN', adminId, null, {
           description: 'Attempted to assign role to non-existent admin'
         }, 'FAILED', 'MEDIUM');
         return res.status(404).json({ success: false, error: 'Admin not found' });
@@ -338,7 +338,7 @@ class AdminController {
 
       const newRole = await AdminRole.findById(roleId);
       if (!newRole) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', adminId, admin.fullName, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ASSIGN_ROLE', 'ADMIN', adminId, admin.fullName, {
           description: 'Attempted to assign invalid role',
           roleId
         }, 'FAILED', 'MEDIUM');
@@ -350,7 +350,7 @@ class AdminController {
       await admin.save();
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', admin._id, admin.fullName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ASSIGN_ROLE', 'ADMIN', admin._id, admin.fullName, {
         description: `Admin role changed from ${beforeRole} to ${newRole.displayName}`,
         oldRoleId: beforeRole,
         newRoleId: newRole._id,
@@ -364,7 +364,7 @@ class AdminController {
       res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error updating admin role:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ASSIGN_ROLE', 'ADMIN', req.params.id, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ASSIGN_ROLE', 'ADMIN', req.params.id, null, {
         description: 'Failed to update admin role',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -379,14 +379,14 @@ class AdminController {
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', adminId, null, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'DEACTIVATE', 'ADMIN', adminId, null, {
           description: 'Attempted to deactivate non-existent admin'
         }, 'FAILED', 'MEDIUM');
         return res.status(404).json({ success: false, error: 'Admin not found' });
       }
 
-      if (admin._id.toString() === req.admin.id.toString()) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', adminId, admin.fullName, {
+      if (admin._id.toString() === req.admin?.id.toString()) {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'DEACTIVATE', 'ADMIN', adminId, admin.fullName, {
           description: 'Attempted to deactivate own admin account'
         }, 'FAILED', 'HIGH');
         return res.status(400).json({ success: false, error: 'Cannot deactivate your own account' });
@@ -397,7 +397,7 @@ class AdminController {
       await admin.save();
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', admin._id, admin.fullName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'DEACTIVATE', 'ADMIN', admin._id, admin.fullName, {
         description: 'Admin account deactivated'
       });
 
@@ -408,7 +408,7 @@ class AdminController {
       res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error deactivating admin:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'DEACTIVATE', 'ADMIN', req.params.id, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'DEACTIVATE', 'ADMIN', req.params.id, null, {
         description: 'Failed to deactivate admin account',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -423,7 +423,7 @@ class AdminController {
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ACTIVATE', 'ADMIN', adminId, null, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ACTIVATE', 'ADMIN', adminId, null, {
           description: 'Attempted to activate non-existent admin'
         }, 'FAILED', 'MEDIUM');
         return res.status(404).json({ success: false, error: 'Admin not found' });
@@ -434,7 +434,7 @@ class AdminController {
       await admin.save();
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ACTIVATE', 'ADMIN', admin._id, admin.fullName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ACTIVATE', 'ADMIN', admin._id, admin.fullName, {
         description: 'Admin account activated'
       });
 
@@ -445,7 +445,7 @@ class AdminController {
       res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error activating admin:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'ACTIVATE', 'ADMIN', req.params.id, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'ACTIVATE', 'ADMIN', req.params.id, null, {
         description: 'Failed to activate admin account',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -458,14 +458,14 @@ class AdminController {
     try {
       const roles = await AdminRole.find({ isActive: true }).sort({ name: 1 });
 
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_ROLE', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN_ROLE', null, null, {
         description: 'Retrieved admin roles list'
       });
 
       res.json({ success: true, data: roles });
     } catch (error) {
       console.error('Error fetching admin roles:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_ROLE', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN_ROLE', null, null, {
         description: 'Failed to retrieve admin roles',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -481,7 +481,7 @@ class AdminController {
       // Check if role already exists
       const existingRole = await AdminRole.findOne({ name });
       if (existingRole) {
-        await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN_ROLE', null, name, {
+        await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN_ROLE', null, name, {
           description: 'Attempted to create role with existing name',
           roleName: name
         }, 'FAILED', 'MEDIUM');
@@ -501,7 +501,7 @@ class AdminController {
       await role.save();
 
       // Log admin activity
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN_ROLE', role._id, role.displayName, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN_ROLE', role._id, role.displayName, {
         description: 'New admin role created',
         roleName: role.name,
         permissions: role.permissions
@@ -510,7 +510,7 @@ class AdminController {
       res.status(201).json({ success: true, data: role });
     } catch (error) {
       console.error('Error creating admin role:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'CREATE', 'ADMIN_ROLE', null, req.body.name, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'CREATE', 'ADMIN_ROLE', null, req.body.name, {
         description: 'Failed to create admin role',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -541,7 +541,7 @@ class AdminController {
 
       const total = await AdminLog.countDocuments(filter);
 
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN_LOG', null, null, {
         description: 'Retrieved admin logs',
         filters: { adminId, action, resource, startDate, endDate }
       });
@@ -559,7 +559,7 @@ class AdminController {
       });
     } catch (error) {
       console.error('Error fetching admin logs:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN_LOG', null, null, {
         description: 'Failed to retrieve admin logs',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -573,7 +573,7 @@ class AdminController {
       const { page = 1, limit = 50, action, resource, startDate, endDate } = req.query;
 
       // Build filter
-      const filter = { adminId: req.admin.id };
+      const filter = { adminId: req.admin?.id };
       if (action) filter.action = action;
       if (resource) filter.resource = resource;
       if (startDate || endDate) {
@@ -589,7 +589,7 @@ class AdminController {
 
       const total = await AdminLog.countDocuments(filter);
 
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN_LOG', null, null, {
         description: 'Retrieved personal admin logs',
         filters: { action, resource, startDate, endDate }
       });
@@ -607,7 +607,7 @@ class AdminController {
       });
     } catch (error) {
       console.error('Error fetching my admin logs:', error);
-      await AdminController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN_LOG', null, null, {
+      await AdminController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN_LOG', null, null, {
         description: 'Failed to retrieve personal admin logs',
         error: error.message
       }, 'FAILED', 'HIGH');

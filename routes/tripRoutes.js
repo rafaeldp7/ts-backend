@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const tripController = require("../controllers/tripController");
 
+// ============ ANALYTICS ============
+router.get("/summary", tripController.getTripAnalytics); // 📊 Overall analytics
+
 // ============ USER SIDE ============
 router.get("/", tripController.getTrips);                          // 🟢 Get all trips of a specific user
 router.post("/", tripController.createTrip);                       // 🟢 Add a new trip
@@ -14,8 +17,5 @@ router.post("/:id/complete", tripController.completeTrip);         // 🟢 Compl
 router.post("/:id/cancel", tripController.cancelTrip);             // 🟢 Cancel a trip
 router.get("/:id/route", tripController.getTripRoute);              // 🟢 Get trip route
 router.put("/:id/route", tripController.updateTripRoute);          // 🟢 Update trip route
-
-// ============ ANALYTICS ============
-router.get("/analytics/summary", tripController.getTripAnalytics); // 📊 Overall analytics
 
 module.exports = router;

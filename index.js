@@ -67,6 +67,7 @@ app.use("/api/general-analytics", require("./routes/generalAnalyticsRoutes"));
 app.use("/api/leaderboard-analytics", leaderboardAnalyticsRoutes);
 app.use("/api/fuel-stats", fuelStatsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/dashboard", require("./routes/dashboard"));
 
 app.use("/api/maintenance-records", maintenanceRoutes);
 

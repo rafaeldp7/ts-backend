@@ -7,7 +7,7 @@ class UserController {
   // Get user profile
   async getProfile(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const user = await User.findById(userId).select('-password');
       
       if (!user) {
@@ -24,7 +24,7 @@ class UserController {
   // Update user profile
   async updateProfile(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const updates = req.body;
 
       const user = await User.findByIdAndUpdate(
@@ -47,7 +47,7 @@ class UserController {
   // Get user preferences
   async getPreferences(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const user = await User.findById(userId).select('preferences');
       
       if (!user) {
@@ -64,7 +64,7 @@ class UserController {
   // Update user preferences
   async updatePreferences(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const preferences = req.body;
 
       const user = await User.findByIdAndUpdate(
@@ -87,7 +87,7 @@ class UserController {
   // Get cached data for user
   async getCachedData(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { type } = req.query;
 
       let cachedData = {};
@@ -127,7 +127,7 @@ class UserController {
   // Update cached data
   async updateCachedData(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { type, data } = req.body;
 
       // This would typically update a cache store like Redis
@@ -142,7 +142,7 @@ class UserController {
   // Clear user cache
   async clearCache(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { type } = req.query;
 
       // This would typically clear cache entries from Redis

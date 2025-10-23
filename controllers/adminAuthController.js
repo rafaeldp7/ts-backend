@@ -95,7 +95,7 @@ class AdminAuthController {
   async logout(req, res) {
     try {
       // Log logout activity
-      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'LOGOUT', 'ADMIN', null, null, {
+      await AdminAuthController.logAdminActivity(req.admin?.id, req.admin?.email, 'LOGOUT', 'ADMIN', null, null, {
         description: 'Admin logout',
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
@@ -114,7 +114,7 @@ class AdminAuthController {
   // Get admin profile
   async getProfile(req, res) {
     try {
-      const admin = await Admin.findById(req.admin.id)
+      const admin = await Admin.findById(req.admin?.id)
         .populate('role', 'name displayName permissions')
         .populate('createdBy', 'firstName lastName email');
 
@@ -123,14 +123,14 @@ class AdminAuthController {
       }
 
       // Log profile access
-      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.admin.id, admin.fullName, {
+      await AdminAuthController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', req.admin?.id, admin.fullName, {
         description: 'Retrieved admin profile'
       });
 
       res.json({ success: true, data: admin });
     } catch (error) {
       console.error('Error fetching admin profile:', error);
-      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.admin.id, null, {
+      await AdminAuthController.logAdminActivity(req.admin?.id, req.admin?.email, 'READ', 'ADMIN', req.admin?.id, null, {
         description: 'Failed to retrieve admin profile',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -142,7 +142,7 @@ class AdminAuthController {
   async updateProfile(req, res) {
     try {
       const { firstName, lastName, email } = req.body;
-      const adminId = req.admin.id;
+      const adminId = req.admin?.id;
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
@@ -188,7 +188,7 @@ class AdminAuthController {
       res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error updating admin profile:', error);
-      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'PROFILE_UPDATE', 'ADMIN', req.admin.id, null, {
+      await AdminAuthController.logAdminActivity(req.admin?.id, req.admin?.email, 'PROFILE_UPDATE', 'ADMIN', req.admin?.id, null, {
         description: 'Failed to update admin profile',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -200,7 +200,7 @@ class AdminAuthController {
   async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
-      const adminId = req.admin.id;
+      const adminId = req.admin?.id;
 
       const admin = await Admin.findById(adminId);
       if (!admin) {
@@ -229,7 +229,7 @@ class AdminAuthController {
       res.json({ success: true, message: 'Password changed successfully' });
     } catch (error) {
       console.error('Error changing admin password:', error);
-      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'PASSWORD_CHANGE', 'ADMIN', req.admin.id, null, {
+      await AdminAuthController.logAdminActivity(req.admin?.id, req.admin?.email, 'PASSWORD_CHANGE', 'ADMIN', req.admin?.id, null, {
         description: 'Failed to change admin password',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -240,7 +240,7 @@ class AdminAuthController {
   // Verify JWT token
   async verifyToken(req, res) {
     try {
-      const admin = await Admin.findById(req.admin.id)
+      const admin = await Admin.findById(req.admin?.id)
         .populate('role', 'name displayName permissions');
 
       if (!admin || !admin.isActive) {

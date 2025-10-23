@@ -6,7 +6,7 @@ class FuelController {
   // Get combined fuel data (fuel logs + maintenance refuels)
   async getCombinedFuelData(req, res) {
     try {
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const { period = '30d', motorId } = req.query;
 
       // Check cache first
@@ -134,7 +134,7 @@ class FuelController {
   // Get fuel efficiency analytics
   async getFuelEfficiencyAnalytics(req, res) {
     try {
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const { period = '30d', motorId } = req.query;
 
       // Check cache first
@@ -229,7 +229,7 @@ class FuelController {
   // Get fuel cost analysis
   async getFuelCostAnalysis(req, res) {
     try {
-      const userId = req.user._id;
+      const userId = req.user?._id;
       const { period = '30d', motorId } = req.query;
 
       // Check cache first
