@@ -8,11 +8,11 @@ router.get('/', notificationController.getAllNotifications);
 // POST /api/notifications
 router.post('/',  notificationController.createNotification);
 
-// GET /api/notifications/:userId
-router.get('/:userId',  notificationController.getUserNotifications);
-
 // PUT /api/notifications/read/:id
 router.put('/read/:id',  notificationController.markAsRead);
+
+// GET /api/notifications/:userId
+router.get('/:userId',  notificationController.getUserNotifications);
 
 // DELETE /api/notifications/:id
 router.delete('/:id',  notificationController.deleteNotification);
