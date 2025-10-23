@@ -43,7 +43,7 @@ class AuthController {
       // Generate JWT token
       const token = jwt.sign(
         { userId: user._id, email: user.email },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
         { expiresIn: '7d' }
       );
 
@@ -89,7 +89,7 @@ class AuthController {
       // Generate JWT token
       const token = jwt.sign(
         { userId: user._id, email: user.email },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
         { expiresIn: '7d' }
       );
 
@@ -124,7 +124,7 @@ class AuthController {
       // Generate reset token
       const resetToken = jwt.sign(
         { userId: user._id, email: user.email },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
         { expiresIn: '1h' }
       );
 
@@ -145,7 +145,7 @@ class AuthController {
     try {
       const { token } = req.body;
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-for-development');
       const user = await User.findById(decoded.userId);
 
       if (!user) {

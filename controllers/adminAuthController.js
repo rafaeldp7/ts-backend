@@ -12,7 +12,7 @@ class AdminAuthController {
       const admin = await Admin.findOne({ email }).populate('role', 'name displayName permissions');
       
       if (!admin) {
-        await this.logAdminActivity(null, email, 'LOGIN', 'ADMIN', null, null, {
+        await AdminAuthController.logAdminActivity(null, email, 'LOGIN', 'ADMIN', null, null, {
           description: 'Login attempt with non-existent email',
           email
         }, 'FAILED', 'MEDIUM');
@@ -24,7 +24,7 @@ class AdminAuthController {
 
       // Check if admin is active
       if (!admin.isActive) {
-        await this.logAdminActivity(admin._id, admin.email, 'LOGIN', 'ADMIN', null, null, {
+        await AdminAuthController.logAdminActivity(admin._id, admin.email, 'LOGIN', 'ADMIN', null, null, {
           description: 'Login attempt by inactive admin',
           email
         }, 'FAILED', 'HIGH');
@@ -37,7 +37,7 @@ class AdminAuthController {
       // Check password
       const isMatch = await admin.matchPassword(password);
       if (!isMatch) {
-        await this.logAdminActivity(admin._id, admin.email, 'LOGIN', 'ADMIN', null, null, {
+        await AdminAuthController.logAdminActivity(admin._id, admin.email, 'LOGIN', 'ADMIN', null, null, {
           description: 'Login attempt with incorrect password',
           email
         }, 'FAILED', 'MEDIUM');
@@ -54,12 +54,12 @@ class AdminAuthController {
       // Generate JWT token
       const token = jwt.sign(
         { id: admin._id, email: admin.email, role: admin.role.name },
-        process.env.JWT_SECRET,
+        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
         { expiresIn: process.env.JWT_EXPIRE || '7d' }
       );
 
       // Log successful login
-      await this.logAdminActivity(admin._id, admin.email, 'LOGIN', 'ADMIN', null, null, {
+      await AdminAuthController.logAdminActivity(admin._id, admin.email, 'LOGIN', 'ADMIN', null, null, {
         description: 'Successful admin login',
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
@@ -82,7 +82,7 @@ class AdminAuthController {
       });
     } catch (error) {
       console.error('Error during admin login:', error);
-      await this.logAdminActivity(null, req.body.email, 'LOGIN', 'ADMIN', null, null, {
+      await AdminAuthController.logAdminActivity(null, req.body.email, 'LOGIN', 'ADMIN', null, null, {
         description: 'Login attempt failed due to server error',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -94,7 +94,7 @@ class AdminAuthController {
   async logout(req, res) {
     try {
       // Log logout activity
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'LOGOUT', 'ADMIN', null, null, {
+      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'LOGOUT', 'ADMIN', null, null, {
         description: 'Admin logout',
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
@@ -122,14 +122,14 @@ class AdminAuthController {
       }
 
       // Log profile access
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.admin.id, admin.fullName, {
+      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.admin.id, admin.fullName, {
         description: 'Retrieved admin profile'
       });
 
       res.json({ success: true, data: admin });
     } catch (error) {
       console.error('Error fetching admin profile:', error);
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.admin.id, null, {
+      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'READ', 'ADMIN', req.admin.id, null, {
         description: 'Failed to retrieve admin profile',
         error: error.message
       }, 'FAILED', 'HIGH');
@@ -155,7 +155,7 @@ class AdminAuthController {
       if (email && email !== admin.email) {
         const existingAdmin = await Admin.findOne({ email });
         if (existingAdmin && existingAdmin._id.toString() !== adminId) {
-          await this.logAdminActivity(adminId, admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
+          await AdminAuthController.logAdminActivity(adminId, admin.email, 'UPDATE', 'ADMIN', adminId, admin.fullName, {
             description: 'Attempted to change email to an already existing one',
             newEmail: email
           }, 'FAILED', 'MEDIUM');
@@ -174,7 +174,7 @@ class AdminAuthController {
       const afterState = { ...admin.toObject() };
 
       // Log profile update
-      await this.logAdminActivity(adminId, admin.email, 'PROFILE_UPDATE', 'ADMIN', adminId, admin.fullName, {
+      await AdminAuthController.logAdminActivity(adminId, admin.email, 'PROFILE_UPDATE', 'ADMIN', adminId, admin.fullName, {
         description: 'Admin profile updated',
         before: beforeState,
         after: afterState
@@ -187,7 +187,7 @@ class AdminAuthController {
       res.json({ success: true, data: populatedAdmin });
     } catch (error) {
       console.error('Error updating admin profile:', error);
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'PROFILE_UPDATE', 'ADMIN', req.admin.id, null, {
+      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'PROFILE_UPDATE', 'ADMIN', req.admin.id, null, {
         description: 'Failed to update admin profile',
         error: error.message
       }, 'FAILED', 'CRITICAL');
@@ -209,7 +209,7 @@ class AdminAuthController {
       // Verify current password
       const isMatch = await admin.matchPassword(currentPassword);
       if (!isMatch) {
-        await this.logAdminActivity(adminId, admin.email, 'PASSWORD_CHANGE', 'ADMIN', adminId, admin.fullName, {
+        await AdminAuthController.logAdminActivity(adminId, admin.email, 'PASSWORD_CHANGE', 'ADMIN', adminId, admin.fullName, {
           description: 'Password change attempt with incorrect current password'
         }, 'FAILED', 'HIGH');
         return res.status(400).json({ success: false, error: 'Current password is incorrect' });
@@ -221,14 +221,14 @@ class AdminAuthController {
       await admin.save();
 
       // Log password change
-      await this.logAdminActivity(adminId, admin.email, 'PASSWORD_CHANGE', 'ADMIN', adminId, admin.fullName, {
+      await AdminAuthController.logAdminActivity(adminId, admin.email, 'PASSWORD_CHANGE', 'ADMIN', adminId, admin.fullName, {
         description: 'Admin password changed successfully'
       }, 'SUCCESS', 'MEDIUM');
 
       res.json({ success: true, message: 'Password changed successfully' });
     } catch (error) {
       console.error('Error changing admin password:', error);
-      await this.logAdminActivity(req.admin.id, req.admin.email, 'PASSWORD_CHANGE', 'ADMIN', req.admin.id, null, {
+      await AdminAuthController.logAdminActivity(req.admin.id, req.admin.email, 'PASSWORD_CHANGE', 'ADMIN', req.admin.id, null, {
         description: 'Failed to change admin password',
         error: error.message
       }, 'FAILED', 'CRITICAL');

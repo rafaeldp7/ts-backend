@@ -57,7 +57,7 @@ class TripController {
   async getTrip(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const trip = await Trip.findOne({ _id: id, userId })
         .populate('motorId', 'nickname brand model');
@@ -76,7 +76,7 @@ class TripController {
   // Create new trip
   async createTrip(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const tripData = {
         ...req.body,
         userId,
@@ -101,7 +101,7 @@ class TripController {
   async updateTrip(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const updates = { ...req.body, updatedAt: new Date() };
 
       const trip = await Trip.findOneAndUpdate(
@@ -125,7 +125,7 @@ class TripController {
   async deleteTrip(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const trip = await Trip.findOneAndDelete({ _id: id, userId });
       if (!trip) {
@@ -143,7 +143,7 @@ class TripController {
   async getTripAnalytics(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const trip = await Trip.findOne({ _id: id, userId });
       if (!trip) {
@@ -176,7 +176,7 @@ class TripController {
   async completeTrip(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { tripEndTime, finalStats } = req.body;
 
       const trip = await Trip.findOneAndUpdate(
@@ -207,7 +207,7 @@ class TripController {
   async cancelTrip(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const trip = await Trip.findOneAndUpdate(
         { _id: id, userId },
@@ -235,7 +235,7 @@ class TripController {
   async getTripRoute(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const trip = await Trip.findOne({ _id: id, userId }).select('plannedPolyline actualPolyline');
       if (!trip) {
@@ -256,7 +256,7 @@ class TripController {
   async updateTripRoute(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { plannedPolyline, actualPolyline } = req.body;
 
       const trip = await Trip.findOneAndUpdate(

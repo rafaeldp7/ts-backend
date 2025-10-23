@@ -57,7 +57,7 @@ class MaintenanceController {
   async getMaintenanceRecord(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const record = await MaintenanceRecord.findOne({ _id: id, userId })
         .populate('motorId', 'nickname brand model');
@@ -76,7 +76,7 @@ class MaintenanceController {
   // Create new maintenance record
   async createMaintenanceRecord(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const recordData = {
         ...req.body,
         userId,
@@ -107,7 +107,7 @@ class MaintenanceController {
   async updateMaintenanceRecord(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const updates = { ...req.body, updatedAt: new Date() };
 
       const record = await MaintenanceRecord.findOneAndUpdate(
@@ -131,7 +131,7 @@ class MaintenanceController {
   async deleteMaintenanceRecord(req, res) {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
 
       const record = await MaintenanceRecord.findOneAndDelete({ _id: id, userId });
       if (!record) {
@@ -149,7 +149,7 @@ class MaintenanceController {
   async getMotorMaintenance(req, res) {
     try {
       const { motorId } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { 
         page = 1, 
         limit = 10, 
@@ -189,7 +189,7 @@ class MaintenanceController {
   async getMaintenanceAnalytics(req, res) {
     try {
       const { motorId } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.userId;
       const { period = '30d' } = req.query;
 
       // Calculate date range
