@@ -27,7 +27,7 @@ const processBackgroundLocation = async (req, res) => {
     const fuelData = await trackFuelConsumption(distanceData, motorData);
     
     // Snap to roads
-    const snappedRoute = await snapToRoads(processedLocations);
+    const snappedRoute = await snapLocationsToRoads(processedLocations);
     
     res.json({
       processedLocations,
@@ -127,7 +127,7 @@ const trackFuelConsumption = async (distanceData, motorData) => {
   };
 };
 
-const snapToRoads = async (locations) => {
+const snapLocationsToRoads = async (locations) => {
   // In real implementation, call Google Roads API
   return {
     snappedPoints: locations,
