@@ -1,38 +1,85 @@
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 
-// Authenticate admin
 const authenticateAdmin = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {
-      return res.status(401).json({ error: 'Access denied. No token provided.' });
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.'
+      });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-for-development');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     const admin = await Admin.findById(decoded.id).populate('role');
     
-    if (!admin || !admin.isActive) {
-      return res.status(401).json({ error: 'Invalid token or inactive admin.' });
+    if (!admin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token. Admin not found.'
+      });
     }
 
-    req.admin = admin;
+    if (!admin.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated.'
+      });
+    }
+
+    req.user = {
+      id: admin._id,
+      email: admin.email,
+      role: admin.role,
+      permissions: admin.role?.permissions || []
+    };
+    
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token.' });
+    console.error('Admin auth middleware error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token.'
+    });
   }
 };
 
-// Check permission
-const checkPermission = (permission) => {
+const requirePermission = (permission) => {
   return (req, res, next) => {
-    if (!req.admin || !req.admin.role || !req.admin.role.permissions) {
-      return res.status(403).json({ error: 'Access denied. No permissions found.' });
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.'
+      });
     }
 
-    if (!req.admin.role.permissions[permission]) {
-      return res.status(403).json({ error: `Access denied. Required permission: ${permission}` });
+    if (!req.user.permissions.includes(permission)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions.'
+      });
+    }
+
+    next();
+  };
+};
+
+const requireRole = (roleName) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.'
+      });
+    }
+
+    if (req.user.role?.name !== roleName) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient role permissions.'
+      });
     }
 
     next();
@@ -41,5 +88,6 @@ const checkPermission = (permission) => {
 
 module.exports = {
   authenticateAdmin,
-  checkPermission
+  requirePermission,
+  requireRole
 };

@@ -1,25 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const adminController = require('../controllers/adminController');
+const adminManagementController = require('../controllers/adminManagementController');
+const { authenticateAdmin, requirePermission } = require('../middlewares/adminAuth');
 
-// First admin creation (no authentication required)
-router.post('/first-admin', adminController.createFirstAdmin);
-
-// Admin CRUD operations (no authentication for testing)
-router.get('/admins', adminController.getAdmins);
-router.get('/admins/:id', adminController.getAdmin);
-router.post('/admins', adminController.createAdmin);
-router.put('/admins/:id', adminController.updateAdmin);
-router.put('/admins/:id/role', adminController.updateAdminRole);
-router.put('/admins/:id/deactivate', adminController.deactivateAdmin);
-router.put('/admins/:id/activate', adminController.activateAdmin);
-
-// Role management
-router.get('/admin-roles', adminController.getAdminRoles);
-router.post('/admin-roles', adminController.createAdminRole);
-
-// Activity logging
-router.get('/admin-logs', adminController.getAdminLogs);
-router.get('/my-admin-logs', adminController.getMyAdminLogs);
+// Admin management routes (with authentication)
+router.get('/', authenticateAdmin, adminManagementController.getAdmins);
+router.get('/roles', authenticateAdmin, adminManagementController.getAdminRoles);
+router.get('/stats', authenticateAdmin, adminManagementController.getAdminStats);
+router.get('/:id', authenticateAdmin, adminManagementController.getAdmin);
+router.post('/', authenticateAdmin, requirePermission('admin.create'), adminManagementController.createAdmin);
+router.post('/roles', authenticateAdmin, requirePermission('role.create'), adminManagementController.createAdminRole);
+router.put('/:id', authenticateAdmin, requirePermission('admin.update'), adminManagementController.updateAdmin);
+router.put('/roles/:id', authenticateAdmin, requirePermission('role.update'), adminManagementController.updateAdminRole);
+router.delete('/:id', authenticateAdmin, requirePermission('admin.delete'), adminManagementController.deleteAdmin);
+router.delete('/roles/:id', authenticateAdmin, requirePermission('role.delete'), adminManagementController.deleteAdminRole);
 
 module.exports = router;

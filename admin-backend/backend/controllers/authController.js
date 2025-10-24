@@ -48,22 +48,20 @@ const register = async (req, res) => {
       message: 'Your account has been successfully created. Start exploring the features.',
       type: 'success',
       priority: 'medium',
-      isRead: false
+      sender: {
+        type: 'system',
+        name: 'System'
+      },
+      delivery: {
+        channels: ['in_app']
+      }
     });
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
       data: {
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          address: user.address,
-          createdAt: user.createdAt
-        },
+        user: user.getPublicProfile(),
         token
       }
     });
@@ -71,7 +69,7 @@ const register = async (req, res) => {
     console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to register user',
+      message: 'Registration failed',
       error: error.message
     });
   }
@@ -82,45 +80,43 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user by email
-    const user = await User.findOne({ email });
+    // Find user and include password
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
       });
     }
 
     // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid credentials'
       });
     }
 
+    // Update last login
+    await user.updateLastLogin();
+
     // Generate token
     const token = generateToken(user._id);
-
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
 
     res.json({
       success: true,
       message: 'Login successful',
       data: {
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          address: user.address,
-          lastLogin: user.lastLogin,
-          createdAt: user.createdAt
-        },
+        user: user.getPublicProfile(),
         token
       }
     });
@@ -128,7 +124,7 @@ const login = async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to login',
+      message: 'Login failed',
       error: error.message
     });
   }
@@ -139,12 +135,12 @@ const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find admin by email
-    const admin = await Admin.findOne({ email }).populate('role');
+    // Find admin and include password
+    const admin = await Admin.findOne({ email }).select('+password').populate('role');
     if (!admin) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid credentials'
       });
     }
 
@@ -157,37 +153,31 @@ const adminLogin = async (req, res) => {
     }
 
     // Check password
-    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    const isPasswordValid = await admin.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid credentials'
       });
     }
 
+    // Update last login
+    await admin.updateLastLogin(req.ip, req.get('User-Agent'));
+
+    // Log login action
+    await admin.logAction('login', 'auth', {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
     // Generate token
     const token = generateToken(admin._id);
-
-    // Update last login
-    admin.lastLogin = new Date();
-    admin.loginCount = (admin.loginCount || 0) + 1;
-    await admin.save();
 
     res.json({
       success: true,
       message: 'Admin login successful',
       data: {
-        admin: {
-          id: admin._id,
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          email: admin.email,
-          role: admin.role,
-          permissions: admin.role?.permissions || [],
-          lastLogin: admin.lastLogin,
-          loginCount: admin.loginCount,
-          createdAt: admin.createdAt
-        },
+        admin: admin.getPublicProfile(),
         token
       }
     });
@@ -195,16 +185,16 @@ const adminLogin = async (req, res) => {
     console.error('Admin login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to login admin',
+      message: 'Admin login failed',
       error: error.message
     });
   }
 };
 
-// Get current user profile
+// Get user profile
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -214,7 +204,9 @@ const getProfile = async (req, res) => {
 
     res.json({
       success: true,
-      data: { user }
+      data: {
+        user: user.getPublicProfile()
+      }
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -229,7 +221,7 @@ const getProfile = async (req, res) => {
 // Update user profile
 const updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, phone, address } = req.body;
+    const { firstName, lastName, phone, address, preferences } = req.body;
     const user = await User.findById(req.user.id);
 
     if (!user) {
@@ -244,6 +236,7 @@ const updateProfile = async (req, res) => {
     if (lastName) user.lastName = lastName;
     if (phone) user.phone = phone;
     if (address) user.address = address;
+    if (preferences) user.preferences = { ...user.preferences, ...preferences };
 
     await user.save();
 
@@ -251,15 +244,7 @@ const updateProfile = async (req, res) => {
       success: true,
       message: 'Profile updated successfully',
       data: {
-        user: {
-          id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          address: user.address,
-          updatedAt: user.updatedAt
-        }
+        user: user.getPublicProfile()
       }
     });
   } catch (error) {
@@ -276,7 +261,7 @@ const updateProfile = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
       return res.status(404).json({
@@ -285,8 +270,8 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    // Check current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
         success: false,
@@ -294,10 +279,8 @@ const changePassword = async (req, res) => {
       });
     }
 
-    // Hash new password
-    const saltRounds = 12;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-    user.password = hashedNewPassword;
+    // Update password
+    user.password = newPassword;
     await user.save();
 
     res.json({
@@ -317,7 +300,8 @@ const changePassword = async (req, res) => {
 // Logout
 const logout = async (req, res) => {
   try {
-    // In a real application, you might want to blacklist the token
+    // In a more sophisticated setup, you might want to blacklist the token
+    // For now, we'll just return success
     res.json({
       success: true,
       message: 'Logout successful'
@@ -326,7 +310,7 @@ const logout = async (req, res) => {
     console.error('Logout error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to logout',
+      message: 'Logout failed',
       error: error.message
     });
   }
@@ -335,7 +319,7 @@ const logout = async (req, res) => {
 // Verify token
 const verifyToken = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -345,13 +329,39 @@ const verifyToken = async (req, res) => {
 
     res.json({
       success: true,
-      data: { user }
+      data: {
+        user: user.getPublicProfile()
+      }
     });
   } catch (error) {
     console.error('Verify token error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to verify token',
+      message: 'Token verification failed',
+      error: error.message
+    });
+  }
+};
+
+// Get user statistics
+const getUserStats = async (req, res) => {
+  try {
+    const stats = await User.getUserStats();
+    res.json({
+      success: true,
+      data: stats[0] || {
+        totalUsers: 0,
+        activeUsers: 0,
+        verifiedUsers: 0,
+        avgTrips: 0,
+        avgDistance: 0
+      }
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get user statistics',
       error: error.message
     });
   }
@@ -365,5 +375,6 @@ module.exports = {
   updateProfile,
   changePassword,
   logout,
-  verifyToken
+  verifyToken,
+  getUserStats
 };

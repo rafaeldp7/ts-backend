@@ -1,0 +1,39 @@
+const express = require('express');
+const router = express.Router();
+const {
+  getTrips,
+  getTrip,
+  createTrip,
+  updateTrip,
+  deleteTrip,
+  getUserTrips,
+  getTripsByDateRange,
+  getPaginatedTrips,
+  getTripAnalytics,
+  getMonthlyTripSummary,
+  getTopUsersByTripCount,
+  getMostUsedMotors,
+  addRoutePoint,
+  addExpense
+} = require('../controllers/tripController');
+const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+
+// Public routes
+router.get('/', getTrips);
+router.get('/paginate', getPaginatedTrips);
+router.get('/analytics/summary', getTripAnalytics);
+router.get('/analytics/monthly', getMonthlyTripSummary);
+router.get('/insights/top-users', getTopUsersByTripCount);
+router.get('/insights/top-motors', getMostUsedMotors);
+
+// Protected routes
+router.get('/user/:userId', authenticateToken, getUserTrips);
+router.get('/date-range', getTripsByDateRange);
+router.get('/:id', authenticateToken, getTrip);
+router.post('/', authenticateToken, createTrip);
+router.put('/:id', authenticateToken, updateTrip);
+router.delete('/:id', authenticateToken, deleteTrip);
+router.post('/:id/route-points', authenticateToken, addRoutePoint);
+router.post('/:id/expenses', authenticateToken, addExpense);
+
+module.exports = router;
