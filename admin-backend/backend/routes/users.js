@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
+const User = require('../../../models/User');
 const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
 
 // Get all users (admin only)

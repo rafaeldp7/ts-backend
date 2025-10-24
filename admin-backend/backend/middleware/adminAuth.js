@@ -55,10 +55,16 @@ const requirePermission = (permission) => {
       });
     }
 
-    if (!req.user.permissions.includes(permission)) {
+    // Super Admin bypasses all permission checks
+    if (req.user.role?.level === 100) {
+      return next();
+    }
+
+    // Check if user has the specific permission
+    if (!req.user.role?.permissions?.[permission]) {
       return res.status(403).json({
         success: false,
-        message: 'Insufficient permissions.'
+        message: `Insufficient permissions. Required: ${permission}`
       });
     }
 
@@ -75,10 +81,19 @@ const requireRole = (roleName) => {
       });
     }
 
-    if (req.user.role?.name !== roleName) {
+    const roleLevels = {
+      'super_admin': 100,
+      'admin': 50,
+      'moderator': 25
+    };
+
+    const requiredLevel = roleLevels[roleName];
+    const userLevel = req.user.role?.level || 0;
+
+    if (userLevel < requiredLevel) {
       return res.status(403).json({
         success: false,
-        message: 'Insufficient role permissions.'
+        message: `Insufficient role level. Required: ${roleName} or higher`
       });
     }
 
@@ -86,8 +101,32 @@ const requireRole = (roleName) => {
   };
 };
 
+// Middleware to check if user is Super Admin
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user || req.user.role?.level !== 100) {
+    return res.status(403).json({
+      success: false,
+      message: 'Super Admin access required.'
+    });
+  }
+  next();
+};
+
+// Middleware to check if user is Admin or higher
+const requireAdmin = (req, res, next) => {
+  if (!req.user || (req.user.role?.level || 0) < 50) {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin access required.'
+    });
+  }
+  next();
+};
+
 module.exports = {
   authenticateAdmin,
   requirePermission,
-  requireRole
+  requireRole,
+  requireSuperAdmin,
+  requireAdmin
 };

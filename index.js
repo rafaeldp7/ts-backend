@@ -25,6 +25,12 @@ const maintenanceRoutes = require("./routes/maintenanceRoutes");
 const adminAuthRoutes = require("./admin-backend/backend/routes/adminAuth");
 const adminManagementRoutes = require("./admin-backend/backend/routes/adminManagement");
 const adminSettingsRoutes = require("./admin-backend/backend/routes/adminSettings");
+const adminRoutes = require("./admin-backend/backend/routes/admin");
+const adminDashboardRoutes = require("./admin-backend/backend/routes/dashboard");
+const adminGasStationRoutes = require("./admin-backend/backend/routes/gasStations");
+const adminReportRoutes = require("./admin-backend/backend/routes/reports");
+const adminTripRoutes = require("./admin-backend/backend/routes/trips");
+const adminUserRoutes = require("./admin-backend/backend/routes/users");
 
 // New optimization routes
 const calculationsRoutes = require("./routes/calculations");
@@ -92,6 +98,12 @@ app.use("/api/maintenance-records", maintenanceRoutes);
 app.use("/api/admin-auth", adminAuthRoutes);
 app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/admin-settings", adminSettingsRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/admin-dashboard", adminDashboardRoutes);
+app.use("/api/admin-gas-stations", adminGasStationRoutes);
+app.use("/api/admin-reports", adminReportRoutes);
+app.use("/api/admin-trips", adminTripRoutes);
+app.use("/api/admin-users", adminUserRoutes);
 
 // New optimization routes
 app.use("/api/calculations", calculationsRoutes);

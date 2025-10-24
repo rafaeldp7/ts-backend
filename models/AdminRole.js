@@ -6,14 +6,21 @@ const adminRoleSchema = new mongoose.Schema({
     required: true, 
     unique: true,
     trim: true,
-    lowercase: true
+    lowercase: true,
+    enum: ['super_admin', 'admin', 'moderator']
   },
   displayName: {
     type: String,
     required: true,
     trim: true
   },
+  level: {
+    type: Number,
+    required: true,
+    enum: [100, 50, 25] // 100 = Super Admin, 50 = Admin, 25 = Moderator
+  },
   permissions: {
+    // Basic CRUD permissions
     canCreate: { 
       type: Boolean, 
       default: false 
@@ -30,6 +37,7 @@ const adminRoleSchema = new mongoose.Schema({
       type: Boolean, 
       default: false 
     },
+    // Admin management permissions
     canManageAdmins: { 
       type: Boolean, 
       default: false 
@@ -38,6 +46,7 @@ const adminRoleSchema = new mongoose.Schema({
       type: Boolean, 
       default: false 
     },
+    // Content management permissions
     canManageUsers: {
       type: Boolean,
       default: false
@@ -54,6 +63,7 @@ const adminRoleSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
+    // System permissions
     canViewAnalytics: {
       type: Boolean,
       default: false
@@ -74,6 +84,10 @@ const adminRoleSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isSystem: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,
