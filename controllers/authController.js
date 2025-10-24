@@ -346,6 +346,29 @@ class AuthController {
       });
     }
   }
+
+  // Get new users this month
+  async getNewUsersThisMonth(req, res) {
+    try {
+      const newUsersThisMonth = await User.countDocuments({
+        createdAt: {
+          $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        }
+      });
+
+      res.json({
+        newUsersThisMonth,
+        month: new Date().toLocaleString('default', { month: 'long' }),
+        year: new Date().getFullYear()
+      });
+    } catch (error) {
+      console.error('Error fetching new users this month:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch new users this month',
+        message: error.message 
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();

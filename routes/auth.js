@@ -19,6 +19,7 @@ router.get('/profile',  authController.getProfile);
 // User analytics routes
 router.get('/user-growth',  authController.getUserGrowth);
 router.get('/user-count',  authController.getUserCount);
+router.get('/new-users-this-month',  authController.getNewUsersThisMonth);
 router.get('/users',  authController.getUsers);
 router.get('/first-user-name',  authController.getFirstUserName);
 
