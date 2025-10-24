@@ -1,9 +1,9 @@
-const User = require('../models/User');
-const Admin = require('../models/Admin');
-const Report = require('../models/Report');
-const Trip = require('../models/Trip');
-const GasStation = require('../models/GasStation');
-const Notification = require('../models/Notification');
+const User = require('../../../models/User');
+const Admin = require('../../../models/Admin');
+const Report = require('../../../models/Reports');
+const Trip = require('../../../models/TripModel');
+const GasStation = require('../../../models/GasStation');
+const Notification = require('../../../models/Notification');
 
 // Get dashboard overview data
 const getDashboardOverview = async (req, res) => {

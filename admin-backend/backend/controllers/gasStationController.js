@@ -1,5 +1,5 @@
-const GasStation = require('../models/GasStation');
-const Notification = require('../models/Notification');
+const GasStation = require('../../../models/GasStation');
+const Notification = require('../../../models/Notification');
 
 // Get all gas stations with filtering and pagination
 const getGasStations = async (req, res) => {

@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const Admin = require('../models/Admin');
-const AdminRole = require('../models/AdminRole');
-const Notification = require('../models/Notification');
+const User = require('../../../models/User');
+const Admin = require('../../../models/Admin');
+const AdminRole = require('../../../models/AdminRole');
+const Notification = require('../../../models/Notification');
 
 // Generate JWT token
 const generateToken = (id) => {

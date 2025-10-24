@@ -1,6 +1,6 @@
-const Report = require('../models/Report');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
+const Report = require('../../../models/Reports');
+const User = require('../../../models/User');
+const Notification = require('../../../models/Notification');
 
 // Get all reports with filtering and pagination
 const getReports = async (req, res) => {

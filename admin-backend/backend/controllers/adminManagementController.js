@@ -1,6 +1,6 @@
-const Admin = require('../models/Admin');
-const AdminRole = require('../models/AdminRole');
-const User = require('../models/User');
+const Admin = require('../../../models/Admin');
+const AdminRole = require('../../../models/AdminRole');
+const User = require('../../../models/User');
 
 // Get all admins
 const getAdmins = async (req, res) => {

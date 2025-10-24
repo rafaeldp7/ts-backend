@@ -22,9 +22,9 @@ const notificationRoutes = require("./routes/notificationRoutes");
 const maintenanceRoutes = require("./routes/maintenanceRoutes");
 
 // Admin routes
-const adminAuthRoutes = require("./routes/adminAuth");
-const adminManagementRoutes = require("./routes/adminManagement");
-const adminSettingsRoutes = require("./routes/adminSettings");
+const adminAuthRoutes = require("./admin-backend/backend/routes/adminAuth");
+const adminManagementRoutes = require("./admin-backend/backend/routes/adminManagement");
+const adminSettingsRoutes = require("./admin-backend/backend/routes/adminSettings");
 
 // New optimization routes
 const calculationsRoutes = require("./routes/calculations");

@@ -3,13 +3,13 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 // Import models
-const User = require('../models/User');
-const Admin = require('../models/Admin');
-const AdminRole = require('../models/AdminRole');
-const Report = require('../models/Report');
-const Trip = require('../models/Trip');
-const GasStation = require('../models/GasStation');
-const Motorcycle = require('../models/Motorcycle');
+const User = require('../../../models/User');
+const Admin = require('../../../models/Admin');
+const AdminRole = require('../../../models/AdminRole');
+const Report = require('../../../models/Reports');
+const Trip = require('../../../models/TripModel');
+const GasStation = require('../../../models/GasStation');
+const Motorcycle = require('../../../models/motorcycleModel');
 
 // Connect to database
 const connectDB = async () => {

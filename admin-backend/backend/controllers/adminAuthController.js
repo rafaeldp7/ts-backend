@@ -1,9 +1,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const Admin = require('../models/Admin');
-const AdminRole = require('../models/AdminRole');
-const Notification = require('../models/Notification');
+const User = require('../../../models/User');
+const Admin = require('../../../models/Admin');
+const AdminRole = require('../../../models/AdminRole');
+const Notification = require('../../../models/Notification');
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -30,10 +30,19 @@ const register = async (req, res) => {
     const user = new User({
       firstName,
       lastName,
+      name: `${firstName} ${lastName}`,
       email,
       password,
-      phone,
-      address
+      phone: phone || '',
+      city: 'Default City',
+      province: 'Default Province',
+      barangay: 'Default Barangay',
+      street: 'Default Street',
+      preferences: {
+        units: 'metric',
+        language: 'en',
+        notifications: true
+      }
     });
 
     await user.save();
@@ -42,14 +51,18 @@ const register = async (req, res) => {
     const token = generateToken(user._id);
 
     // Send welcome notification
-    await Notification.create({
-      recipient: user._id,
-      title: 'Welcome to Traffic Management System!',
-      message: 'Your account has been successfully created. Start exploring the features.',
-      type: 'success',
-      priority: 'medium',
-      isRead: false
-    });
+    try {
+      await Notification.create({
+        userId: user._id,
+        title: 'Welcome to Traffic Management System!',
+        message: 'Your account has been successfully created. Start exploring the features.',
+        type: 'other',
+        priority: 'medium',
+        isRead: false
+      });
+    } catch (notificationError) {
+      console.log('Notification creation failed, but user registration succeeded:', notificationError.message);
+    }
 
     res.status(201).json({
       success: true,

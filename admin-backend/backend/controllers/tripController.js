@@ -1,6 +1,6 @@
-const Trip = require('../models/Trip');
-const User = require('../models/User');
-const Motorcycle = require('../models/Motorcycle');
+const Trip = require('../../../models/TripModel');
+const User = require('../../../models/User');
+const Motorcycle = require('../../../models/motorcycleModel');
 
 // Get all trips with filtering and pagination
 const getTrips = async (req, res) => {

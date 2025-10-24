@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const Admin = require('./models/Admin');
-const AdminRole = require('./models/AdminRole');
+const Admin = require('../../../models/Admin');
+const AdminRole = require('../../../models/AdminRole');
 
 // Connect to MongoDB
 const connectDB = async () => {
