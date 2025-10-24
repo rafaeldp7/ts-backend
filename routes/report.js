@@ -1,21 +1,34 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const reportController = require('../controllers/reportController');
-// Report routes
-router.get('/', reportController.getReports);
-router.get('/nearby', reportController.getNearbyReports);
-router.get('/verified', reportController.getVerifiedReports);
-router.get('/:id', reportController.getReport);
-router.get('/:id/verification', reportController.getReportVerification);
-router.post('/', reportController.createReport);
-router.put('/:id', reportController.updateReport);
-router.delete('/:id', reportController.deleteReport);
-router.post('/:id/vote', reportController.voteReport);
-router.get('/:id/votes', reportController.getReportVotes);
-router.put('/:id/status', reportController.updateReportStatus);
+const reportController = require("../controllers/reportController");
 
-// Admin verification routes
-router.put('/:id/verify', reportController.verifyReport);
-router.post('/bulk-verify', reportController.bulkVerifyReports);
+// CREATE
+router.post("/", reportController.createReport);
+
+// READ
+router.get("/", reportController.getAllReports);
+router.get("/count", reportController.getReportCount);
+router.get("/type/:type", reportController.getReportsByType);
+router.post("/daterange", reportController.getReportsByDateRange);
+router.get("/user/:userId", reportController.getReportsByUser);
+router.get("/locations/all", reportController.getAllReportLocations);
+router.put("/:id", reportController.updateReport);
+router.put("/:id/verify", reportController.updateVerification);
+
+router.post("/:id/vote", reportController.voteReport);
+
+// DELETE
+router.delete("/:id", reportController.deleteReport);
+
+// ARCHIVE
+router.put("/:id/archive", reportController.archiveReport);
+router.get("/archived/all", reportController.getArchivedReports);
+
+// ============ REVERSE GEOCODING ROUTES ============
+router.post("/:reportId/reverse-geocode", reportController.reverseGeocodeReport);
+router.post("/reverse-geocode/bulk", reportController.reverseGeocodeReports);
+router.get("/geocoding/pending", reportController.getReportsNeedingGeocoding);
+router.post("/geocoding/bulk", reportController.bulkReverseGeocode);
+router.get("/geocoding/stats", reportController.getGeocodingStats);
 
 module.exports = router;

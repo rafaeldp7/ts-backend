@@ -7,6 +7,7 @@ require("./cron");
 // const morgan = require("morgan");
 
 const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/user");
 const trackingRoutes = require("./routes/trackingRoutes");
 const tripRoutes = require("./routes/tripRoutes");
 const motorcycleRoutes = require("./routes/motorcycleRoutes");
@@ -69,6 +70,7 @@ mongoose
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 app.use("/api/tracking", trackingRoutes);
 app.use("/api/motorcycles", motorcycleRoutes);
 app.use("/api/trips", tripRoutes);

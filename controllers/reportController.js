@@ -1,412 +1,472 @@
-const Report = require('../models/Reports');
-const User = require('../models/User');
+// controllers/reportController.js
+const Report = require("../models/Reports.js");
+const mongoose = require("mongoose");
 
-class ReportController {
-  // Get all reports with filtering and pagination
-  async getReports(req, res) {
-    try {
-      const userId = req.user?._id;
-      const { 
-        page = 1, 
-        limit = 20, 
-        type, 
-        severity, 
-        status,
-        sortBy = 'createdAt',
-        sortOrder = 'desc',
-        lat,
-        lng,
-        radius = 10
-      } = req.query;
+exports.getArchivedReports = async (req, res) => {
+  try {
+    const reports = await Report.find({ archived: true }).sort({ timestamp: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching archived reports", error: err.message });
+  }
+};
 
-      // Build filter object
-      const filter = { userId };
-      if (type) filter.type = type;
-      if (severity) filter.severity = severity;
-      if (status) filter.status = status;
+exports.archiveReport = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-      // Add location filter if coordinates provided
-      if (lat && lng) {
-        filter.location = {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(lng), parseFloat(lat)]
-            },
-            $maxDistance: radius * 1000 // Convert km to meters
-          }
-        };
+    // ✅ Validate the ID before using it
+    if (!id || id === 'null' || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: 'Invalid or missing report ID' });
+    }
+
+    const report = await Report.findByIdAndUpdate(
+      id,
+      { archived: true },
+      { new: true }
+    );
+
+    if (!report) {
+      return res.status(404).json({ msg: 'Report not found' });
+    }
+
+    res.status(200).json({ msg: 'Report archived', report });
+  } catch (err) {
+    res.status(500).json({
+      msg: 'Error archiving report',
+      error: err.message,
+    });
+  }
+};
+// ✅ Update an existing report
+exports.updateReport = async (req, res) => {
+  try {
+    const { id } = req.params; // report ID
+    const updates = { ...req.body };
+
+    // Validate report existence
+    const existingReport = await Report.findById(id);
+    if (!existingReport) {
+      return res.status(404).json({ msg: "Report not found" });
+    }
+
+    // Optional: validate description length
+    if (updates.description && updates.description.length > 100) {
+      return res.status(400).json({ msg: "Description too long" });
+    }
+
+    // Handle address safely
+    if (
+      updates.address === undefined || 
+      updates.address === null || 
+      (typeof updates.address === "string" && updates.address.trim() === "")
+    ) {
+      delete updates.address; // don’t overwrite with empty/undefined
+    }
+
+    // Prevent overwriting critical fields
+    delete updates._id;
+    delete updates.createdAt;
+    delete updates.updatedAt;
+
+    // Update
+    const updatedReport = await Report.findByIdAndUpdate(id, updates, {
+      new: true, // return updated doc
+      runValidators: true, // apply schema validators
+    });
+
+    res.status(200).json(updatedReport);
+  } catch (err) {
+    console.error("Update report error:", err);
+    res.status(500).json({ msg: "Error updating report", error: err.message });
+  }
+};
+
+exports.updateVerification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verifiedByAdmin, verifiedByUser } = req.body; // Expect either or both
+
+    // Find report
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ msg: "Report not found" });
+    }
+
+    // Ensure `verified` exists
+    if (!report.verified) {
+      report.verified = { verifiedByAdmin: 0, verifiedByUser: 0 };
+    }
+
+    // Update only the verification fields that were passed
+    if (typeof verifiedByAdmin === "number") {
+      report.verified.verifiedByAdmin = verifiedByAdmin;
+    }
+    if (typeof verifiedByUser === "number") {
+      report.verified.verifiedByUser = verifiedByUser;
+    }
+
+    await report.save();
+
+    res.status(200).json({
+      msg: "Verification updated successfully",
+      verified: report.verified,
+    });
+  } catch (err) {
+    console.error("Update verification error:", err);
+    res.status(500).json({
+      msg: "Error updating verification",
+      error: err.message,
+    });
+  }
+};
+
+
+exports.voteReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, vote } = req.body; // vote = 1 or -1
+
+    if (![1, -1].includes(vote)) {
+      return res.status(400).json({ msg: "Vote must be 1 or -1" });
+    }
+
+    const report = await Report.findById(id);
+    if (!report) return res.status(404).json({ msg: "Report not found" });
+
+    const existingVote = report.votes.find(v => v.userId.toString() === userId);
+
+    if (existingVote) {
+      if (existingVote.vote === vote) {
+        // same vote, remove it
+        report.votes = report.votes.filter(v => v.userId.toString() !== userId);
+      } else {
+        // switch vote
+        existingVote.vote = vote;
       }
+    } else {
+      // new vote
+      report.votes.push({ userId, vote });
+    }
 
-      const sortOptions = {};
-      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    await report.save();
 
-      const reports = await Report.find(filter)
-        .sort(sortOptions)
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .populate('userId', 'firstName lastName');
+    // Optional: return totalVotes
+    const totalVotes = report.votes.reduce((sum, v) => sum + v.vote, 0);
 
-      const total = await Report.countDocuments(filter);
+    res.status(200).json({ report, totalVotes });
+  } catch (err) {
+    console.error("Vote report error:", err);
+    res.status(500).json({ msg: "Error voting report", error: err.message });
+  }
+};
 
-      res.json({
-        reports,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
+exports.createReport = async (req, res) => {
+  try {
+    console.log("Incoming data:", req.body);
+    const { reportType, location, userId, description, address, verified } = req.body;
+
+    // basic required fields
+    if (
+      !reportType ||
+      // !location ||
+      !location.latitude ||
+      !location.longitude ||
+      !description ||
+      !address 
+      // !verified
+    ) {
+      return res.status(400).json({ message: "Missing or invalid fields" });
+    }
+
+    // check description length limit
+    if (description.length > 100) {
+      return res.status(400).json({ message: "Description too long" });
+    }
+
+    const newReport = new Report({
+      userId: userId || null,
+      reportType,
+      description,
+      address: address || "No address provided",
+      verified: verified || { verifiedByAdmin: 0, verifiedByUser: 0 },
+      location,
+    });
+
+    const saved = await newReport.save();
+    res.status(201).json(saved);
+  } catch (error) {
+    console.error("Create report error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+exports.getAllReports = async (req, res) => {
+  try {
+    const reports = await Report.find().sort({ timestamp: -1 });
+    res.status(200).json(reports);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+exports.getReportCount = async (req, res) => {
+  try {
+    const count = await Report.countDocuments();
+    res.status(200).json({ totalReports: count });
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to count reports", error: err.message });
+  }
+};
+
+exports.getReportsByType = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const reports = await Report.find({ reportType: type }).sort({ createdAt: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching reports by type", error: err.message });
+  }
+};
+
+exports.getReportsByDateRange = async (req, res) => {
+  const { startDate, endDate } = req.body;
+  try {
+    const reports = await Report.find({
+      createdAt: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    }).sort({ createdAt: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to get reports by date", error: err.message });
+  }
+};
+
+exports.getReportsByUser = async (req, res) => {
+  try {
+    const reports = await Report.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching user's reports", error: err.message });
+  }
+};
+
+exports.getAllReportLocations = async (req, res) => {
+  try {
+    const reports = await Report.find({}, { location: 1, reportType: 1, description: 1, createdAt: 1 });
+    res.status(200).json(reports);
+  } catch (err) {
+    res.status(500).json({ msg: "Failed to fetch report locations", error: err.message });
+  }
+};
+
+exports.deleteReport = async (req, res) => {
+  try {
+    const deleted = await Report.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ msg: "Report not found" });
+    res.status(200).json({ msg: "Report deleted successfully", deleted });
+  } catch (err) {
+    res.status(500).json({ msg: "Error deleting report", error: err.message });
+  }
+};
+
+// ============ REVERSE GEOCODING METHODS ============
+
+// Reverse geocode a single report
+exports.reverseGeocodeReport = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    
+    const report = await Report.findById(reportId);
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    if (!report.location.latitude || !report.location.longitude) {
+      return res.status(400).json({ message: 'Report does not have valid coordinates' });
+    }
+
+    const address = await report.reverseGeocode();
+    await report.save();
+
+    res.json({
+      success: true,
+      reportId: report._id,
+      geocodedAddress: address,
+      geocodingStatus: report.geocodingStatus
+    });
+  } catch (error) {
+    console.error('Reverse geocode report error:', error);
+    res.status(500).json({ 
+      message: 'Server error reverse geocoding report',
+      error: error.message 
+    });
+  }
+};
+
+// Reverse geocode multiple reports
+exports.reverseGeocodeReports = async (req, res) => {
+  try {
+    const { reportIds } = req.body;
+    
+    if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+      return res.status(400).json({ message: 'Report IDs array is required' });
+    }
+
+    const results = await Report.reverseGeocodeReports(reportIds);
+    
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      message: `Reverse geocoding completed: ${successCount} successful, ${failureCount} failed`,
+      results,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: failureCount
+      }
+    });
+  } catch (error) {
+    console.error('Reverse geocode reports error:', error);
+    res.status(500).json({ 
+      message: 'Server error reverse geocoding reports',
+      error: error.message 
+    });
+  }
+};
+
+// Get reports that need reverse geocoding
+exports.getReportsNeedingGeocoding = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+
+    const filter = {
+      'location.latitude': { $exists: true, $ne: null },
+      'location.longitude': { $exists: true, $ne: null },
+      $or: [
+        { geocodingStatus: 'pending' },
+        { geocodingStatus: 'failed' },
+        { geocodedAddress: { $exists: false } }
+      ]
+    };
+
+    const reports = await Report.find(filter)
+      .select('_id reportType description location geocodingStatus geocodingError timestamp')
+      .sort({ timestamp: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Report.countDocuments(filter);
+
+    res.json({
+      success: true,
+      reports,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
         total
+      }
+    });
+  } catch (error) {
+    console.error('Get reports needing geocoding error:', error);
+    res.status(500).json({ message: 'Server error getting reports needing geocoding' });
+  }
+};
+
+// Bulk reverse geocode all pending reports
+exports.bulkReverseGeocode = async (req, res) => {
+  try {
+    const { limit = 50 } = req.body;
+
+    // Find reports that need geocoding
+    const reports = await Report.find({
+      'location.latitude': { $exists: true, $ne: null },
+      'location.longitude': { $exists: true, $ne: null },
+      $or: [
+        { geocodingStatus: 'pending' },
+        { geocodingStatus: 'failed' },
+        { geocodedAddress: { $exists: false } }
+      ]
+    }).limit(limit);
+
+    if (reports.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No reports need reverse geocoding',
+        results: []
       });
-    } catch (error) {
-      console.error('Get reports error:', error);
-      res.status(500).json({ message: 'Server error getting reports' });
     }
-  }
 
-  // Get nearby reports
-  async getNearbyReports(req, res) {
-    try {
-      const { lat, lng, radius = 5, limit = 20 } = req.query;
+    const reportIds = reports.map(r => r._id);
+    const results = await Report.reverseGeocodeReports(reportIds);
 
-      if (!lat || !lng) {
-        return res.status(400).json({ message: 'Latitude and longitude are required' });
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      message: `Bulk reverse geocoding completed: ${successCount} successful, ${failureCount} failed`,
+      results,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: failureCount
       }
-
-      const reports = await Report.find({
-        location: {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(lng), parseFloat(lat)]
-            },
-            $maxDistance: radius * 1000 // Convert km to meters
-          }
-        },
-        status: { $ne: 'archived' },
-        archived: { $ne: true }
-      })
-      .limit(parseInt(limit))
-      .populate('userId', 'firstName lastName');
-
-      res.json(reports);
-    } catch (error) {
-      console.error('Get nearby reports error:', error);
-      res.status(500).json({ message: 'Server error getting nearby reports' });
-    }
+    });
+  } catch (error) {
+    console.error('Bulk reverse geocode error:', error);
+    res.status(500).json({ 
+      message: 'Server error bulk reverse geocoding',
+      error: error.message 
+    });
   }
+};
 
-  // Get single report
-  async getReport(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?._id;
-
-      const report = await Report.findOne({ _id: id, userId })
-        .populate('userId', 'firstName lastName');
-
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
+// Get geocoding statistics
+exports.getGeocodingStats = async (req, res) => {
+  try {
+    const stats = await Report.aggregate([
+      {
+        $group: {
+          _id: '$geocodingStatus',
+          count: { $sum: 1 }
+        }
       }
+    ]);
 
-      res.json(report);
-    } catch (error) {
-      console.error('Get report error:', error);
-      res.status(500).json({ message: 'Server error getting report' });
-    }
+    const totalReports = await Report.countDocuments();
+    const reportsWithCoordinates = await Report.countDocuments({
+      'location.latitude': { $exists: true, $ne: null },
+      'location.longitude': { $exists: true, $ne: null }
+    });
+
+    const statusCounts = {
+      pending: 0,
+      success: 0,
+      failed: 0
+    };
+
+    stats.forEach(stat => {
+      statusCounts[stat._id] = stat.count;
+    });
+
+    res.json({
+      success: true,
+      stats: {
+        totalReports,
+        reportsWithCoordinates,
+        geocodingStatus: statusCounts,
+        geocodingRate: reportsWithCoordinates > 0 ? 
+          (statusCounts.success / reportsWithCoordinates * 100).toFixed(2) + '%' : '0%'
+      }
+    });
+  } catch (error) {
+    console.error('Get geocoding stats error:', error);
+    res.status(500).json({ message: 'Server error getting geocoding statistics' });
   }
-
-  // Create new report
-  async createReport(req, res) {
-    try {
-      const userId = req.user?._id;
-      const reportData = {
-        ...req.body,
-        userId,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-
-      const report = new Report(reportData);
-      await report.save();
-
-      // Populate user data
-      await report.populate('userId', 'firstName lastName');
-
-      res.status(201).json(report);
-    } catch (error) {
-      console.error('Create report error:', error);
-      res.status(500).json({ message: 'Server error creating report' });
-    }
-  }
-
-  // Update report
-  async updateReport(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?._id;
-      const updates = { ...req.body, updatedAt: new Date() };
-
-      const report = await Report.findOneAndUpdate(
-        { _id: id, userId },
-        { $set: updates },
-        { new: true, runValidators: true }
-      ).populate('userId', 'firstName lastName');
-
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      res.json(report);
-    } catch (error) {
-      console.error('Update report error:', error);
-      res.status(500).json({ message: 'Server error updating report' });
-    }
-  }
-
-  // Delete report
-  async deleteReport(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?._id;
-
-      const report = await Report.findOneAndDelete({ _id: id, userId });
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      res.json({ message: 'Report deleted successfully' });
-    } catch (error) {
-      console.error('Delete report error:', error);
-      res.status(500).json({ message: 'Server error deleting report' });
-    }
-  }
-
-  // Vote on report
-  async voteReport(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?._id;
-      const { voteType } = req.body; // 'upvote', 'downvote', 'remove'
-
-      const report = await Report.findById(id);
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      // Remove existing vote
-      report.votes = report.votes.filter(vote => vote.userId.toString() !== userId);
-
-      // Add new vote if not removing
-      if (voteType !== 'remove') {
-        report.votes.push({
-          userId,
-          voteType,
-          timestamp: new Date()
-        });
-      }
-
-      await report.save();
-
-      res.json({
-        message: 'Vote recorded successfully',
-        votes: report.votes,
-        voteCount: report.votes.length
-      });
-    } catch (error) {
-      console.error('Vote report error:', error);
-      res.status(500).json({ message: 'Server error voting on report' });
-    }
-  }
-
-  // Get report votes
-  async getReportVotes(req, res) {
-    try {
-      const { id } = req.params;
-
-      const report = await Report.findById(id).select('votes');
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      res.json({
-        votes: report.votes,
-        voteCount: report.votes.length
-      });
-    } catch (error) {
-      console.error('Get report votes error:', error);
-      res.status(500).json({ message: 'Server error getting report votes' });
-    }
-  }
-
-  // Update report status
-  async updateReportStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const userId = req.user?._id;
-      const { status, archived } = req.body;
-
-      const updateData = { updatedAt: new Date() };
-      if (status) updateData.status = status;
-      if (archived !== undefined) updateData.archived = archived;
-
-      const report = await Report.findOneAndUpdate(
-        { _id: id, userId },
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).populate('userId', 'firstName lastName');
-
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      res.json(report);
-    } catch (error) {
-      console.error('Update report status error:', error);
-      res.status(500).json({ message: 'Server error updating report status' });
-    }
-  }
-
-  // Verify report (Admin only)
-  async verifyReport(req, res) {
-    try {
-      const { id } = req.params;
-      const adminId = req.user?._id;
-      const { verified, notes } = req.body;
-
-      // Check if user is admin (you might want to add role checking here)
-      // For now, we'll assume the middleware handles admin verification
-
-      const updateData = {
-        isVerified: verified,
-        verifiedBy: verified ? adminId : null,
-        verifiedAt: verified ? new Date() : null,
-        updatedAt: new Date()
-      };
-
-      if (notes) {
-        updateData.verificationNotes = notes;
-      }
-
-      const report = await Report.findByIdAndUpdate(
-        id,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).populate('userId', 'firstName lastName')
-       .populate('verifiedBy', 'firstName lastName');
-
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      res.json({
-        message: verified ? 'Report verified successfully' : 'Report verification removed',
-        report
-      });
-    } catch (error) {
-      console.error('Verify report error:', error);
-      res.status(500).json({ message: 'Server error verifying report' });
-    }
-  }
-
-  // Get verified reports
-  async getVerifiedReports(req, res) {
-    try {
-      const { 
-        page = 1, 
-        limit = 20, 
-        type, 
-        severity,
-        sortBy = 'verifiedAt',
-        sortOrder = 'desc'
-      } = req.query;
-
-      // Build filter object
-      const filter = { isVerified: true };
-      if (type) filter.type = type;
-      if (severity) filter.severity = severity;
-
-      const sortOptions = {};
-      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-      const reports = await Report.find(filter)
-        .sort(sortOptions)
-        .limit(limit * 1)
-        .skip((page - 1) * limit)
-        .populate('userId', 'firstName lastName')
-        .populate('verifiedBy', 'firstName lastName');
-
-      const total = await Report.countDocuments(filter);
-
-      res.json({
-        reports,
-        totalPages: Math.ceil(total / limit),
-        currentPage: page,
-        total
-      });
-    } catch (error) {
-      console.error('Get verified reports error:', error);
-      res.status(500).json({ message: 'Server error getting verified reports' });
-    }
-  }
-
-  // Get report verification status
-  async getReportVerification(req, res) {
-    try {
-      const { id } = req.params;
-
-      const report = await Report.findById(id)
-        .select('isVerified verifiedBy verifiedAt verificationNotes')
-        .populate('verifiedBy', 'firstName lastName email');
-
-      if (!report) {
-        return res.status(404).json({ message: 'Report not found' });
-      }
-
-      res.json({
-        isVerified: report.isVerified,
-        verifiedBy: report.verifiedBy,
-        verifiedAt: report.verifiedAt,
-        verificationNotes: report.verificationNotes
-      });
-    } catch (error) {
-      console.error('Get report verification error:', error);
-      res.status(500).json({ message: 'Server error getting report verification' });
-    }
-  }
-
-  // Bulk verify reports (Admin only)
-  async bulkVerifyReports(req, res) {
-    try {
-      const { reportIds, verified, notes } = req.body;
-      const adminId = req.user?._id;
-
-      if (!Array.isArray(reportIds) || reportIds.length === 0) {
-        return res.status(400).json({ message: 'Report IDs array is required' });
-      }
-
-      const updateData = {
-        isVerified: verified,
-        verifiedBy: verified ? adminId : null,
-        verifiedAt: verified ? new Date() : null,
-        updatedAt: new Date()
-      };
-
-      if (notes) {
-        updateData.verificationNotes = notes;
-      }
-
-      const result = await Report.updateMany(
-        { _id: { $in: reportIds } },
-        { $set: updateData }
-      );
-
-      res.json({
-        message: `Successfully ${verified ? 'verified' : 'unverified'} ${result.modifiedCount} reports`,
-        modifiedCount: result.modifiedCount
-      });
-    } catch (error) {
-      console.error('Bulk verify reports error:', error);
-      res.status(500).json({ message: 'Server error bulk verifying reports' });
-    }
-  }
-}
-
-module.exports = new ReportController();
+};

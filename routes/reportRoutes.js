@@ -6,23 +6,32 @@ const reportController = require("../controllers/reportController");
 router.post("/", reportController.createReport);
 
 // READ
-router.get("/", reportController.getReports);
-router.get("/nearby", reportController.getNearbyReports);
-router.get("/verified/all", reportController.getVerifiedReports);
-router.get("/:id", reportController.getReport);
-router.get("/:id/votes", reportController.getReportVotes);
-router.get("/:id/verification", reportController.getReportVerification);
+router.get("/", reportController.getAllReports);
+router.get("/count", reportController.getReportCount);
+router.get("/type/:type", reportController.getReportsByType);
+router.post("/daterange", reportController.getReportsByDateRange);
+router.get("/user/:userId", reportController.getReportsByUser);
+router.get("/locations/all", reportController.getAllReportLocations);
 
 // UPDATE
 router.put("/:id", reportController.updateReport);
-router.put("/:id/status", reportController.updateReportStatus);
-router.put("/:id/verify", reportController.verifyReport);
-router.put("/bulk-verify", reportController.bulkVerifyReports);
+router.put("/:id/verify", reportController.updateVerification);
 
 // VOTE
 router.post("/:id/vote", reportController.voteReport);
 
 // DELETE
 router.delete("/:id", reportController.deleteReport);
+
+// ARCHIVE
+router.put("/:id/archive", reportController.archiveReport);
+router.get("/archived/all", reportController.getArchivedReports);
+
+// ============ REVERSE GEOCODING ROUTES ============
+router.post("/:reportId/reverse-geocode", reportController.reverseGeocodeReport);
+router.post("/reverse-geocode/bulk", reportController.reverseGeocodeReports);
+router.get("/geocoding/pending", reportController.getReportsNeedingGeocoding);
+router.post("/geocoding/bulk", reportController.bulkReverseGeocode);
+router.get("/geocoding/stats", reportController.getGeocodingStats);
 
 module.exports = router;
