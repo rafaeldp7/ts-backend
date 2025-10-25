@@ -83,13 +83,13 @@ exports.updateReport = async (req, res) => {
 };
 
 exports.updateVerification = async (req, res) => {
-  try {
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
     const { verifiedByAdmin, verifiedByUser } = req.body; // Expect either or both
 
     // Find report
     const report = await Report.findById(id);
-    if (!report) {
+      if (!report) {
       return res.status(404).json({ msg: "Report not found" });
     }
 
@@ -123,15 +123,15 @@ exports.updateVerification = async (req, res) => {
 
 
 exports.voteReport = async (req, res) => {
-  try {
-    const { id } = req.params;
+    try {
+      const { id } = req.params;
     const { userId, vote } = req.body; // vote = 1 or -1
 
     if (![1, -1].includes(vote)) {
       return res.status(400).json({ msg: "Vote must be 1 or -1" });
     }
 
-    const report = await Report.findById(id);
+      const report = await Report.findById(id);
     if (!report) return res.status(404).json({ msg: "Report not found" });
 
     const existingVote = report.votes.find(v => v.userId.toString() === userId);
@@ -147,9 +147,9 @@ exports.voteReport = async (req, res) => {
     } else {
       // new vote
       report.votes.push({ userId, vote });
-    }
+      }
 
-    await report.save();
+      await report.save();
 
     // Optional: return totalVotes
     const totalVotes = report.votes.reduce((sum, v) => sum + v.vote, 0);
@@ -205,7 +205,7 @@ exports.getAllReports = async (req, res) => {
   try {
     const reports = await Report.find().sort({ timestamp: -1 });
     res.status(200).json(reports);
-  } catch (error) {
+    } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -281,9 +281,9 @@ exports.reverseGeocodeReport = async (req, res) => {
     const { reportId } = req.params;
     
     const report = await Report.findById(reportId);
-    if (!report) {
-      return res.status(404).json({ message: 'Report not found' });
-    }
+      if (!report) {
+        return res.status(404).json({ message: 'Report not found' });
+      }
 
     if (!report.location.latitude || !report.location.longitude) {
       return res.status(400).json({ message: 'Report does not have valid coordinates' });
@@ -321,7 +321,7 @@ exports.reverseGeocodeReports = async (req, res) => {
     const successCount = results.filter(r => r.success).length;
     const failureCount = results.filter(r => !r.success).length;
 
-    res.json({
+      res.json({
       success: true,
       message: `Reverse geocoding completed: ${successCount} successful, ${failureCount} failed`,
       results,
@@ -330,8 +330,8 @@ exports.reverseGeocodeReports = async (req, res) => {
         successful: successCount,
         failed: failureCount
       }
-    });
-  } catch (error) {
+      });
+    } catch (error) {
     console.error('Reverse geocode reports error:', error);
     res.status(500).json({ 
       message: 'Server error reverse geocoding reports',
@@ -355,24 +355,24 @@ exports.getReportsNeedingGeocoding = async (req, res) => {
       ]
     };
 
-    const reports = await Report.find(filter)
+      const reports = await Report.find(filter)
       .select('_id reportType description location geocodingStatus geocodingError timestamp')
       .sort({ timestamp: -1 })
-      .limit(limit * 1)
+        .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await Report.countDocuments(filter);
+      const total = await Report.countDocuments(filter);
 
-    res.json({
+      res.json({
       success: true,
-      reports,
+        reports,
       pagination: {
         current: parseInt(page),
         pages: Math.ceil(total / limit),
         total
       }
-    });
-  } catch (error) {
+      });
+    } catch (error) {
     console.error('Get reports needing geocoding error:', error);
     res.status(500).json({ message: 'Server error getting reports needing geocoding' });
   }
@@ -408,7 +408,7 @@ exports.bulkReverseGeocode = async (req, res) => {
     const successCount = results.filter(r => r.success).length;
     const failureCount = results.filter(r => !r.success).length;
 
-    res.json({
+      res.json({
       success: true,
       message: `Bulk reverse geocoding completed: ${successCount} successful, ${failureCount} failed`,
       results,
@@ -417,8 +417,8 @@ exports.bulkReverseGeocode = async (req, res) => {
         successful: successCount,
         failed: failureCount
       }
-    });
-  } catch (error) {
+      });
+    } catch (error) {
     console.error('Bulk reverse geocode error:', error);
     res.status(500).json({ 
       message: 'Server error bulk reverse geocoding',
@@ -455,7 +455,7 @@ exports.getGeocodingStats = async (req, res) => {
       statusCounts[stat._id] = stat.count;
     });
 
-    res.json({
+      res.json({
       success: true,
       stats: {
         totalReports,
@@ -464,8 +464,8 @@ exports.getGeocodingStats = async (req, res) => {
         geocodingRate: reportsWithCoordinates > 0 ? 
           (statusCounts.success / reportsWithCoordinates * 100).toFixed(2) + '%' : '0%'
       }
-    });
-  } catch (error) {
+      });
+    } catch (error) {
     console.error('Get geocoding stats error:', error);
     res.status(500).json({ message: 'Server error getting geocoding statistics' });
   }

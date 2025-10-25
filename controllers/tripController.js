@@ -507,9 +507,9 @@ exports.calculateTripStatistics = async (req, res) => {
     const maintenanceAlerts = [];
     if (totalDistance > 5000) { // Example: oil change every 5000km
       maintenanceAlerts.push('Consider an oil change soon!');
-    }
+      }
 
-    res.json({
+      res.json({
       success: true,
       duration: duration,
       distance: totalDistance,
@@ -568,8 +568,8 @@ exports.generateTripSummary = async (req, res) => {
       performance: {
         processingTime: Date.now() - startTime,
       }
-    });
-  } catch (error) {
+      });
+    } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -635,9 +635,9 @@ exports.manageTripCache = async (req, res) => {
         break;
       default:
         return res.status(400).json({ error: 'Invalid cache management action' });
-    }
+      }
 
-    res.json({
+      res.json({
       success: result.success,
       tripData: result.tripData,
       cacheInfo: result.cacheInfo,
@@ -646,8 +646,8 @@ exports.manageTripCache = async (req, res) => {
         processingTime: Date.now() - startTime,
         dataSize: tripData ? JSON.stringify(tripData).length : 0
       }
-    });
-  } catch (error) {
+      });
+    } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };

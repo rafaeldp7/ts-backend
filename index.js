@@ -23,6 +23,7 @@ const maintenanceRoutes = require("./routes/maintenanceRoutes");
 
 // Admin routes
 const adminAuthRoutes = require("./admin-backend/backend/routes/adminAuth");
+const adminAuthRoutes2 = require("./admin-backend/backend/routes/auth");
 const adminManagementRoutes = require("./admin-backend/backend/routes/adminManagement");
 const adminSettingsRoutes = require("./admin-backend/backend/routes/adminSettings");
 const adminRoutes = require("./admin-backend/backend/routes/admin");
@@ -100,6 +101,7 @@ app.use("/api/maintenance-records", maintenanceRoutes);
 
 // Admin routes
 app.use("/api/admin-auth", adminAuthRoutes);
+app.use("/api/admin-auth-alt", adminAuthRoutes2);
 app.use("/api/admin-management", adminManagementRoutes);
 app.use("/api/admin-settings", adminSettingsRoutes);
 app.use("/api/admin", adminRoutes);

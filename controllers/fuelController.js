@@ -73,16 +73,16 @@ const combineFuelData = async (req, res) => {
     
     // Transform maintenance refuels to match fuel log format
     const transformedMaintenanceRefuels = maintenanceRefuels.map(record => ({
-      _id: `maintenance_${record._id}`,
-      date: record.timestamp,
-      liters: record.details.quantity,
-      pricePerLiter: record.details.cost / record.details.quantity,
-      totalCost: record.details.cost,
+        _id: `maintenance_${record._id}`,
+        date: record.timestamp,
+        liters: record.details.quantity,
+        pricePerLiter: record.details.cost / record.details.quantity,
+        totalCost: record.details.cost,
       odometer: undefined,
-      notes: record.details.notes,
-      motorId: {
-        _id: record.motorId._id,
-        nickname: record.motorId.nickname,
+        notes: record.details.notes,
+        motorId: {
+          _id: record.motorId._id,
+          nickname: record.motorId.nickname,
         motorcycleId: undefined
       },
       location: record.location ? `${record.location.latitude}, ${record.location.longitude}` : undefined,

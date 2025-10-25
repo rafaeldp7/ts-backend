@@ -25,8 +25,8 @@ const processMotorAnalytics = async (req, res) => {
       includeDistanceCalculations: true,
       includeTimeCalculations: true
     });
-    
-    res.json({
+
+      res.json({
       analytics: analytics.basicAnalytics,
       maintenanceAlerts: analytics.maintenanceAlerts,
       fuelEfficiency: analytics.fuelEfficiency,
@@ -37,7 +37,7 @@ const processMotorAnalytics = async (req, res) => {
         maintenanceRecordsProcessed: maintenanceRecords ? maintenanceRecords.length : 0,
         processingTime: Date.now() - startTime
       }
-    });
+      });
     } catch (error) {
     res.status(500).json({ error: error.message });
   }
