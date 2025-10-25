@@ -16,7 +16,8 @@ const {
   addRoutePoint,
   addExpense
 } = require('../controllers/tripController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/adminAuth');
 
 // Public routes
 router.get('/', getTrips);

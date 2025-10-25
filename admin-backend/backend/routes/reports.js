@@ -13,7 +13,8 @@ const {
   getReportStats,
   archiveReport
 } = require('../controllers/reportController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/adminAuth');
 
 // Public routes (for viewing reports)
 router.get('/', getReports);

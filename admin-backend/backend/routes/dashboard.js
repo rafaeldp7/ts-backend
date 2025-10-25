@@ -7,7 +7,8 @@ const {
   getAdminDashboard,
   getAnalytics
 } = require('../controllers/dashboardController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/adminAuth');
 
 // User dashboard routes
 router.get('/overview', authenticateToken, getDashboardOverview);

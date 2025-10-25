@@ -16,7 +16,8 @@ const {
   archiveGasStation,
   getFuelPriceTrends
 } = require('../controllers/gasStationController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/adminAuth');
 
 // Public routes
 router.get('/', getGasStations);

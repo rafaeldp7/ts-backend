@@ -11,7 +11,8 @@ const {
   verifyToken,
   getUserStats
 } = require('../controllers/authController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/adminAuth');
 
 // Public routes
 router.post('/register', register);
