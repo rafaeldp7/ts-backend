@@ -26,9 +26,10 @@ const adminSchema = new mongoose.Schema({
     minlength: 6
   },
   role: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'AdminRole', 
-    required: true 
+    type: String, 
+    required: true,
+    enum: ['super_admin', 'admin', 'moderator'],
+    default: 'moderator'
   },
   isActive: { 
     type: Boolean, 
@@ -70,6 +71,87 @@ adminSchema.methods.matchPassword = async function(enteredPassword) {
 adminSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;
 });
+
+// Get role permissions and level
+adminSchema.methods.getRoleInfo = function() {
+  const roleConfig = {
+    super_admin: {
+      level: 100,
+      displayName: 'Super Admin',
+      permissions: {
+        canCreate: true,
+        canRead: true,
+        canUpdate: true,
+        canDelete: true,
+        canManageAdmins: true,
+        canAssignRoles: true,
+        canManageUsers: true,
+        canManageReports: true,
+        canManageTrips: true,
+        canManageGasStations: true,
+        canViewAnalytics: true,
+        canExportData: true,
+        canManageSettings: true
+      }
+    },
+    admin: {
+      level: 50,
+      displayName: 'Admin',
+      permissions: {
+        canCreate: true,
+        canRead: true,
+        canUpdate: true,
+        canDelete: true,
+        canManageAdmins: false,
+        canAssignRoles: false,
+        canManageUsers: true,
+        canManageReports: true,
+        canManageTrips: true,
+        canManageGasStations: true,
+        canViewAnalytics: true,
+        canExportData: true,
+        canManageSettings: false
+      }
+    },
+    moderator: {
+      level: 25,
+      displayName: 'Moderator',
+      permissions: {
+        canCreate: false,
+        canRead: true,
+        canUpdate: true,
+        canDelete: false,
+        canManageAdmins: false,
+        canAssignRoles: false,
+        canManageUsers: false,
+        canManageReports: true,
+        canManageTrips: true,
+        canManageGasStations: false,
+        canViewAnalytics: true,
+        canExportData: false,
+        canManageSettings: false
+      }
+    }
+  };
+
+  return roleConfig[this.role] || roleConfig.moderator;
+};
+
+// Get public profile without sensitive data
+adminSchema.methods.getPublicProfile = function() {
+  const roleInfo = this.getRoleInfo();
+  return {
+    id: this._id,
+    firstName: this.firstName,
+    lastName: this.lastName,
+    email: this.email,
+    role: this.role,
+    roleInfo: roleInfo,
+    isActive: this.isActive,
+    lastLogin: this.lastLogin,
+    createdAt: this.createdAt
+  };
+};
 
 // Ensure virtuals are included in toJSON output
 adminSchema.set('toJSON', { virtuals: true });

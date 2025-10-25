@@ -1,5 +1,4 @@
 const Admin = require('../../../models/Admin');
-const AdminRole = require('../../../models/AdminRole');
 const User = require('../../../models/User');
 
 // Get all admins
@@ -19,18 +18,24 @@ const getAdmins = async (req, res) => {
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
     const admins = await Admin.find(filter)
-      .populate('role', 'name displayName permissions')
       .select('-password')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
+
+    // Add role info to each admin
+    const adminsWithRoleInfo = admins.map(admin => {
+      const adminObj = admin.toObject();
+      adminObj.roleInfo = admin.getRoleInfo();
+      return adminObj;
+    });
 
     const total = await Admin.countDocuments(filter);
 
     res.json({
       success: true,
       data: {
-        admins,
+        admins: adminsWithRoleInfo,
         pagination: {
           current: page,
           pages: Math.ceil(total / limit),
@@ -52,7 +57,6 @@ const getAdmins = async (req, res) => {
 const getAdmin = async (req, res) => {
   try {
     const admin = await Admin.findById(req.params.id)
-      .populate('role', 'name displayName permissions')
       .select('-password');
     
     if (!admin) {
@@ -62,9 +66,13 @@ const getAdmin = async (req, res) => {
       });
     }
 
+    // Add role info to admin
+    const adminObj = admin.toObject();
+    adminObj.roleInfo = admin.getRoleInfo();
+
     res.json({
       success: true,
-      data: { admin }
+      data: { admin: adminObj }
     });
   } catch (error) {
     console.error('Get admin error:', error);
@@ -86,8 +94,6 @@ const createAdmin = async (req, res) => {
 
     const admin = new Admin(adminData);
     await admin.save();
-
-    await admin.populate('role', 'name displayName permissions');
 
     res.status(201).json({
       success: true,
@@ -126,8 +132,6 @@ const updateAdmin = async (req, res) => {
     admin.updatedBy = req.user?.id || null;
     await admin.save();
 
-    await admin.populate('role', 'name displayName permissions');
-
     res.json({
       success: true,
       message: 'Admin updated successfully',
@@ -156,7 +160,7 @@ const deleteAdmin = async (req, res) => {
     }
 
     // Prevent deletion of self
-    if (admin._id.toString() === req.user?.id) {
+    if (req.user?.id && admin._id.toString() === req.user.id.toString()) {
       return res.status(400).json({
         success: false,
         message: 'Cannot delete your own account'
@@ -179,11 +183,80 @@ const deleteAdmin = async (req, res) => {
   }
 };
 
-// Get admin roles
+// Get admin roles (3 fixed roles)
 const getAdminRoles = async (req, res) => {
   try {
-    const roles = await AdminRole.find({ isActive: true })
-      .sort({ level: -1 });
+    const roles = [
+      {
+        name: 'super_admin',
+        displayName: 'Super Admin',
+        level: 100,
+        description: 'Full system access with all permissions',
+        permissions: {
+          canCreate: true,
+          canRead: true,
+          canUpdate: true,
+          canDelete: true,
+          canManageAdmins: true,
+          canAssignRoles: true,
+          canManageUsers: true,
+          canManageReports: true,
+          canManageTrips: true,
+          canManageGasStations: true,
+          canViewAnalytics: true,
+          canExportData: true,
+          canManageSettings: true
+        },
+        isActive: true,
+        isSystem: true
+      },
+      {
+        name: 'admin',
+        displayName: 'Admin',
+        level: 50,
+        description: 'Standard administrative access with limited permissions',
+        permissions: {
+          canCreate: true,
+          canRead: true,
+          canUpdate: true,
+          canDelete: false,
+          canManageAdmins: false,
+          canAssignRoles: false,
+          canManageUsers: true,
+          canManageReports: true,
+          canManageTrips: true,
+          canManageGasStations: true,
+          canViewAnalytics: true,
+          canExportData: true,
+          canManageSettings: false
+        },
+        isActive: true,
+        isSystem: true
+      },
+      {
+        name: 'moderator',
+        displayName: 'Moderator',
+        level: 25,
+        description: 'Content moderation and read-only access',
+        permissions: {
+          canCreate: false,
+          canRead: true,
+          canUpdate: true,
+          canDelete: false,
+          canManageAdmins: false,
+          canAssignRoles: false,
+          canManageUsers: false,
+          canManageReports: true,
+          canManageTrips: true,
+          canManageGasStations: false,
+          canViewAnalytics: true,
+          canExportData: false,
+          canManageSettings: false
+        },
+        isActive: true,
+        isSystem: true
+      }
+    ];
 
     res.json({
       success: true,
@@ -199,133 +272,13 @@ const getAdminRoles = async (req, res) => {
   }
 };
 
-// Create admin role
-const createAdminRole = async (req, res) => {
-  try {
-    const roleData = {
-      ...req.body,
-      createdBy: req.user?.id || null
-    };
-
-    const role = new AdminRole(roleData);
-    await role.save();
-
-    res.status(201).json({
-      success: true,
-      message: 'Admin role created successfully',
-      data: { role }
-    });
-  } catch (error) {
-    console.error('Create admin role error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create admin role',
-      error: error.message
-    });
-  }
-};
-
-// Update admin role
-const updateAdminRole = async (req, res) => {
-  try {
-    const role = await AdminRole.findById(req.params.id);
-    
-    if (!role) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin role not found'
-      });
-    }
-
-    // Prevent modification of system roles
-    if (role.isSystem) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot modify system role'
-      });
-    }
-
-    // Update fields
-    Object.keys(req.body).forEach(key => {
-      if (req.body[key] !== undefined) {
-        role[key] = req.body[key];
-      }
-    });
-
-    role.updatedBy = req.user?.id || null;
-    await role.save();
-
-    res.json({
-      success: true,
-      message: 'Admin role updated successfully',
-      data: { role }
-    });
-  } catch (error) {
-    console.error('Update admin role error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update admin role',
-      error: error.message
-    });
-  }
-};
-
-// Delete admin role
-const deleteAdminRole = async (req, res) => {
-  try {
-    const role = await AdminRole.findById(req.params.id);
-    
-    if (!role) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin role not found'
-      });
-    }
-
-    // Prevent deletion of system roles
-    if (role.isSystem) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete system role'
-      });
-    }
-
-    // Check if role is in use
-    const adminsUsingRole = await Admin.countDocuments({ role: req.params.id });
-    if (adminsUsingRole > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot delete role that is currently in use'
-      });
-    }
-
-    await AdminRole.findByIdAndDelete(req.params.id);
-
-    res.json({
-      success: true,
-      message: 'Admin role deleted successfully'
-    });
-  } catch (error) {
-    console.error('Delete admin role error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete admin role',
-      error: error.message
-    });
-  }
-};
-
 // Get admin statistics
 const getAdminStats = async (req, res) => {
   try {
     const totalAdmins = await Admin.countDocuments();
     const activeAdmins = await Admin.countDocuments({ isActive: true });
-    const verifiedAdmins = await Admin.countDocuments({ isVerified: true });
-    
-    const avgLogins = await Admin.aggregate([
-      { $group: { _id: null, avgLogins: { $avg: '$loginCount' } } }
-    ]);
 
+    // Get role distribution
     const roleDistribution = await Admin.aggregate([
       {
         $group: {
@@ -334,20 +287,9 @@ const getAdminStats = async (req, res) => {
         }
       },
       {
-        $lookup: {
-          from: 'adminroles',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'role'
-        }
-      },
-      { $unwind: '$role' },
-      {
         $project: {
-          role: {
-            name: 1,
-            displayName: 1
-          },
+          _id: 0,
+          role: '$_id',
           count: 1
         }
       }
@@ -358,9 +300,7 @@ const getAdminStats = async (req, res) => {
       data: {
         overall: {
           totalAdmins,
-          activeAdmins,
-          verifiedAdmins,
-          avgLogins: avgLogins[0]?.avgLogins || 0
+          activeAdmins
         },
         roleDistribution
       }
@@ -382,8 +322,5 @@ module.exports = {
   updateAdmin,
   deleteAdmin,
   getAdminRoles,
-  createAdminRole,
-  updateAdminRole,
-  deleteAdminRole,
   getAdminStats
 };

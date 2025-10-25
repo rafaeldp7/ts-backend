@@ -33,7 +33,8 @@ const authenticateAdmin = async (req, res, next) => {
       id: admin._id,
       email: admin.email,
       role: admin.role,
-      permissions: admin.role?.permissions || []
+      roleInfo: admin.getRoleInfo(),
+      permissions: admin.getRoleInfo().permissions
     };
     
     next();
@@ -56,12 +57,12 @@ const requirePermission = (permission) => {
     }
 
     // Super Admin bypasses all permission checks
-    if (req.user.role?.level === 100) {
+    if (req.user.roleInfo?.level === 100) {
       return next();
     }
 
     // Check if user has the specific permission
-    if (!req.user.role?.permissions?.[permission]) {
+    if (!req.user.permissions?.[permission]) {
       return res.status(403).json({
         success: false,
         message: `Insufficient permissions. Required: ${permission}`
@@ -88,7 +89,7 @@ const requireRole = (roleName) => {
     };
 
     const requiredLevel = roleLevels[roleName];
-    const userLevel = req.user.role?.level || 0;
+    const userLevel = req.user.roleInfo?.level || 0;
 
     if (userLevel < requiredLevel) {
       return res.status(403).json({
@@ -103,7 +104,7 @@ const requireRole = (roleName) => {
 
 // Middleware to check if user is Super Admin
 const requireSuperAdmin = (req, res, next) => {
-  if (!req.user || req.user.role?.level !== 100) {
+  if (!req.user || req.user.roleInfo?.level !== 100) {
     return res.status(403).json({
       success: false,
       message: 'Super Admin access required.'
@@ -114,7 +115,7 @@ const requireSuperAdmin = (req, res, next) => {
 
 // Middleware to check if user is Admin or higher
 const requireAdmin = (req, res, next) => {
-  if (!req.user || (req.user.role?.level || 0) < 50) {
+  if (!req.user || (req.user.roleInfo?.level || 0) < 50) {
     return res.status(403).json({
       success: false,
       message: 'Admin access required.'

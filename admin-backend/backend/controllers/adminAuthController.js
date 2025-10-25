@@ -2,7 +2,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../../../models/User');
 const Admin = require('../../../models/Admin');
-const AdminRole = require('../../../models/AdminRole');
 const Notification = require('../../../models/Notification');
 
 // Generate JWT token
@@ -153,7 +152,7 @@ const adminLogin = async (req, res) => {
     const { email, password } = req.body;
 
     // Find admin by email
-    const admin = await Admin.findOne({ email }).populate('role');
+    const admin = await Admin.findOne({ email });
     if (!admin) {
       return res.status(401).json({
         success: false,
@@ -170,7 +169,7 @@ const adminLogin = async (req, res) => {
     }
 
     // Check password
-    const isPasswordValid = await bcrypt.compare(password, admin.password);
+    const isPasswordValid = await admin.matchPassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -190,17 +189,7 @@ const adminLogin = async (req, res) => {
       success: true,
       message: 'Admin login successful',
       data: {
-        admin: {
-          id: admin._id,
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          email: admin.email,
-          role: admin.role,
-          permissions: admin.role?.permissions || [],
-          lastLogin: admin.lastLogin,
-          loginCount: admin.loginCount,
-          createdAt: admin.createdAt
-        },
+        admin: admin.getPublicProfile(),
         token
       }
     });
