@@ -1,5 +1,5 @@
-const AdminLog = require('../../models/AdminLog');
-const Admin = require('../../models/Admin');
+const AdminLog = require('../../../models/AdminLog');
+const Admin = require('../../../models/Admin');
 
 // Helper function to log admin actions
 const logAdminAction = async (adminId, action, resource, details = {}, req = null) => {
