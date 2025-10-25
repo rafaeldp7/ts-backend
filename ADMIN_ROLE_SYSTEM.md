@@ -139,24 +139,32 @@ GET  /api/admin-auth/verify-token
 
 ### **Admin Management Endpoints**
 ```bash
-GET    /api/admin-management/           # Get all admins
-GET    /api/admin-management/roles      # Get admin roles
-GET    /api/admin-management/stats      # Get admin statistics
-GET    /api/admin-management/:id        # Get single admin
-POST   /api/admin-management/           # Create new admin
-PUT    /api/admin-management/:id        # Update admin
-DELETE /api/admin-management/:id        # Delete admin
+GET    /api/admin-management/           # Get all admins (Auth Required)
+GET    /api/admin-management/roles     # Get admin roles (PUBLIC - No Auth)
+GET    /api/admin-management/stats     # Get admin statistics (Auth Required)
+GET    /api/admin-management/:id       # Get single admin (Auth Required)
+POST   /api/admin-management/         # Create new admin (Auth Required)
+PUT    /api/admin-management/:id      # Update admin (Auth Required)
+DELETE /api/admin-management/:id      # Delete admin (Auth Required)
 ```
 
 ### **Role Management Endpoints**
 ```bash
-GET    /api/admin-management/roles      # Get all roles
-POST   /api/admin-management/roles      # Create new role
-PUT    /api/admin-management/roles/:id # Update role
-DELETE /api/admin-management/roles/:id   # Delete role
+GET    /api/admin-management/roles      # Get all roles (PUBLIC - No Auth)
+POST   /api/admin-management/roles      # Create new role (Auth Required)
+PUT    /api/admin-management/roles/:id # Update role (Auth Required)
+DELETE /api/admin-management/roles/:id   # Delete role (Auth Required)
 ```
 
 ## 🔒 Security Features
+
+### **Public Roles Endpoint**
+The `/api/admin-management/roles` endpoint is **publicly accessible** (no authentication required) because:
+- **Only 3 fixed roles** exist (Super Admin, Admin, Moderator)
+- **System roles** that don't change frequently
+- **No sensitive data** exposed - just role names and permissions
+- **Frontend needs access** to display role options during admin creation
+- **Reduces API calls** - no need to authenticate just to get role list
 
 ### **Role-Based Access Control (RBAC)**
 - **Hierarchical permissions** based on role levels
