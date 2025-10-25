@@ -32,6 +32,8 @@ const adminReportRoutes = require("./admin-backend/backend/routes/reports");
 const adminTripRoutes = require("./admin-backend/backend/routes/trips");
 const adminUserRoutes = require("./admin-backend/backend/routes/users");
 const adminMotorRoutes = require("./admin-backend/backend/routes/motors");
+const adminUserStatsRoutes = require("./admin-backend/backend/routes/userStats");
+const adminMotorStatsRoutes = require("./admin-backend/backend/routes/motorStats");
 const setupRoutes = require("./admin-backend/backend/routes/setup");
 
 // New optimization routes
@@ -107,6 +109,8 @@ app.use("/api/admin-reports", adminReportRoutes);
 app.use("/api/admin-trips", adminTripRoutes);
 app.use("/api/admin-users", adminUserRoutes);
 app.use("/api/admin-motors", adminMotorRoutes);
+app.use("/api/admin-user-stats", adminUserStatsRoutes);
+app.use("/api/admin-motor-stats", adminMotorStatsRoutes);
 app.use("/api/setup", setupRoutes);
 
 // New optimization routes
