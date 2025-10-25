@@ -31,6 +31,7 @@ const adminGasStationRoutes = require("./admin-backend/backend/routes/gasStation
 const adminReportRoutes = require("./admin-backend/backend/routes/reports");
 const adminTripRoutes = require("./admin-backend/backend/routes/trips");
 const adminUserRoutes = require("./admin-backend/backend/routes/users");
+const setupRoutes = require("./admin-backend/backend/routes/setup");
 
 // New optimization routes
 const calculationsRoutes = require("./routes/calculations");
@@ -104,6 +105,7 @@ app.use("/api/admin-gas-stations", adminGasStationRoutes);
 app.use("/api/admin-reports", adminReportRoutes);
 app.use("/api/admin-trips", adminTripRoutes);
 app.use("/api/admin-users", adminUserRoutes);
+app.use("/api/setup", setupRoutes);
 
 // New optimization routes
 app.use("/api/calculations", calculationsRoutes);
