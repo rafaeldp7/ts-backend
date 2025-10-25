@@ -1,5 +1,6 @@
 const User = require('../../../models/User');
 const bcrypt = require('bcryptjs');
+const { logAdminAction } = require('./adminLogsController');
 
 // Get all users (admin only)
 const getUsers = async (req, res) => {
@@ -88,6 +89,18 @@ const updateUser = async (req, res) => {
       });
     }
 
+    // Store original data for logging
+    const originalData = {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      city: user.city,
+      province: user.province,
+      barangay: user.barangay,
+      isActive: user.isActive
+    };
+
     // Update fields
     if (firstName) user.firstName = firstName;
     if (lastName) user.lastName = lastName;
@@ -104,6 +117,35 @@ const updateUser = async (req, res) => {
     }
 
     await user.save();
+
+    // Log the user update action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'USER',
+        {
+          description: `Updated user: ${user.firstName} ${user.lastName} (${user.email})`,
+          userId: user._id,
+          userName: `${user.firstName} ${user.lastName}`,
+          userEmail: user.email,
+          changes: {
+            before: originalData,
+            after: {
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              phone: user.phone,
+              city: user.city,
+              province: user.province,
+              barangay: user.barangay,
+              isActive: user.isActive
+            }
+          }
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -131,7 +173,34 @@ const deleteUser = async (req, res) => {
       });
     }
 
+    // Store user data for logging before deletion
+    const deletedUserData = {
+      id: user._id,
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      city: user.city,
+      barangay: user.barangay
+    };
+
     await User.findByIdAndDelete(req.params.id);
+
+    // Log the user deletion action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'DELETE',
+        'USER',
+        {
+          description: `Deleted user: ${deletedUserData.name} (${deletedUserData.email})`,
+          userId: deletedUserData.id,
+          userName: deletedUserData.name,
+          userEmail: deletedUserData.email,
+          userCity: deletedUserData.city,
+          userBarangay: deletedUserData.barangay
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -267,6 +336,24 @@ const createUser = async (req, res) => {
     });
 
     await user.save();
+
+    // Log the user creation action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'CREATE',
+        'USER',
+        {
+          description: `Created new user: ${user.firstName} ${user.lastName} (${user.email})`,
+          userId: user._id,
+          userName: `${user.firstName} ${user.lastName}`,
+          userEmail: user.email,
+          userCity: user.city,
+          userBarangay: user.barangay
+        },
+        req
+      );
+    }
 
     res.status(201).json({
       success: true,

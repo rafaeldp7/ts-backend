@@ -1,6 +1,7 @@
 const Trip = require('../../../models/TripModel');
 const User = require('../../../models/User');
 const Motorcycle = require('../../../models/motorcycleModel');
+const { logAdminAction } = require('./adminLogsController');
 
 // Get all trips with filtering and pagination
 const getTrips = async (req, res) => {
@@ -157,6 +158,13 @@ const updateTrip = async (req, res) => {
       });
     }
 
+    // Store original data for logging (only if admin is updating)
+    const originalData = req.user.isAdmin ? {
+      title: trip.title,
+      status: trip.status,
+      description: trip.description
+    } : null;
+
     // Update fields
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
@@ -165,6 +173,29 @@ const updateTrip = async (req, res) => {
     });
 
     await trip.save();
+
+    // Log the trip update action (only if admin is updating)
+    if (req.user.isAdmin && req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'TRIP',
+        {
+          description: `Updated trip: "${trip.title}" (ID: ${trip._id})`,
+          tripId: trip._id,
+          tripTitle: trip.title,
+          changes: originalData ? {
+            before: originalData,
+            after: {
+              title: trip.title,
+              status: trip.status,
+              description: trip.description
+            }
+          } : null
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -201,7 +232,32 @@ const deleteTrip = async (req, res) => {
       });
     }
 
+    // Store trip data for logging (only if admin is deleting)
+    const deletedTripData = req.user.isAdmin ? {
+      id: trip._id,
+      title: trip.title,
+      user: trip.user,
+      status: trip.status
+    } : null;
+
     await Trip.findByIdAndDelete(req.params.id);
+
+    // Log the trip deletion action (only if admin is deleting)
+    if (req.user.isAdmin && req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'DELETE',
+        'TRIP',
+        {
+          description: `Deleted trip: "${deletedTripData.title}" (ID: ${deletedTripData.id})`,
+          tripId: deletedTripData.id,
+          tripTitle: deletedTripData.title,
+          tripUser: deletedTripData.user,
+          tripStatus: deletedTripData.status
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,

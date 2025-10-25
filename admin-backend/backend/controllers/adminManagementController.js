@@ -1,5 +1,6 @@
 const Admin = require('../../../models/Admin');
 const User = require('../../../models/User');
+const { logAdminAction } = require('./adminLogsController');
 
 // Get all admins
 const getAdmins = async (req, res) => {
@@ -95,6 +96,23 @@ const createAdmin = async (req, res) => {
     const admin = new Admin(adminData);
     await admin.save();
 
+    // Log the admin creation action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'CREATE',
+        'ADMIN',
+        {
+          description: `Created new admin: ${admin.firstName} ${admin.lastName} (${admin.email})`,
+          newAdminId: admin._id,
+          newAdminName: `${admin.firstName} ${admin.lastName}`,
+          newAdminEmail: admin.email,
+          newAdminRole: admin.role
+        },
+        req
+      );
+    }
+
     res.status(201).json({
       success: true,
       message: 'Admin created successfully',
@@ -122,6 +140,15 @@ const updateAdmin = async (req, res) => {
       });
     }
 
+    // Store original data for logging
+    const originalData = {
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      email: admin.email,
+      role: admin.role,
+      isActive: admin.isActive
+    };
+
     // Update fields
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined && key !== 'password') {
@@ -131,6 +158,31 @@ const updateAdmin = async (req, res) => {
 
     admin.updatedBy = req.user?.id || null;
     await admin.save();
+
+    // Log the admin update action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'ADMIN',
+        {
+          description: `Updated admin: ${admin.firstName} ${admin.lastName} (${admin.email})`,
+          adminId: admin._id,
+          adminName: `${admin.firstName} ${admin.lastName}`,
+          changes: {
+            before: originalData,
+            after: {
+              firstName: admin.firstName,
+              lastName: admin.lastName,
+              email: admin.email,
+              role: admin.role,
+              isActive: admin.isActive
+            }
+          }
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -167,7 +219,32 @@ const deleteAdmin = async (req, res) => {
       });
     }
 
+    // Store admin data for logging before deletion
+    const deletedAdminData = {
+      id: admin._id,
+      name: `${admin.firstName} ${admin.lastName}`,
+      email: admin.email,
+      role: admin.role
+    };
+
     await Admin.findByIdAndDelete(req.params.id);
+
+    // Log the admin deletion action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'DELETE',
+        'ADMIN',
+        {
+          description: `Deleted admin: ${deletedAdminData.name} (${deletedAdminData.email})`,
+          deletedAdminId: deletedAdminData.id,
+          deletedAdminName: deletedAdminData.name,
+          deletedAdminEmail: deletedAdminData.email,
+          deletedAdminRole: deletedAdminData.role
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -315,6 +392,248 @@ const getAdminStats = async (req, res) => {
   }
 };
 
+// Change admin password
+const changeAdminPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const adminId = req.params.id || req.user.id; // Allow changing own password or admin changing others
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password, new password, and confirmation are required'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirmation do not match'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get admin
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await admin.matchPassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Check if new password is different from current
+    const isSamePassword = await admin.matchPassword(newPassword);
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from current password'
+      });
+    }
+
+    // Update password
+    admin.password = newPassword; // Will be hashed by pre-save hook
+    await admin.save();
+
+    // Log the password change action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'PASSWORD_CHANGE',
+        'ADMIN',
+        {
+          description: `Changed password for admin: ${admin.firstName} ${admin.lastName} (${admin.email})`,
+          adminId: admin._id,
+          adminName: `${admin.firstName} ${admin.lastName}`,
+          adminEmail: admin.email
+        },
+        req
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change admin password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error.message
+    });
+  }
+};
+
+// Change own password (for logged-in admin)
+const changeOwnPassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const adminId = req.user.id;
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password, new password, and confirmation are required'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirmation do not match'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get admin
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await admin.matchPassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Check if new password is different from current
+    const isSamePassword = await admin.matchPassword(newPassword);
+    if (isSamePassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be different from current password'
+      });
+    }
+
+    // Update password
+    admin.password = newPassword; // Will be hashed by pre-save hook
+    await admin.save();
+
+    // Log the password change action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'PASSWORD_CHANGE',
+        'ADMIN',
+        {
+          description: `Changed own password`,
+          adminId: admin._id,
+          adminName: `${admin.firstName} ${admin.lastName}`,
+          adminEmail: admin.email
+        },
+        req
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change own password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error.message
+    });
+  }
+};
+
+// Reset admin password (for super admin)
+const resetAdminPassword = async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    const adminId = req.params.id;
+
+    // Validation
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password is required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get admin
+    const admin = await Admin.findById(adminId);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found'
+      });
+    }
+
+    // Update password
+    admin.password = newPassword; // Will be hashed by pre-save hook
+    await admin.save();
+
+    // Log the password reset action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'PASSWORD_CHANGE',
+        'ADMIN',
+        {
+          description: `Reset password for admin: ${admin.firstName} ${admin.lastName} (${admin.email})`,
+          adminId: admin._id,
+          adminName: `${admin.firstName} ${admin.lastName}`,
+          adminEmail: admin.email
+        },
+        req
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset admin password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAdmins,
   getAdmin,
@@ -322,5 +641,8 @@ module.exports = {
   updateAdmin,
   deleteAdmin,
   getAdminRoles,
-  getAdminStats
+  getAdminStats,
+  changeAdminPassword,
+  changeOwnPassword,
+  resetAdminPassword
 };

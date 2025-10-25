@@ -1,6 +1,7 @@
 const Report = require('../../../models/Reports');
 const User = require('../../../models/User');
 const Notification = require('../../../models/Notification');
+const { logAdminAction } = require('./adminLogsController');
 
 // Get all reports with filtering and pagination
 const getReports = async (req, res) => {
@@ -230,6 +231,25 @@ const verifyReport = async (req, res) => {
 
     await report.updateStatus('verified', req.user.id, notes);
 
+    // Log the report verification action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'REPORT',
+        {
+          description: `Verified report: "${report.title}" (ID: ${report._id})`,
+          reportId: report._id,
+          reportTitle: report.title,
+          reportType: report.reportType,
+          previousStatus: 'pending',
+          newStatus: 'verified',
+          notes: notes
+        },
+        req
+      );
+    }
+
     // Send notification to reporter
     await Notification.create({
       recipient: report.reporter,
@@ -283,6 +303,26 @@ const resolveReport = async (req, res) => {
     if (actions) {
       report.resolutionActions = actions;
       await report.save();
+    }
+
+    // Log the report resolution action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'REPORT',
+        {
+          description: `Resolved report: "${report.title}" (ID: ${report._id})`,
+          reportId: report._id,
+          reportTitle: report.title,
+          reportType: report.reportType,
+          previousStatus: 'verified',
+          newStatus: 'resolved',
+          notes: notes,
+          resolutionActions: actions
+        },
+        req
+      );
     }
 
     // Send notification to reporter
@@ -424,6 +464,24 @@ const archiveReport = async (req, res) => {
     report.archivedAt = new Date();
     report.archivedBy = req.user.id;
     await report.save();
+
+    // Log the report archiving action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'REPORT',
+        {
+          description: `Archived report: "${report.title}" (ID: ${report._id})`,
+          reportId: report._id,
+          reportTitle: report.title,
+          reportType: report.reportType,
+          previousStatus: report.status,
+          newStatus: 'archived'
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,

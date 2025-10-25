@@ -1,5 +1,6 @@
 const GasStation = require('../../../models/GasStation');
 const Notification = require('../../../models/Notification');
+const { logAdminAction } = require('./adminLogsController');
 
 // Get all gas stations with filtering and pagination
 const getGasStations = async (req, res) => {
@@ -107,6 +108,24 @@ const createGasStation = async (req, res) => {
     const station = new GasStation(req.body);
     await station.save();
 
+    // Log the gas station creation action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'CREATE',
+        'GAS_STATION',
+        {
+          description: `Created new gas station: ${station.name} (${station.brand})`,
+          stationId: station._id,
+          stationName: station.name,
+          stationBrand: station.brand,
+          stationLocation: station.location?.address,
+          stationCity: station.location?.city
+        },
+        req
+      );
+    }
+
     res.status(201).json({
       success: true,
       message: 'Gas station created successfully',
@@ -134,6 +153,14 @@ const updateGasStation = async (req, res) => {
       });
     }
 
+    // Store original data for logging
+    const originalData = {
+      name: station.name,
+      brand: station.brand,
+      status: station.status,
+      location: station.location
+    };
+
     // Update fields
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
@@ -142,6 +169,31 @@ const updateGasStation = async (req, res) => {
     });
 
     await station.save();
+
+    // Log the gas station update action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'GAS_STATION',
+        {
+          description: `Updated gas station: ${station.name} (${station.brand})`,
+          stationId: station._id,
+          stationName: station.name,
+          stationBrand: station.brand,
+          changes: {
+            before: originalData,
+            after: {
+              name: station.name,
+              brand: station.brand,
+              status: station.status,
+              location: station.location
+            }
+          }
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -170,7 +222,33 @@ const deleteGasStation = async (req, res) => {
       });
     }
 
+    // Store station data for logging before deletion
+    const deletedStationData = {
+      id: station._id,
+      name: station.name,
+      brand: station.brand,
+      location: station.location
+    };
+
     await GasStation.findByIdAndDelete(req.params.id);
+
+    // Log the gas station deletion action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'DELETE',
+        'GAS_STATION',
+        {
+          description: `Deleted gas station: ${deletedStationData.name} (${deletedStationData.brand})`,
+          stationId: deletedStationData.id,
+          stationName: deletedStationData.name,
+          stationBrand: deletedStationData.brand,
+          stationLocation: deletedStationData.location?.address,
+          stationCity: deletedStationData.location?.city
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -259,6 +337,24 @@ const verifyGasStation = async (req, res) => {
     }
 
     await station.updateStatus('active', req.user.id);
+
+    // Log the gas station verification action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'GAS_STATION',
+        {
+          description: `Verified gas station: ${station.name} (${station.brand})`,
+          stationId: station._id,
+          stationName: station.name,
+          stationBrand: station.brand,
+          previousStatus: 'pending',
+          newStatus: 'active'
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -391,6 +487,24 @@ const archiveGasStation = async (req, res) => {
     station.archivedAt = new Date();
     station.archivedBy = req.user.id;
     await station.save();
+
+    // Log the gas station archiving action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'GAS_STATION',
+        {
+          description: `Archived gas station: ${station.name} (${station.brand})`,
+          stationId: station._id,
+          stationName: station.name,
+          stationBrand: station.brand,
+          previousStatus: station.status,
+          newStatus: 'archived'
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,

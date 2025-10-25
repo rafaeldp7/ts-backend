@@ -1,5 +1,6 @@
 const Motor = require('../../../models/Motor');
 const UserMotor = require('../../../models/userMotorModel');
+const { logAdminAction } = require('./adminLogsController');
 
 // Get all motors (admin only)
 const getMotors = async (req, res) => {
@@ -87,6 +88,18 @@ const updateMotor = async (req, res) => {
       });
     }
 
+    // Store original data for logging
+    const originalData = {
+      brand: motor.brand,
+      model: motor.model,
+      year: motor.year,
+      plateNumber: motor.plateNumber,
+      color: motor.color,
+      engineSize: motor.engineSize,
+      fuelType: motor.fuelType,
+      isActive: motor.isActive
+    };
+
     // Update fields
     if (brand) motor.brand = brand;
     if (model) motor.model = model;
@@ -98,6 +111,36 @@ const updateMotor = async (req, res) => {
     if (isActive !== undefined) motor.isActive = isActive;
 
     await motor.save();
+
+    // Log the motor update action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'MOTOR',
+        {
+          description: `Updated motor: ${motor.brand} ${motor.model} (${motor.plateNumber})`,
+          motorId: motor._id,
+          motorBrand: motor.brand,
+          motorModel: motor.model,
+          motorPlateNumber: motor.plateNumber,
+          changes: {
+            before: originalData,
+            after: {
+              brand: motor.brand,
+              model: motor.model,
+              year: motor.year,
+              plateNumber: motor.plateNumber,
+              color: motor.color,
+              engineSize: motor.engineSize,
+              fuelType: motor.fuelType,
+              isActive: motor.isActive
+            }
+          }
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -125,7 +168,34 @@ const deleteMotor = async (req, res) => {
       });
     }
 
+    // Store motor data for logging before deletion
+    const deletedMotorData = {
+      id: motor._id,
+      brand: motor.brand,
+      model: motor.model,
+      plateNumber: motor.plateNumber,
+      owner: motor.owner
+    };
+
     await Motor.findByIdAndDelete(req.params.id);
+
+    // Log the motor deletion action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'DELETE',
+        'MOTOR',
+        {
+          description: `Deleted motor: ${deletedMotorData.brand} ${deletedMotorData.model} (${deletedMotorData.plateNumber})`,
+          motorId: deletedMotorData.id,
+          motorBrand: deletedMotorData.brand,
+          motorModel: deletedMotorData.model,
+          motorPlateNumber: deletedMotorData.plateNumber,
+          motorOwner: deletedMotorData.owner
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -321,6 +391,24 @@ const createMotor = async (req, res) => {
         isPrimary: true
       });
       await userMotor.save();
+    }
+
+    // Log the motor creation action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'CREATE',
+        'MOTOR',
+        {
+          description: `Created new motor: ${motor.brand} ${motor.model} (${motor.plateNumber})`,
+          motorId: motor._id,
+          motorBrand: motor.brand,
+          motorModel: motor.model,
+          motorPlateNumber: motor.plateNumber,
+          motorOwner: motor.owner
+        },
+        req
+      );
     }
 
     res.status(201).json({
