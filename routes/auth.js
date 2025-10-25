@@ -22,5 +22,6 @@ router.get('/user-count',  authController.getUserCount);
 router.get('/new-users-this-month',  authController.getNewUsersThisMonth);
 router.get('/users',  authController.getUsers);
 router.get('/first-user-name',  authController.getFirstUserName);
+router.get('/check-user',  authController.checkUserExists);
 
 module.exports = router;

@@ -369,6 +369,39 @@ class AuthController {
       });
     }
   }
+
+  // Check if user exists (for debugging)
+  async checkUserExists(req, res) {
+    try {
+      const { email } = req.query;
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      const user = await User.findOne({ email });
+      if (user) {
+        res.json({ 
+          exists: true, 
+          message: 'User found',
+          user: {
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            createdAt: user.createdAt
+          }
+        });
+      } else {
+        res.json({ 
+          exists: false, 
+          message: 'User not found' 
+        });
+      }
+    } catch (error) {
+      console.error('Check user exists error:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  }
 }
 
 module.exports = new AuthController();
