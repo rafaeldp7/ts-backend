@@ -11,7 +11,10 @@ const {
   addComment,
   getReportsByLocation,
   getReportStats,
-  archiveReport
+  archiveReport,
+  reverseGeocodeReport,
+  bulkReverseGeocodeReports,
+  autoReverseGeocodeReport
 } = require('../controllers/reportController');
 const { authenticateToken } = require('../middleware/auth');
 const { authenticateAdmin } = require('../middleware/adminAuth');
@@ -20,6 +23,7 @@ const { authenticateAdmin } = require('../middleware/adminAuth');
 router.get('/', getReports);
 router.get('/stats', getReportStats);
 router.get('/location', getReportsByLocation);
+router.get('/reverse-geocode', reverseGeocodeReport); // Public reverse geocoding endpoint
 
 // Protected routes
 router.get('/:id', getReport);
@@ -32,5 +36,7 @@ router.post('/:id/comments', authenticateToken, addComment);
 router.put('/:id/verify', authenticateAdmin, verifyReport);
 router.put('/:id/resolve', authenticateAdmin, resolveReport);
 router.put('/:id/archive', authenticateAdmin, archiveReport);
+router.put('/:id/auto-reverse-geocode', authenticateAdmin, autoReverseGeocodeReport); // Auto-reverse geocode specific report
+router.post('/bulk-reverse-geocode', authenticateAdmin, bulkReverseGeocodeReports); // Bulk reverse geocoding
 
 module.exports = router;

@@ -475,6 +475,167 @@ const getFuelPriceTrends = async (req, res) => {
   }
 };
 
+// Reverse geocoding endpoint - Get address from coordinates
+const reverseGeocode = async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+    
+    if (!lat || !lng) {
+      return sendErrorResponse(res, 400, 'Latitude and longitude are required');
+    }
+    
+    // Create a temporary gas station instance to use the method
+    const tempStation = new GasStation({
+      location: {
+        type: 'Point',
+        coordinates: [parseFloat(lng), parseFloat(lat)]
+      }
+    });
+    
+    const addressInfo = await tempStation.getAddressFromCoordinates();
+    
+    if (addressInfo.success) {
+      sendSuccessResponse(res, {
+        coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) },
+        address: addressInfo.address,
+        formattedAddress: addressInfo.formattedAddress,
+        placeId: addressInfo.placeId,
+        types: addressInfo.types
+      }, 'Address retrieved successfully');
+    } else {
+      sendErrorResponse(res, 400, addressInfo.message || 'Reverse geocoding failed', {
+        fallback: addressInfo.fallback
+      });
+    }
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    sendErrorResponse(res, 500, 'Failed to perform reverse geocoding', error);
+  }
+};
+
+// Bulk reverse geocoding for multiple gas stations
+const bulkReverseGeocodeStations = async (req, res) => {
+  try {
+    const { stationIds } = req.body;
+    
+    if (!stationIds || !Array.isArray(stationIds)) {
+      return sendErrorResponse(res, 400, 'stationIds array is required');
+    }
+    
+    const stations = await GasStation.find({ _id: { $in: stationIds } });
+    const results = [];
+    
+    for (const station of stations) {
+      try {
+        const addressInfo = await station.getAddressFromCoordinates();
+        
+        if (addressInfo.success) {
+          // Update station with geocoded address
+          station.address = addressInfo.formattedAddress;
+          station.city = addressInfo.address.city;
+          station.state = addressInfo.address.state;
+          station.country = addressInfo.address.country;
+          await station.save();
+          
+          results.push({ 
+            stationId: station._id, 
+            success: true, 
+            address: addressInfo.formattedAddress 
+          });
+        } else {
+          results.push({ 
+            stationId: station._id, 
+            success: false, 
+            error: addressInfo.message 
+          });
+        }
+      } catch (error) {
+        results.push({ 
+          stationId: station._id, 
+          success: false, 
+          error: error.message 
+        });
+      }
+    }
+    
+    sendSuccessResponse(res, {
+      results,
+      summary: {
+        total: results.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      }
+    }, 'Bulk reverse geocoding completed');
+  } catch (error) {
+    console.error('Bulk reverse geocoding error:', error);
+    sendErrorResponse(res, 500, 'Failed to perform bulk reverse geocoding', error);
+  }
+};
+
+// Auto-reverse geocode a specific gas station
+const autoReverseGeocodeStation = async (req, res) => {
+  try {
+    const station = await GasStation.findById(req.params.id);
+    
+    if (!station) {
+      return sendErrorResponse(res, 404, 'Gas station not found');
+    }
+    
+    if (!station.location || !station.location.coordinates || station.location.coordinates.length !== 2) {
+      return sendErrorResponse(res, 400, 'Gas station does not have valid coordinates');
+    }
+    
+    const addressInfo = await station.getAddressFromCoordinates();
+    
+    if (addressInfo.success) {
+      // Update station with geocoded address
+      station.address = addressInfo.formattedAddress;
+      station.city = addressInfo.address.city;
+      station.state = addressInfo.address.state;
+      station.country = addressInfo.address.country;
+      await station.save();
+      
+      // Log the reverse geocoding action
+      if (req.user?.id) {
+        await logAdminAction(
+          req.user.id,
+          'UPDATE',
+          'GAS_STATION',
+          {
+            description: `Auto-reverse geocoded gas station: "${station.name}" (ID: ${station._id})`,
+            stationId: station._id,
+            stationName: station.name,
+            geocodedAddress: addressInfo.formattedAddress,
+            coordinates: {
+              latitude: station.location.coordinates[1],
+              longitude: station.location.coordinates[0]
+            }
+          },
+          req
+        );
+      }
+      
+      sendSuccessResponse(res, {
+        station: {
+          _id: station._id,
+          name: station.name,
+          address: station.address,
+          city: station.city,
+          state: station.state,
+          country: station.country
+        }
+      }, 'Gas station reverse geocoded successfully');
+    } else {
+      sendErrorResponse(res, 400, addressInfo.message || 'Reverse geocoding failed', {
+        fallback: addressInfo.fallback
+      });
+    }
+  } catch (error) {
+    console.error('Auto reverse geocoding error:', error);
+    sendErrorResponse(res, 500, 'Failed to auto reverse geocode gas station', error);
+  }
+};
+
 module.exports = {
   getGasStations,
   getGasStation,
@@ -489,5 +650,8 @@ module.exports = {
   getGasStationStats,
   getNearbyGasStations,
   archiveGasStation,
-  getFuelPriceTrends
+  getFuelPriceTrends,
+  reverseGeocode,
+  bulkReverseGeocodeStations,
+  autoReverseGeocodeStation
 };

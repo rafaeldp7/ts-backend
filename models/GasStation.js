@@ -31,7 +31,10 @@ const gasStationSchema = new mongoose.Schema({
   },
   address: {
     type: String,
-    required: true,
+    required: function() {
+      // Address is only required if coordinates are not provided
+      return !this.location || !this.location.coordinates || this.location.coordinates.length === 0;
+    },
     trim: true
   },
   city: {
@@ -364,6 +367,45 @@ gasStationSchema.virtual('reverseGeocodedAddress').get(async function() {
   // Note: This won't work directly as a getter virtual with async
   // Use the method getAddressFromCoordinates() instead
   return null;
+});
+
+// Pre-save middleware to automatically reverse geocode if only coordinates are provided
+gasStationSchema.pre('save', async function(next) {
+  // Only reverse geocode if we have coordinates but no address (or empty address)
+  if (this.location && 
+      this.location.coordinates && 
+      this.location.coordinates.length === 2 && 
+      (!this.address || this.address.trim() === '')) {
+    
+    try {
+      // Get address from coordinates
+      const addressInfo = await this.getAddressFromCoordinates();
+      
+      // If geocoding succeeds, populate address fields
+      if (addressInfo.success) {
+        this.address = addressInfo.formattedAddress;
+        this.city = addressInfo.address.city;
+        this.state = addressInfo.address.state;
+        this.country = addressInfo.address.country;
+        this.postalCode = addressInfo.address.postalCode;
+        
+        console.log('✅ Auto-reverse geocoded gas station address');
+      } else {
+        // If geocoding fails, use coordinates as fallback
+        this.address = `${addressInfo.fallback.formatted}`;
+        console.log('⚠️ Reverse geocoding failed, using coordinates as fallback');
+      }
+    } catch (error) {
+      // Don't fail the save operation if geocoding fails
+      console.warn('⚠️ Reverse geocoding failed during save:', error.message);
+      
+      // Set fallback address using coordinates
+      const [lng, lat] = this.location.coordinates;
+      this.address = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+  }
+  
+  next();
 });
 
 module.exports = mongoose.model('GasStation', gasStationSchema);

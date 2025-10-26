@@ -481,6 +481,113 @@ const archiveReport = async (req, res) => {
   }
 };
 
+// Reverse geocoding endpoint for reports - Get address from coordinates
+const reverseGeocodeReport = async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+    
+    if (!lat || !lng) {
+      return sendErrorResponse(res, 400, 'Latitude and longitude are required');
+    }
+    
+    // Create a temporary report instance to use the method
+    const tempReport = new Report({
+      location: {
+        latitude: parseFloat(lat),
+        longitude: parseFloat(lng)
+      }
+    });
+    
+    const address = await tempReport.reverseGeocode();
+    
+    sendSuccessResponse(res, {
+      coordinates: { lat: parseFloat(lat), lng: parseFloat(lng) },
+      address: address,
+      geocodedAddress: tempReport.geocodedAddress,
+      geocodingStatus: tempReport.geocodingStatus
+    }, 'Address retrieved successfully');
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    sendErrorResponse(res, 500, 'Failed to perform reverse geocoding', error);
+  }
+};
+
+// Bulk reverse geocoding for multiple reports
+const bulkReverseGeocodeReports = async (req, res) => {
+  try {
+    const { reportIds } = req.body;
+    
+    if (!reportIds || !Array.isArray(reportIds)) {
+      return sendErrorResponse(res, 400, 'reportIds array is required');
+    }
+    
+    const results = await Report.reverseGeocodeReports(reportIds);
+    
+    sendSuccessResponse(res, {
+      results,
+      summary: {
+        total: results.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      }
+    }, 'Bulk reverse geocoding completed');
+  } catch (error) {
+    console.error('Bulk reverse geocoding error:', error);
+    sendErrorResponse(res, 500, 'Failed to perform bulk reverse geocoding', error);
+  }
+};
+
+// Auto-reverse geocode a specific report
+const autoReverseGeocodeReport = async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+    
+    if (!report) {
+      return sendErrorResponse(res, 404, 'Report not found');
+    }
+    
+    if (!report.location.latitude || !report.location.longitude) {
+      return sendErrorResponse(res, 400, 'Report does not have valid coordinates');
+    }
+    
+    const address = await report.reverseGeocode();
+    await report.save();
+    
+    // Log the reverse geocoding action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'REPORT',
+        {
+          description: `Auto-reverse geocoded report: "${report.description}" (ID: ${report._id})`,
+          reportId: report._id,
+          reportDescription: report.description,
+          geocodedAddress: address,
+          coordinates: {
+            latitude: report.location.latitude,
+            longitude: report.location.longitude
+          }
+        },
+        req
+      );
+    }
+    
+    sendSuccessResponse(res, {
+      report: {
+        _id: report._id,
+        geocodedAddress: report.geocodedAddress,
+        address: report.address,
+        geocodingStatus: report.geocodingStatus,
+        geocodingError: report.geocodingError
+      }
+    }, 'Report reverse geocoded successfully');
+  } catch (error) {
+    console.error('Auto reverse geocoding error:', error);
+    sendErrorResponse(res, 500, 'Failed to auto reverse geocode report', error);
+  }
+};
+
 module.exports = {
   getReports,
   getReport,
@@ -492,5 +599,8 @@ module.exports = {
   addComment,
   getReportsByLocation,
   getReportStats,
-  archiveReport
+  archiveReport,
+  reverseGeocodeReport,
+  bulkReverseGeocodeReports,
+  autoReverseGeocodeReport
 };
