@@ -32,8 +32,8 @@ router.get('/user/:userId', authenticateToken, getUserTrips);
 router.get('/date-range', getTripsByDateRange);
 router.get('/:id', authenticateToken, getTrip);
 router.post('/', authenticateToken, createTrip);
-router.put('/:id', authenticateToken, updateTrip);
-router.delete('/:id', authenticateToken, deleteTrip);
+router.put('/:id', authenticateAdmin, updateTrip);
+router.delete('/:id', authenticateAdmin, deleteTrip);
 router.post('/:id/route-points', authenticateToken, addRoutePoint);
 router.post('/:id/expenses', authenticateToken, addExpense);
 

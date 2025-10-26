@@ -140,6 +140,15 @@ const updateReport = async (req, res) => {
       });
     }
 
+    // Store original report data for logging
+    const originalReport = {
+      title: report.title,
+      description: report.description,
+      status: report.status,
+      priority: report.priority,
+      reportType: report.reportType
+    };
+
     // Update fields
     Object.keys(req.body).forEach(key => {
       if (req.body[key] !== undefined) {
@@ -148,6 +157,25 @@ const updateReport = async (req, res) => {
     });
 
     await report.save();
+
+    // Log the report update action
+    if (req.user?.isAdmin) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'REPORT',
+        {
+          description: `Updated report: "${report.title}" (ID: ${report._id})`,
+          reportId: report._id,
+          reportTitle: report.title,
+          reportType: report.reportType,
+          changes: req.body,
+          originalStatus: originalReport.status,
+          newStatus: report.status
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
@@ -184,7 +212,35 @@ const deleteReport = async (req, res) => {
       });
     }
 
+    // Store report data for logging before deletion
+    const reportData = {
+      id: report._id,
+      title: report.title,
+      description: report.description,
+      status: report.status,
+      priority: report.priority,
+      reportType: report.reportType
+    };
+
     await Report.findByIdAndDelete(req.params.id);
+
+    // Log the report deletion action
+    if (req.user?.isAdmin) {
+      await logAdminAction(
+        req.user.id,
+        'DELETE',
+        'REPORT',
+        {
+          description: `Deleted report: "${reportData.title}" (ID: ${reportData.id})`,
+          reportId: reportData.id,
+          reportTitle: reportData.title,
+          reportType: reportData.reportType,
+          reportStatus: reportData.status,
+          reportPriority: reportData.priority
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,
