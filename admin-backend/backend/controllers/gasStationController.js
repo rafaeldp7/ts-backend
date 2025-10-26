@@ -6,55 +6,10 @@ const { sendErrorResponse, sendSuccessResponse } = require('../middleware/valida
 // Get all gas stations with filtering and pagination
 const getGasStations = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      name,
-      brand,
-      sortBy = 'name',
-      sortOrder = 'asc',
-      lat,
-      lng,
-      radius = 10
-    } = req.query;
-
-    // Build filter object
-    const filter = {};
-    if (name) filter.name = { $regex: name, $options: 'i' };
-    if (brand) filter.brand = { $regex: brand, $options: 'i' };
-
-    // Add location filter if coordinates provided
-    if (lat && lng) {
-      filter.location = {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(lng), parseFloat(lat)]
-          },
-          $maxDistance: radius * 1000 // Convert km to meters
-        }
-      };
-    }
-
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    const gasStations = await GasStation.find(filter)
-      .sort(sortOptions)
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await GasStation.countDocuments(filter);
-
-    res.json({
-      gasStations,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      total
-    });
-  } catch (error) {
-    console.error('Get gas stations error:', error);
-    res.status(500).json({ message: 'Server error getting gas stations' });
+    const stations = await GasStation.find().sort({ updatedAt: -1 });
+    res.json(stations);
+  } catch (err) {
+    res.status(500).json({ msg: "Fetch failed", error: err.message });
   }
 }
 
