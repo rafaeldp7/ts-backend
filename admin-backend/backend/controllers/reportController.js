@@ -2,6 +2,7 @@ const Report = require('../../../models/Reports');
 const User = require('../../../models/User');
 const Notification = require('../../../models/Notification');
 const { logAdminAction } = require('./adminLogsController');
+const { sendErrorResponse, sendSuccessResponse } = require('../middleware/validation');
 
 // Get all reports with filtering and pagination
 const getReports = async (req, res) => {
@@ -50,24 +51,17 @@ const getReports = async (req, res) => {
 
     const total = await Report.countDocuments(filter);
 
-    res.json({
-      success: true,
-      data: {
-        reports,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total
-        }
+    sendSuccessResponse(res, {
+      reports,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
       }
     });
   } catch (error) {
     console.error('Get reports error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get reports',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get reports', error);
   }
 };
 
@@ -81,26 +75,16 @@ const getReport = async (req, res) => {
       .populate('comments.author', 'firstName lastName');
 
     if (!report) {
-      return res.status(404).json({
-        success: false,
-        message: 'Report not found'
-      });
+      return sendErrorResponse(res, 404, 'Report not found');
     }
 
     // Increment views
     await report.incrementViews();
 
-    res.json({
-      success: true,
-      data: { report }
-    });
+    sendSuccessResponse(res, { report });
   } catch (error) {
     console.error('Get report error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get report',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get report', error);
   }
 };
 
