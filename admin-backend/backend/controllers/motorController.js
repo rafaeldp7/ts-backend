@@ -6,7 +6,7 @@ const { sendErrorResponse, sendSuccessResponse } = require('../middleware/valida
 // Get all motors (admin only)
 const getMotors = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, brand, model, year, includeDeleted = false } = req.query;
+    const { page = 1, limit = 1000, search, brand, model, year, includeDeleted = false } = req.query;
 
     // Build filter
     const filter = {};
@@ -17,30 +17,65 @@ const getMotors = async (req, res) => {
       filter.$or = [
         { brand: new RegExp(search, 'i') },
         { model: new RegExp(search, 'i') },
-        { plateNumber: new RegExp(search, 'i') }
+        { licensePlate: new RegExp(search, 'i') },
+        { nickname: new RegExp(search, 'i') }
       ];
     }
     if (brand) filter.brand = new RegExp(brand, 'i');
     if (model) filter.model = new RegExp(model, 'i');
     if (year) filter.year = parseInt(year);
 
+    // Fetch motors with populated user data
     const motors = await Motor.find(filter)
-      .populate('owner', 'firstName lastName email')
+      .populate('userId', 'firstName lastName email city barangay')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
     const total = await Motor.countDocuments(filter);
 
-    res.json({
-      success: true,
-      data: {
-        motors,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total
-        }
+    // Transform motors data for frontend compatibility
+    const transformedMotors = motors.map(motor => ({
+      _id: motor._id,
+      id: motor._id,
+      userId: motor.userId,
+      user: motor.userId ? {
+        _id: motor.userId._id,
+        firstName: motor.userId.firstName,
+        lastName: motor.userId.lastName,
+        email: motor.userId.email,
+        city: motor.userId.city,
+        barangay: motor.userId.barangay
+      } : null,
+      nickname: motor.nickname,
+      brand: motor.brand,
+      model: motor.model,
+      year: motor.year,
+      color: motor.color,
+      licensePlate: motor.licensePlate,
+      fuelTank: motor.fuelTank,
+      fuelConsumption: motor.fuelConsumption || motor.fuelEfficiency,
+      currentFuelLevel: motor.currentFuelLevel,
+      odometer: motor.odometer,
+      analytics: motor.analytics || {
+        totalDistance: 0,
+        totalTrips: 0,
+        tripsCompleted: 0,
+        totalFuelUsed: 0,
+        avgFuelEfficiency: 0
+      },
+      isActive: motor.isActive,
+      notes: motor.notes,
+      createdAt: motor.createdAt,
+      updatedAt: motor.updatedAt
+    }));
+
+    sendSuccessResponse(res, {
+      motors: transformedMotors,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
       }
     });
   } catch (error) {
@@ -52,7 +87,7 @@ const getMotors = async (req, res) => {
 // Get single motor
 const getMotor = async (req, res) => {
   try {
-    const motor = await Motor.findById(req.params.id).populate('owner', 'firstName lastName email');
+    const motor = await Motor.findById(req.params.id).populate('userId', 'firstName lastName email city barangay');
 
     if (!motor) {
       return sendErrorResponse(res, 404, 'Motor not found');
