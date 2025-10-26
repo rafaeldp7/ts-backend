@@ -234,7 +234,7 @@ const addReview = async (req, res) => {
     await station.addReview(req.user.id, rating, comment, categories);
 
     // Log the review addition action (if admin is adding review)
-    if (req.user?.isAdmin && req.user?.id) {
+    if (req.user?.id) {
       await logAdminAction(
         req.user.id,
         'UPDATE',

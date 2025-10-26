@@ -133,7 +133,8 @@ const updateReport = async (req, res) => {
     }
 
     // Check if user can update (only reporter or admin)
-    if (report.reporter.toString() !== req.user.id && !req.user.isAdmin) {
+    // Since this route uses authenticateAdmin, user is always admin
+    if (report.reporter.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this report'
@@ -159,7 +160,7 @@ const updateReport = async (req, res) => {
     await report.save();
 
     // Log the report update action
-    if (req.user?.isAdmin) {
+    if (req.user?.id) {
       await logAdminAction(
         req.user.id,
         'UPDATE',
@@ -205,7 +206,8 @@ const deleteReport = async (req, res) => {
     }
 
     // Check if user can delete (only reporter or admin)
-    if (report.reporter.toString() !== req.user.id && !req.user.isAdmin) {
+    // Since this route uses authenticateAdmin, user is always admin
+    if (report.reporter.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this report'
@@ -225,7 +227,7 @@ const deleteReport = async (req, res) => {
     await Report.findByIdAndDelete(req.params.id);
 
     // Log the report deletion action
-    if (req.user?.isAdmin) {
+    if (req.user?.id) {
       await logAdminAction(
         req.user.id,
         'DELETE',

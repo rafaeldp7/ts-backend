@@ -151,19 +151,20 @@ const updateTrip = async (req, res) => {
     }
 
     // Check if user can update (only trip owner or admin)
-    if (trip.user.toString() !== req.user.id && !req.user.isAdmin) {
+    // Since this route uses authenticateAdmin, user is always admin
+    if (trip.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this trip'
       });
     }
 
-    // Store original data for logging (only if admin is updating)
-    const originalData = req.user.isAdmin ? {
+    // Store original data for logging
+    const originalData = {
       title: trip.title,
       status: trip.status,
       description: trip.description
-    } : null;
+    };
 
     // Update fields
     Object.keys(req.body).forEach(key => {
@@ -174,8 +175,8 @@ const updateTrip = async (req, res) => {
 
     await trip.save();
 
-    // Log the trip update action (only if admin is updating)
-    if (req.user.isAdmin && req.user?.id) {
+    // Log the trip update action
+    if (req.user?.id) {
       await logAdminAction(
         req.user.id,
         'UPDATE',
@@ -184,14 +185,14 @@ const updateTrip = async (req, res) => {
           description: `Updated trip: "${trip.title}" (ID: ${trip._id})`,
           tripId: trip._id,
           tripTitle: trip.title,
-          changes: originalData ? {
+          changes: {
             before: originalData,
             after: {
               title: trip.title,
               status: trip.status,
               description: trip.description
             }
-          } : null
+          }
         },
         req
       );
@@ -225,25 +226,26 @@ const deleteTrip = async (req, res) => {
     }
 
     // Check if user can delete (only trip owner or admin)
-    if (trip.user.toString() !== req.user.id && !req.user.isAdmin) {
+    // Since this route uses authenticateAdmin, user is always admin
+    if (trip.user.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this trip'
       });
     }
 
-    // Store trip data for logging (only if admin is deleting)
-    const deletedTripData = req.user.isAdmin ? {
+    // Store trip data for logging
+    const deletedTripData = {
       id: trip._id,
       title: trip.title,
       user: trip.user,
       status: trip.status
-    } : null;
+    };
 
     await Trip.findByIdAndDelete(req.params.id);
 
-    // Log the trip deletion action (only if admin is deleting)
-    if (req.user.isAdmin && req.user?.id) {
+    // Log the trip deletion action
+    if (req.user?.id) {
       await logAdminAction(
         req.user.id,
         'DELETE',
