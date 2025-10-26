@@ -264,9 +264,8 @@ gasStationSchema.statics.findNearby = function(latitude, longitude, radiusInKm =
   });
 };
 
-// Method to get address from coordinates (reverse geocoding)
-// Note: This is a helper method that returns coordinates in a readable format
-// For actual reverse geocoding, you would need to use a service like Google Geocoding API
+// Method to get address from coordinates using reverse geocoding
+// Uses Google Maps Geocoding API to convert coordinates to address
 gasStationSchema.methods.getAddressFromCoordinates = async function() {
   if (!this.location || !this.location.coordinates || this.location.coordinates.length !== 2) {
     return {
@@ -276,18 +275,95 @@ gasStationSchema.methods.getAddressFromCoordinates = async function() {
   }
   
   const [lng, lat] = this.location.coordinates;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   
-  // Return formatted coordinates as address representation
-  // In a real implementation, you would call a reverse geocoding API here
-  return {
-    success: true,
-    formatted: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-    coordinates: {
-      latitude: lat,
-      longitude: lng
-    },
-    note: 'For actual address, use a reverse geocoding service like Google Maps API'
-  };
+  if (!apiKey) {
+    return {
+      success: false,
+      message: 'Google Maps API key not configured',
+      fallback: {
+        formatted: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+        coordinates: {
+          latitude: lat,
+          longitude: lng
+        }
+      }
+    };
+  }
+  
+  try {
+    const axios = require('axios');
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+      params: {
+        latlng: `${lat},${lng}`,
+        key: apiKey,
+        language: 'en'
+      }
+    });
+    
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const result = response.data.results[0];
+      
+      // Extract address components
+      const components = result.address_components || [];
+      const city = components.find(c => c.types.includes('locality') || c.types.includes('administrative_area_level_2'))?.long_name;
+      const state = components.find(c => c.types.includes('administrative_area_level_1'))?.long_name;
+      const country = components.find(c => c.types.includes('country'))?.long_name;
+      const postalCode = components.find(c => c.types.includes('postal_code'))?.long_name;
+      
+      return {
+        success: true,
+        formattedAddress: result.formatted_address,
+        address: {
+          full: result.formatted_address,
+          street: result.address_components.find(c => c.types.includes('route'))?.long_name || '',
+          city: city || '',
+          state: state || '',
+          country: country || '',
+          postalCode: postalCode || ''
+        },
+        coordinates: {
+          latitude: lat,
+          longitude: lng
+        },
+        placeId: result.place_id,
+        types: result.types
+      };
+    } else {
+      return {
+        success: false,
+        message: response.data.error_message || 'Geocoding failed',
+        fallback: {
+          formatted: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+          coordinates: {
+            latitude: lat,
+            longitude: lng
+          }
+        }
+      };
+    }
+  } catch (error) {
+    console.error('Reverse geocoding error:', error.message);
+    return {
+      success: false,
+      message: 'Reverse geocoding failed',
+      error: error.message,
+      fallback: {
+        formatted: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+        coordinates: {
+          latitude: lat,
+          longitude: lng
+        }
+      }
+    };
+  }
 };
+
+// Virtual that performs reverse geocoding
+gasStationSchema.virtual('reverseGeocodedAddress').get(async function() {
+  // Note: This won't work directly as a getter virtual with async
+  // Use the method getAddressFromCoordinates() instead
+  return null;
+});
 
 module.exports = mongoose.model('GasStation', gasStationSchema);
