@@ -277,7 +277,34 @@ const updateFuelPrices = async (req, res) => {
       });
     }
 
+    // Store original prices for logging
+    const originalPrices = {
+      gasoline: station.fuelPrices?.gasoline,
+      diesel: station.fuelPrices?.diesel,
+      premium: station.fuelPrices?.premium
+    };
+
     await station.updateFuelPrices(prices);
+
+    // Log the fuel price update action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'GAS_STATION',
+        {
+          description: `Updated fuel prices for gas station: ${station.name} (${station.brand})`,
+          stationId: station._id,
+          stationName: station.name,
+          stationBrand: station.brand,
+          changes: {
+            before: originalPrices,
+            after: prices
+          }
+        },
+        req
+      );
+    }
 
     res.json({
       success: true,

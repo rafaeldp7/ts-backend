@@ -12,5 +12,6 @@ router.get('/:id', authenticateAdmin, motorController.getMotor);
 router.post('/', authenticateAdmin, motorController.createMotor);
 router.put('/:id', authenticateAdmin, motorController.updateMotor);
 router.delete('/:id', authenticateAdmin, motorController.deleteMotor);
+router.put('/restore/:id', authenticateAdmin, motorController.restoreMotor);
 
 module.exports = router;

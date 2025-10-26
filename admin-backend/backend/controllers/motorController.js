@@ -5,10 +5,13 @@ const { logAdminAction } = require('./adminLogsController');
 // Get all motors (admin only)
 const getMotors = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, brand, model, year } = req.query;
+    const { page = 1, limit = 10, search, brand, model, year, includeDeleted = false } = req.query;
 
     // Build filter
     const filter = {};
+    if (!includeDeleted) {
+      filter.isDeleted = { $ne: true };
+    }
     if (search) {
       filter.$or = [
         { brand: new RegExp(search, 'i') },
@@ -177,7 +180,11 @@ const deleteMotor = async (req, res) => {
       owner: motor.owner
     };
 
-    await Motor.findByIdAndDelete(req.params.id);
+    // Soft delete - mark as deleted instead of removing
+    motor.isDeleted = true;
+    motor.deletedAt = new Date();
+    motor.deletedBy = req.user?.id;
+    await motor.save();
 
     // Log the motor deletion action
     if (req.user?.id) {
@@ -214,16 +221,19 @@ const deleteMotor = async (req, res) => {
 // Get motor statistics
 const getMotorStats = async (req, res) => {
   try {
-    const totalMotors = await Motor.countDocuments();
-    const activeMotors = await Motor.countDocuments({ isActive: true });
+    const totalMotors = await Motor.countDocuments({ isDeleted: { $ne: true } });
+    const activeMotors = await Motor.countDocuments({ isActive: true, isDeleted: { $ne: true } });
+    const deletedMotors = await Motor.countDocuments({ isDeleted: true });
     const newMotorsThisMonth = await Motor.countDocuments({
       createdAt: {
         $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      }
+      },
+      isDeleted: { $ne: true }
     });
 
     // Get motors by brand
     const motorsByBrand = await Motor.aggregate([
+      { $match: { isDeleted: { $ne: true } } },
       {
         $group: {
           _id: '$brand',
@@ -236,6 +246,7 @@ const getMotorStats = async (req, res) => {
 
     // Get motors by year
     const motorsByYear = await Motor.aggregate([
+      { $match: { isDeleted: { $ne: true } } },
       {
         $group: {
           _id: '$year',
@@ -248,6 +259,7 @@ const getMotorStats = async (req, res) => {
 
     // Get motors by fuel type
     const motorsByFuelType = await Motor.aggregate([
+      { $match: { isDeleted: { $ne: true } } },
       {
         $group: {
           _id: '$fuelType',
@@ -264,6 +276,7 @@ const getMotorStats = async (req, res) => {
           totalMotors,
           activeMotors,
           inactiveMotors: totalMotors - activeMotors,
+          deletedMotors,
           newMotorsThisMonth
         },
         distribution: {
@@ -289,13 +302,19 @@ const getMotorsByBrand = async (req, res) => {
     const { brand } = req.params;
     const { page = 1, limit = 10 } = req.query;
 
-    const motors = await Motor.find({ brand: new RegExp(brand, 'i') })
+    const motors = await Motor.find({ 
+      brand: new RegExp(brand, 'i'),
+      isDeleted: { $ne: true }
+    })
       .populate('owner', 'firstName lastName email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
-    const total = await Motor.countDocuments({ brand: new RegExp(brand, 'i') });
+    const total = await Motor.countDocuments({ 
+      brand: new RegExp(brand, 'i'),
+      isDeleted: { $ne: true }
+    });
 
     res.json({
       success: true,
@@ -378,7 +397,8 @@ const createMotor = async (req, res) => {
       engineSize,
       fuelType,
       owner: ownerId,
-      isActive: true
+      isActive: true,
+      isDeleted: false
     });
 
     await motor.save();
@@ -426,12 +446,71 @@ const createMotor = async (req, res) => {
   }
 };
 
+// Restore motor (admin only)
+const restoreMotor = async (req, res) => {
+  try {
+    const motor = await Motor.findById(req.params.id);
+    if (!motor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Motor not found'
+      });
+    }
+
+    // Store motor data for logging
+    const restoredMotorData = {
+      id: motor._id,
+      brand: motor.brand,
+      model: motor.model,
+      plateNumber: motor.plateNumber
+    };
+
+    // Restore motor
+    motor.isDeleted = false;
+    motor.restoredAt = new Date();
+    motor.restoredBy = req.user?.id;
+    await motor.save();
+
+    // Log the motor restoration action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'MOTOR',
+        {
+          description: `Restored motor: ${restoredMotorData.brand} ${restoredMotorData.model} (${restoredMotorData.plateNumber})`,
+          motorId: restoredMotorData.id,
+          motorBrand: restoredMotorData.brand,
+          motorModel: restoredMotorData.model,
+          motorPlateNumber: restoredMotorData.plateNumber,
+          action: 'restore'
+        },
+        req
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Motor restored successfully',
+      data: { motor }
+    });
+  } catch (error) {
+    console.error('Restore motor error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to restore motor',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getMotors,
   getMotor,
   createMotor,
   updateMotor,
   deleteMotor,
+  restoreMotor,
   getMotorStats,
   getMotorsByBrand,
   getUserMotors
