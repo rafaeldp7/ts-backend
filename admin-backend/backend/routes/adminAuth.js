@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const adminAuthController = require('../controllers/adminAuthController');
+const { authenticateToken } = require('../middleware/auth');
+const { authenticateAdmin } = require('../middleware/adminAuth');
 
 // Authentication routes
 router.post('/register', adminAuthController.register);
@@ -8,10 +10,10 @@ router.post('/login', adminAuthController.login);
 router.post('/admin-login', adminAuthController.adminLogin);
 router.post('/logout', adminAuthController.logout);
 
-// Profile routes
-router.get('/profile', adminAuthController.getProfile);
-router.put('/profile', adminAuthController.updateProfile);
-router.put('/change-password', adminAuthController.changePassword);
+// Profile routes - Require authentication
+router.get('/profile', authenticateToken, adminAuthController.getProfile);
+router.put('/profile', authenticateToken, adminAuthController.updateProfile);
+router.put('/change-password', authenticateToken, adminAuthController.changePassword);
 
 // Token verification
 router.get('/verify-token', adminAuthController.verifyToken);
