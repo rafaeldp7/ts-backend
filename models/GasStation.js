@@ -154,7 +154,9 @@ const gasStationSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 // Geospatial index for location queries
@@ -172,6 +174,42 @@ gasStationSchema.virtual('fullAddress').get(function() {
   if (this.postalCode) parts.push(this.postalCode);
   if (this.country) parts.push(this.country);
   return parts.join(', ');
+});
+
+// Virtual for address from coordinates
+gasStationSchema.virtual('addressFromCoords').get(function() {
+  if (!this.location || !this.location.coordinates || this.location.coordinates.length !== 2) {
+    return null;
+  }
+  
+  const [lng, lat] = this.location.coordinates;
+  
+  // Format coordinates for display
+  return `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+});
+
+// Virtual for formatted coordinates
+gasStationSchema.virtual('formattedCoordinates').get(function() {
+  if (!this.location || !this.location.coordinates || this.location.coordinates.length !== 2) {
+    return null;
+  }
+  
+  const [lng, lat] = this.location.coordinates;
+  return {
+    latitude: lat,
+    longitude: lng,
+    formatted: `${lat.toFixed(6)}, ${lng.toFixed(6)}`
+  };
+});
+
+// Virtual for Google Maps link
+gasStationSchema.virtual('googleMapsLink').get(function() {
+  if (!this.location || !this.location.coordinates || this.location.coordinates.length !== 2) {
+    return null;
+  }
+  
+  const [lng, lat] = this.location.coordinates;
+  return `https://www.google.com/maps?q=${lat},${lng}`;
 });
 
 // Method to update price
@@ -224,6 +262,32 @@ gasStationSchema.statics.findNearby = function(latitude, longitude, radiusInKm =
     },
     isActive: true
   });
+};
+
+// Method to get address from coordinates (reverse geocoding)
+// Note: This is a helper method that returns coordinates in a readable format
+// For actual reverse geocoding, you would need to use a service like Google Geocoding API
+gasStationSchema.methods.getAddressFromCoordinates = async function() {
+  if (!this.location || !this.location.coordinates || this.location.coordinates.length !== 2) {
+    return {
+      success: false,
+      message: 'No coordinates available'
+    };
+  }
+  
+  const [lng, lat] = this.location.coordinates;
+  
+  // Return formatted coordinates as address representation
+  // In a real implementation, you would call a reverse geocoding API here
+  return {
+    success: true,
+    formatted: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+    coordinates: {
+      latitude: lat,
+      longitude: lng
+    },
+    note: 'For actual address, use a reverse geocoding service like Google Maps API'
+  };
 };
 
 module.exports = mongoose.model('GasStation', gasStationSchema);
