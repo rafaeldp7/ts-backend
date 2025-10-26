@@ -1,11 +1,12 @@
 const User = require('../../../models/User');
 const bcrypt = require('bcryptjs');
 const { logAdminAction } = require('./adminLogsController');
+const { sendErrorResponse, sendSuccessResponse } = require('../middleware/validation');
 
 // Get all users (admin only)
 const getUsers = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, city, barangay, isActive } = req.query;
+    const { page = 1, limit = 1000, search, city, barangay, isActive } = req.query;
 
     // Build filter
     const filter = {};
@@ -22,31 +23,44 @@ const getUsers = async (req, res) => {
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
     const users = await User.find(filter)
-      .select('-password')
+      .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
     const total = await User.countDocuments(filter);
 
-    res.json({
-      success: true,
-      data: {
-        users,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total
-        }
+    // Transform users data to include all needed fields for frontend
+    const transformedUsers = users.map(user => ({
+      _id: user._id,
+      id: user.id || user._id,
+      name: user.name || `${user.firstName} ${user.lastName}`,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      barangay: user.barangay,
+      street: user.street,
+      city: user.city,
+      province: user.province,
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      created_at: user.createdAt,
+      location: user.location || {}
+    }));
+
+    sendSuccessResponse(res, {
+      users: transformedUsers,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
       }
     });
   } catch (error) {
     console.error('Get users error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get users',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get users', error);
   }
 };
 
@@ -56,23 +70,13 @@ const getUser = async (req, res) => {
     const user = await User.findById(req.params.id).select('-password');
 
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return sendErrorResponse(res, 404, 'User not found');
     }
 
-    res.json({
-      success: true,
-      data: { user }
-    });
+    sendSuccessResponse(res, { user });
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get user',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get user', error);
   }
 };
 
@@ -83,10 +87,7 @@ const updateUser = async (req, res) => {
 
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return sendErrorResponse(res, 404, 'User not found');
     }
 
     // Store original data for logging
@@ -147,18 +148,10 @@ const updateUser = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'User updated successfully',
-      data: { user: user.toObject() }
-    });
+    sendSuccessResponse(res, { user: user.toObject() }, 'User updated successfully');
   } catch (error) {
     console.error('Update user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update user',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to update user', error);
   }
 };
 
@@ -167,10 +160,7 @@ const deleteUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      return sendErrorResponse(res, 404, 'User not found');
     }
 
     // Store user data for logging before deletion
@@ -202,17 +192,10 @@ const deleteUser = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'User deleted successfully'
-    });
+    sendSuccessResponse(res, null, 'User deleted successfully');
   } catch (error) {
     console.error('Delete user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete user',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to delete user', error);
   }
 };
 
@@ -251,28 +234,21 @@ const getUserStats = async (req, res) => {
       { $limit: 10 }
     ]);
 
-    res.json({
-      success: true,
-      data: {
-        overall: {
-          totalUsers,
-          activeUsers,
-          inactiveUsers: totalUsers - activeUsers,
-          newUsersThisMonth
-        },
-        distribution: {
-          byCity: usersByCity,
-          byProvince: usersByProvince
-        }
+    sendSuccessResponse(res, {
+      overall: {
+        totalUsers,
+        activeUsers,
+        inactiveUsers: totalUsers - activeUsers,
+        newUsersThisMonth
+      },
+      distribution: {
+        byCity: usersByCity,
+        byProvince: usersByProvince
       }
     });
   } catch (error) {
     console.error('Get user stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get user statistics',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get user statistics', error);
   }
 };
 
@@ -290,17 +266,10 @@ const getUsersByLocation = async (req, res) => {
       .select('firstName lastName email city province barangay createdAt')
       .sort({ createdAt: -1 });
 
-    res.json({
-      success: true,
-      data: { users }
-    });
+    sendSuccessResponse(res, { users });
   } catch (error) {
     console.error('Get users by location error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get users by location',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get users by location', error);
   }
 };
 
@@ -312,10 +281,7 @@ const createUser = async (req, res) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
+      return sendErrorResponse(res, 400, 'User with this email already exists');
     }
 
     const user = new User({
@@ -362,11 +328,7 @@ const createUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Create user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create user',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to create user', error);
   }
 };
 
