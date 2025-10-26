@@ -97,6 +97,26 @@ const motorSchema = new mongoose.Schema({
   notes: {
     type: String,
     trim: true
+  },
+  
+  // Soft delete fields
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
+  },
+  restoredAt: {
+    type: Date
+  },
+  restoredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
   }
 }, {
   timestamps: true
@@ -106,6 +126,8 @@ const motorSchema = new mongoose.Schema({
 motorSchema.index({ userId: 1 });
 motorSchema.index({ userId: 1, isActive: 1 });
 motorSchema.index({ nickname: 1 });
+motorSchema.index({ isDeleted: 1 });
+motorSchema.index({ userId: 1, isDeleted: 1 });
 
 // Virtual for full name
 motorSchema.virtual('fullName').get(function() {

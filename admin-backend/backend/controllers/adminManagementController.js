@@ -1,6 +1,7 @@
 const Admin = require('../../../models/Admin');
 const User = require('../../../models/User');
 const { logAdminAction } = require('./adminLogsController');
+const { sendErrorResponse, sendSuccessResponse } = require('../middleware/validation');
 
 // Get all admins
 const getAdmins = async (req, res) => {
@@ -46,11 +47,7 @@ const getAdmins = async (req, res) => {
     });
   } catch (error) {
     console.error('Get admins error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get admins',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get admins', error);
   }
 };
 
@@ -61,27 +58,17 @@ const getAdmin = async (req, res) => {
       .select('-password');
     
     if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin not found'
-      });
+      return sendErrorResponse(res, 404, 'Admin not found');
     }
 
     // Add role info to admin
     const adminObj = admin.toObject();
     adminObj.roleInfo = admin.getRoleInfo();
 
-    res.json({
-      success: true,
-      data: { admin: adminObj }
-    });
+    sendSuccessResponse(res, { admin: adminObj });
   } catch (error) {
     console.error('Get admin error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get admin',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get admin', error);
   }
 };
 

@@ -1,6 +1,7 @@
 const Motor = require('../../../models/Motor');
 const UserMotor = require('../../../models/userMotorModel');
 const { logAdminAction } = require('./adminLogsController');
+const { sendErrorResponse, sendSuccessResponse } = require('../middleware/validation');
 
 // Get all motors (admin only)
 const getMotors = async (req, res) => {
@@ -44,11 +45,7 @@ const getMotors = async (req, res) => {
     });
   } catch (error) {
     console.error('Get motors error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get motors',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get motors', error);
   }
 };
 
@@ -58,23 +55,13 @@ const getMotor = async (req, res) => {
     const motor = await Motor.findById(req.params.id).populate('owner', 'firstName lastName email');
 
     if (!motor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Motor not found'
-      });
+      return sendErrorResponse(res, 404, 'Motor not found');
     }
 
-    res.json({
-      success: true,
-      data: { motor }
-    });
+    sendSuccessResponse(res, { motor });
   } catch (error) {
     console.error('Get motor error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get motor',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get motor', error);
   }
 };
 
@@ -85,10 +72,7 @@ const updateMotor = async (req, res) => {
 
     const motor = await Motor.findById(req.params.id);
     if (!motor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Motor not found'
-      });
+      return sendErrorResponse(res, 404, 'Motor not found');
     }
 
     // Store original data for logging
@@ -145,18 +129,10 @@ const updateMotor = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Motor updated successfully',
-      data: { motor }
-    });
+    sendSuccessResponse(res, { motor }, 'Motor updated successfully');
   } catch (error) {
     console.error('Update motor error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update motor',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to update motor', error);
   }
 };
 
@@ -165,10 +141,7 @@ const deleteMotor = async (req, res) => {
   try {
     const motor = await Motor.findById(req.params.id);
     if (!motor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Motor not found'
-      });
+      return sendErrorResponse(res, 404, 'Motor not found');
     }
 
     // Store motor data for logging before deletion
@@ -204,17 +177,10 @@ const deleteMotor = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Motor deleted successfully'
-    });
+    sendSuccessResponse(res, null, 'Motor deleted successfully');
   } catch (error) {
     console.error('Delete motor error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete motor',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to delete motor', error);
   }
 };
 
@@ -269,30 +235,23 @@ const getMotorStats = async (req, res) => {
       { $sort: { count: -1 } }
     ]);
 
-    res.json({
-      success: true,
-      data: {
-        overall: {
-          totalMotors,
-          activeMotors,
-          inactiveMotors: totalMotors - activeMotors,
-          deletedMotors,
-          newMotorsThisMonth
-        },
-        distribution: {
-          byBrand: motorsByBrand,
-          byYear: motorsByYear,
-          byFuelType: motorsByFuelType
-        }
+    sendSuccessResponse(res, {
+      overall: {
+        totalMotors,
+        activeMotors,
+        inactiveMotors: totalMotors - activeMotors,
+        deletedMotors,
+        newMotorsThisMonth
+      },
+      distribution: {
+        byBrand: motorsByBrand,
+        byYear: motorsByYear,
+        byFuelType: motorsByFuelType
       }
     });
   } catch (error) {
     console.error('Get motor stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get motor statistics',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get motor statistics', error);
   }
 };
 
@@ -316,24 +275,17 @@ const getMotorsByBrand = async (req, res) => {
       isDeleted: { $ne: true }
     });
 
-    res.json({
-      success: true,
-      data: {
-        motors,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total
-        }
+    sendSuccessResponse(res, {
+      motors,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
       }
     });
   } catch (error) {
     console.error('Get motors by brand error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get motors by brand',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get motors by brand', error);
   }
 };
 
@@ -351,24 +303,17 @@ const getUserMotors = async (req, res) => {
 
     const total = await UserMotor.countDocuments({ userId });
 
-    res.json({
-      success: true,
-      data: {
-        userMotors,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total
-        }
+    sendSuccessResponse(res, {
+      userMotors,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
       }
     });
   } catch (error) {
     console.error('Get user motors error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get user motors',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get user motors', error);
   }
 };
 
@@ -381,10 +326,7 @@ const createMotor = async (req, res) => {
     if (plateNumber) {
       const existingMotor = await Motor.findOne({ plateNumber });
       if (existingMotor) {
-        return res.status(400).json({
-          success: false,
-          message: 'Motor with this plate number already exists'
-        });
+        return sendErrorResponse(res, 400, 'Motor with this plate number already exists');
       }
     }
 
@@ -438,11 +380,7 @@ const createMotor = async (req, res) => {
     });
   } catch (error) {
     console.error('Create motor error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create motor',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to create motor', error);
   }
 };
 
@@ -451,10 +389,7 @@ const restoreMotor = async (req, res) => {
   try {
     const motor = await Motor.findById(req.params.id);
     if (!motor) {
-      return res.status(404).json({
-        success: false,
-        message: 'Motor not found'
-      });
+      return sendErrorResponse(res, 404, 'Motor not found');
     }
 
     // Store motor data for logging
@@ -489,18 +424,10 @@ const restoreMotor = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Motor restored successfully',
-      data: { motor }
-    });
+    sendSuccessResponse(res, { motor }, 'Motor restored successfully');
   } catch (error) {
     console.error('Restore motor error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to restore motor',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to restore motor', error);
   }
 };
 
