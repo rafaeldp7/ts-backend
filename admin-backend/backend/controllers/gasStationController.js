@@ -1,6 +1,7 @@
 const GasStation = require('../../../models/GasStation');
 const Notification = require('../../../models/Notification');
 const { logAdminAction } = require('./adminLogsController');
+const { sendErrorResponse, sendSuccessResponse } = require('../middleware/validation');
 
 // Get all gas stations with filtering and pagination
 const getGasStations = async (req, res) => {
@@ -52,24 +53,17 @@ const getGasStations = async (req, res) => {
 
     const total = await GasStation.countDocuments(filter);
 
-    res.json({
-      success: true,
-      data: {
-        stations,
-        pagination: {
-          current: page,
-          pages: Math.ceil(total / limit),
-          total
-        }
+    sendSuccessResponse(res, {
+      stations,
+      pagination: {
+        current: page,
+        pages: Math.ceil(total / limit),
+        total
       }
     });
   } catch (error) {
     console.error('Get gas stations error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get gas stations',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get gas stations', error);
   }
 };
 
@@ -82,23 +76,13 @@ const getGasStation = async (req, res) => {
       .populate('reviews.user', 'firstName lastName');
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
-    res.json({
-      success: true,
-      data: { station }
-    });
+    sendSuccessResponse(res, { station });
   } catch (error) {
     console.error('Get gas station error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get gas station',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get gas station', error);
   }
 };
 
@@ -133,11 +117,7 @@ const createGasStation = async (req, res) => {
     });
   } catch (error) {
     console.error('Create gas station error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create gas station',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to create gas station', error);
   }
 };
 
@@ -147,10 +127,7 @@ const updateGasStation = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
     // Store original data for logging
@@ -195,18 +172,10 @@ const updateGasStation = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Gas station updated successfully',
-      data: { station }
-    });
+    sendSuccessResponse(res, { station }, 'Gas station updated successfully');
   } catch (error) {
     console.error('Update gas station error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update gas station',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to update gas station', error);
   }
 };
 
@@ -216,10 +185,7 @@ const deleteGasStation = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
     // Store station data for logging before deletion
@@ -250,17 +216,10 @@ const deleteGasStation = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Gas station deleted successfully'
-    });
+    sendSuccessResponse(res, null, 'Gas station deleted successfully');
   } catch (error) {
     console.error('Delete gas station error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to delete gas station',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to delete gas station', error);
   }
 };
 
@@ -271,10 +230,7 @@ const updateFuelPrices = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
     // Store original prices for logging
@@ -306,18 +262,10 @@ const updateFuelPrices = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Fuel prices updated successfully',
-      data: { station }
-    });
+    sendSuccessResponse(res, { station }, 'Fuel prices updated successfully');
   } catch (error) {
     console.error('Update fuel prices error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update fuel prices',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to update fuel prices', error);
   }
 };
 
@@ -328,26 +276,15 @@ const addReview = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
     await station.addReview(req.user.id, rating, comment, categories);
 
-    res.json({
-      success: true,
-      message: 'Review added successfully',
-      data: { station }
-    });
+    sendSuccessResponse(res, { station }, 'Review added successfully');
   } catch (error) {
     console.error('Add review error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to add review',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to add review', error);
   }
 };
 
@@ -357,10 +294,7 @@ const verifyGasStation = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
     await station.updateStatus('active', req.user.id);
@@ -383,18 +317,10 @@ const verifyGasStation = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Gas station verified successfully',
-      data: { station }
-    });
+    sendSuccessResponse(res, { station }, 'Gas station verified successfully');
   } catch (error) {
     console.error('Verify gas station error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to verify gas station',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to verify gas station', error);
   }
 };
 
@@ -404,17 +330,10 @@ const getGasStationsByBrand = async (req, res) => {
     const { brand } = req.params;
     const stations = await GasStation.findByBrand(brand);
 
-    res.json({
-      success: true,
-      data: { stations }
-    });
+    sendSuccessResponse(res, { stations });
   } catch (error) {
     console.error('Get gas stations by brand error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get gas stations by brand',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get gas stations by brand', error);
   }
 };
 
@@ -424,17 +343,10 @@ const getGasStationsByCity = async (req, res) => {
     const { city } = req.params;
     const stations = await GasStation.findByCity(city);
 
-    res.json({
-      success: true,
-      data: { stations }
-    });
+    sendSuccessResponse(res, { stations });
   } catch (error) {
     console.error('Get gas stations by city error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get gas stations by city',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get gas stations by city', error);
   }
 };
 
@@ -443,25 +355,18 @@ const getGasStationStats = async (req, res) => {
   try {
     const stats = await GasStation.getStationStats();
 
-    res.json({
-      success: true,
-      data: {
-        stats: stats[0] || {
-          totalStations: 0,
-          activeStations: 0,
-          verifiedStations: 0,
-          avgRating: 0,
-          totalReviews: 0
-        }
+    sendSuccessResponse(res, {
+      stats: stats[0] || {
+        totalStations: 0,
+        activeStations: 0,
+        verifiedStations: 0,
+        avgRating: 0,
+        totalReviews: 0
       }
     });
   } catch (error) {
     console.error('Get gas station stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get gas station statistics',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get gas station statistics', error);
   }
 };
 
@@ -471,10 +376,7 @@ const getNearbyGasStations = async (req, res) => {
     const { lat, lng, radius = 5000, limit = 20 } = req.query;
 
     if (!lat || !lng) {
-      return res.status(400).json({
-        success: false,
-        message: 'Latitude and longitude are required'
-      });
+      return sendErrorResponse(res, 400, 'Latitude and longitude are required');
     }
 
     const stations = await GasStation.findNearby(
@@ -484,17 +386,10 @@ const getNearbyGasStations = async (req, res) => {
       parseInt(limit)
     );
 
-    res.json({
-      success: true,
-      data: { stations }
-    });
+    sendSuccessResponse(res, { stations });
   } catch (error) {
     console.error('Get nearby gas stations error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get nearby gas stations',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get nearby gas stations', error);
   }
 };
 
@@ -504,10 +399,7 @@ const archiveGasStation = async (req, res) => {
     const station = await GasStation.findById(req.params.id);
 
     if (!station) {
-      return res.status(404).json({
-        success: false,
-        message: 'Gas station not found'
-      });
+      return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
     station.isArchived = true;
@@ -533,17 +425,10 @@ const archiveGasStation = async (req, res) => {
       );
     }
 
-    res.json({
-      success: true,
-      message: 'Gas station archived successfully'
-    });
+    sendSuccessResponse(res, null, 'Gas station archived successfully');
   } catch (error) {
     console.error('Archive gas station error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to archive gas station',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to archive gas station', error);
   }
 };
 
@@ -565,17 +450,10 @@ const getFuelPriceTrends = async (req, res) => {
       ]
     };
 
-    res.json({
-      success: true,
-      data: { trends }
-    });
+    sendSuccessResponse(res, { trends });
   } catch (error) {
     console.error('Get fuel price trends error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get fuel price trends',
-      error: error.message
-    });
+    sendErrorResponse(res, 500, 'Failed to get fuel price trends', error);
   }
 };
 
