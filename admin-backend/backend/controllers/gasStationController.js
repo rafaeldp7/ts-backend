@@ -636,6 +636,87 @@ const autoReverseGeocodeStation = async (req, res) => {
   }
 };
 
+// Auto-reverse geocode ALL existing gas stations without addresses
+const autoReverseGeocodeAllStations = async (req, res) => {
+  try {
+    // Find all stations with coordinates but no address (or empty address)
+    const stations = await GasStation.find({
+      location: { $exists: true, $ne: null },
+      $or: [
+        { address: { $exists: false } },
+        { address: '' },
+        { address: null }
+      ]
+    });
+    
+    const results = [];
+    
+    for (const station of stations) {
+      try {
+        const addressInfo = await station.getAddressFromCoordinates();
+        
+        if (addressInfo.success) {
+          // Update station with geocoded address
+          station.address = addressInfo.formattedAddress;
+          station.city = addressInfo.address.city;
+          station.state = addressInfo.address.state;
+          station.country = addressInfo.address.country;
+          await station.save();
+          
+          results.push({
+            stationId: station._id,
+            name: station.name,
+            success: true,
+            address: addressInfo.formattedAddress
+          });
+        } else {
+          results.push({
+            stationId: station._id,
+            name: station.name,
+            success: false,
+            error: addressInfo.message
+          });
+        }
+      } catch (error) {
+        results.push({
+          stationId: station._id,
+          name: station.name,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    // Log the bulk reverse geocoding action
+    if (req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'GAS_STATION',
+        {
+          description: `Bulk auto-reverse geocoded ${results.length} gas stations`,
+          totalStations: results.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        },
+        req
+      );
+    }
+    
+    sendSuccessResponse(res, {
+      results,
+      summary: {
+        total: results.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      }
+    }, 'Bulk reverse geocoding completed');
+  } catch (error) {
+    console.error('Auto reverse geocode all error:', error);
+    sendErrorResponse(res, 500, 'Failed to auto reverse geocode all stations', error);
+  }
+};
+
 module.exports = {
   getGasStations,
   getGasStation,
@@ -653,5 +734,6 @@ module.exports = {
   getFuelPriceTrends,
   reverseGeocode,
   bulkReverseGeocodeStations,
-  autoReverseGeocodeStation
+  autoReverseGeocodeStation,
+  autoReverseGeocodeAllStations
 };

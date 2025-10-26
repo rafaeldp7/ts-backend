@@ -17,7 +17,8 @@ const {
   getFuelPriceTrends,
   reverseGeocode,
   bulkReverseGeocodeStations,
-  autoReverseGeocodeStation
+  autoReverseGeocodeStation,
+  autoReverseGeocodeAllStations
 } = require('../controllers/gasStationController');
 const { authenticateToken } = require('../middleware/auth');
 const { authenticateAdmin } = require('../middleware/adminAuth');
@@ -44,5 +45,6 @@ router.put('/:id/verify', authenticateAdmin, verifyGasStation);
 router.put('/:id/archive', authenticateAdmin, archiveGasStation);
 router.put('/:id/auto-reverse-geocode', authenticateAdmin, autoReverseGeocodeStation); // Auto-reverse geocode specific station
 router.post('/bulk-reverse-geocode', authenticateAdmin, bulkReverseGeocodeStations); // Bulk reverse geocoding
+router.post('/auto-reverse-geocode-all', authenticateAdmin, autoReverseGeocodeAllStations); // Auto-reverse geocode ALL stations without addresses
 
 module.exports = router;
