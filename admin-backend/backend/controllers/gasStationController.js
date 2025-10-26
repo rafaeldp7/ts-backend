@@ -6,66 +6,57 @@ const { sendErrorResponse, sendSuccessResponse } = require('../middleware/valida
 // Get all gas stations with filtering and pagination
 const getGasStations = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
+    const { 
+      page = 1, 
+      limit = 20, 
+      name,
       brand,
-      city,
-      barangay,
+      sortBy = 'name',
+      sortOrder = 'asc',
       lat,
       lng,
-      radius,
-      search,
-      services
+      radius = 10
     } = req.query;
 
     // Build filter object
-    const filter = { isArchived: false, status: 'active' };
+    const filter = {};
+    if (name) filter.name = { $regex: name, $options: 'i' };
+    if (brand) filter.brand = { $regex: brand, $options: 'i' };
 
-    if (brand) filter.brand = new RegExp(brand, 'i');
-    if (city) filter['location.city'] = new RegExp(city, 'i');
-    if (barangay) filter['location.barangay'] = new RegExp(barangay, 'i');
-    if (search) {
-      filter.$or = [
-        { name: new RegExp(search, 'i') },
-        { 'location.address': new RegExp(search, 'i') }
-      ];
-    }
-    if (services) {
-      const serviceArray = services.split(',');
-      serviceArray.forEach(service => {
-        filter[`services.${service}`] = true;
-      });
-    }
-
-    let stations;
-
-    // If location is provided, use geospatial query
+    // Add location filter if coordinates provided
     if (lat && lng) {
-      const radiusInMeters = radius ? parseInt(radius) : 5000;
-      stations = await GasStation.findNearby(parseFloat(lat), parseFloat(lng), radiusInMeters, parseInt(limit));
-    } else {
-      stations = await GasStation.find(filter)
-        .sort({ 'stats.averageRating': -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
+      filter.location = {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lng), parseFloat(lat)]
+          },
+          $maxDistance: radius * 1000 // Convert km to meters
+        }
+      };
     }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    const gasStations = await GasStation.find(filter)
+      .sort(sortOptions)
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
 
     const total = await GasStation.countDocuments(filter);
 
-    sendSuccessResponse(res, {
-      stations,
-      pagination: {
-        current: page,
-        pages: Math.ceil(total / limit),
-        total
-      }
+    res.json({
+      gasStations,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
     });
   } catch (error) {
     console.error('Get gas stations error:', error);
-    sendErrorResponse(res, 500, 'Failed to get gas stations', error);
+    res.status(500).json({ message: 'Server error getting gas stations' });
   }
-};
+}
 
 // Get single gas station
 const getGasStation = async (req, res) => {
@@ -279,7 +270,34 @@ const addReview = async (req, res) => {
       return sendErrorResponse(res, 404, 'Gas station not found');
     }
 
+    const reviewData = {
+      rating,
+      comment,
+      categories
+    };
+
     await station.addReview(req.user.id, rating, comment, categories);
+
+    // Log the review addition action (if admin is adding review)
+    if (req.user?.isAdmin && req.user?.id) {
+      await logAdminAction(
+        req.user.id,
+        'UPDATE',
+        'GAS_STATION',
+        {
+          description: `Added review to gas station: ${station.name} (${station.brand})`,
+          stationId: station._id,
+          stationName: station.name,
+          stationBrand: station.brand,
+          reviewDetails: {
+            rating: rating,
+            comment: comment,
+            categories: categories
+          }
+        },
+        req
+      );
+    }
 
     sendSuccessResponse(res, { station }, 'Review added successfully');
   } catch (error) {
