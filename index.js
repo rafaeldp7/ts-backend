@@ -56,41 +56,7 @@ const app = express();
 
 // Middleware
 app.use(express.json()); // Parse JSON requests
-
-// CORS configuration
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow localhost for development
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      return callback(null, true);
-    }
-    
-    // Allow production domains
-    const allowedOrigins = [
-      'https://ts-backend-1-jyit.onrender.com',
-      'https://trafficslight.com',
-      'https://www.trafficslight.com'
-    ];
-    
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    
-    // For development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions)); // Enable CORS with options
+app.use(cors()); // Enable CORS
 // app.use(morgan("dev")); // Log HTTP requests
 
 const PORT = process.env.PORT || 5000;
