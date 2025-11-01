@@ -7,6 +7,10 @@ const userController = require('../controllers/userController');
 router.get('/', userController.getAllUsers);
 router.get('/all', userController.getAllUsers);
 
+// Get current logged-in user data (use this after login)
+router.get('/me', userController.getCurrentUser);
+router.get('/current', userController.getCurrentUser);
+
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.get('/profile/:userId', userController.getProfile);

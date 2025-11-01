@@ -115,23 +115,112 @@ class UserController {
     }
   }
 
-  // Get user profile
+  // Get current logged-in user data (use this after login)
+  async getCurrentUser(req, res) {
+    try {
+      let user;
+
+      // Check if req.user is already a full user object (from protect middleware)
+      if (req.user && req.user._id && req.user.email) {
+        // req.user is already a full user object from middleware
+        user = req.user;
+      } else {
+        // req.user is just decoded token data, need to fetch user
+        const userId = req.user?.id || req.user?._id || req.user?.userId;
+        
+        if (!userId) {
+          return res.status(401).json({ 
+            success: false,
+            message: 'Authentication required. Please login.' 
+          });
+        }
+
+        user = await User.findById(userId)
+          .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken');
+        
+        if (!user) {
+          return res.status(404).json({ 
+            success: false,
+            message: 'User not found' 
+          });
+        }
+      }
+
+      // Transform user data for consistent response
+      const userData = {
+        _id: user._id,
+        id: user._id,
+        name: user.name || `${user.firstName} ${user.lastName}`,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone || '',
+        street: user.street || '',
+        barangay: user.barangay || '',
+        city: user.city || '',
+        province: user.province || '',
+        isActive: user.isActive !== undefined ? user.isActive : true,
+        isVerified: user.isVerified || false,
+        preferences: user.preferences || {},
+        settings: user.settings || {},
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        location: user.location || {}
+      };
+
+      res.json({
+        success: true,
+        data: {
+          user: userData
+        }
+      });
+    } catch (error) {
+      console.error('Get current user error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error getting user data',
+        error: error.message 
+      });
+    }
+  }
+
+  // Get user profile (by ID or current user)
   async getProfile(req, res) {
     try {
-      const userId = req.user?.userId || req.params.userId;
-      const user = await User.findById(userId).select('-password');
+      // If userId param provided, get that user's profile
+      // Otherwise, get current logged-in user's profile
+      const userId = req.params.userId || req.user?.id || req.user?._id || req.user?.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ 
+          success: false,
+          message: 'Authentication required or user ID needed' 
+        });
+      }
+
+      const user = await User.findById(userId)
+        .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken');
       
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        return res.status(404).json({ 
+          success: false,
+          message: 'User not found' 
+        });
       }
 
       res.json({
         success: true,
-        user
+        data: {
+          user
+        }
       });
     } catch (error) {
       console.error('Get profile error:', error);
-      res.status(500).json({ message: 'Server error getting profile' });
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error getting profile',
+        error: error.message 
+      });
     }
   }
 
