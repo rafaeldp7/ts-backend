@@ -10,6 +10,111 @@ const mongoose = require('mongoose');
 class UserController {
   // ============ USER PROFILE MANAGEMENT ============
   
+  // Get all users (with pagination, filtering, and search)
+  async getAllUsers(req, res) {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        search = '',
+        city = '',
+        province = '',
+        barangay = '',
+        isActive,
+        sortBy = 'createdAt',
+        sortOrder = 'desc'
+      } = req.query;
+
+      // Build filter object
+      const filter = {};
+
+      // Search filter
+      if (search) {
+        filter.$or = [
+          { firstName: new RegExp(search, 'i') },
+          { lastName: new RegExp(search, 'i') },
+          { email: new RegExp(search, 'i') },
+          { name: new RegExp(search, 'i') }
+        ];
+      }
+
+      // Location filters
+      if (city) filter.city = new RegExp(city, 'i');
+      if (province) filter.province = new RegExp(province, 'i');
+      if (barangay) filter.barangay = new RegExp(barangay, 'i');
+
+      // Active status filter
+      if (isActive !== undefined) {
+        filter.isActive = isActive === 'true' || isActive === true;
+      }
+
+      // Build sort object
+      const sort = {};
+      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+      // Calculate pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Get users with pagination
+      const [users, total] = await Promise.all([
+        User.find(filter)
+          .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken')
+          .sort(sort)
+          .limit(parseInt(limit))
+          .skip(skip),
+        User.countDocuments(filter)
+      ]);
+
+      // Transform users data
+      const transformedUsers = users.map(user => ({
+        _id: user._id,
+        id: user._id,
+        name: user.name || `${user.firstName} ${user.lastName}`,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone || '',
+        street: user.street || '',
+        barangay: user.barangay || '',
+        city: user.city || '',
+        province: user.province || '',
+        isActive: user.isActive !== undefined ? user.isActive : true,
+        isVerified: user.isVerified || false,
+        preferences: user.preferences || {},
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        location: user.location || {}
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          users: transformedUsers,
+          pagination: {
+            current: parseInt(page),
+            pages: Math.ceil(total / parseInt(limit)),
+            total: total,
+            limit: parseInt(limit)
+          },
+          filters: {
+            search,
+            city,
+            province,
+            barangay,
+            isActive
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Get all users error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error fetching users',
+        error: error.message
+      });
+    }
+  }
+
   // Get user profile
   async getProfile(req, res) {
     try {

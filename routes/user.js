@@ -3,6 +3,10 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 
 // ============ USER PROFILE MANAGEMENT ============
+// Get all users (list endpoint)
+router.get('/', userController.getAllUsers);
+router.get('/all', userController.getAllUsers);
+
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.get('/profile/:userId', userController.getProfile);
