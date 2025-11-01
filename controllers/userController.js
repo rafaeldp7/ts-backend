@@ -4,6 +4,18 @@ const Report = require('../models/Reports');
 const GasStation = require('../models/GasStation');
 const TripModel = require('../models/TripModel');
 const FuelLogModel = require('../models/FuelLogModel');
+const MaintenanceRecord = require('../models/maintenanceModel');
+const UserMotor = require('../models/userMotorModel');
+const Notification = require('../models/Notification');
+const SavedDestination = require('../models/SavedDestinationModel');
+const UserAchievement = require('../models/UserAchievement');
+const Route = require('../models/Route');
+const Analytics = require('../models/Analytics');
+const Settings = require('../models/Settings');
+const DailyAnalytics = require('../models/DailyAnalytics');
+const Log = require('../models/Log');
+const Feedback = require('../models/Feedback');
+const Motorcycle = require('../models/motorcycleModel');
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
 
@@ -111,6 +123,258 @@ class UserController {
         success: false,
         message: 'Server error fetching users',
         error: error.message
+      });
+    }
+  }
+
+  // Get complete user data with all related information
+  async getCompleteUserData(req, res) {
+    try {
+      let user;
+      let targetUserId;
+
+      // Get user ID from authenticated user or request
+      if (req.user && req.user._id && req.user.email) {
+        user = req.user;
+        targetUserId = req.user._id;
+      } else {
+        const userId = req.user?.id || req.user?._id || req.user?.userId || req.params.userId;
+        
+        if (!userId) {
+          return res.status(401).json({ 
+            success: false,
+            message: 'Authentication required. Please login.' 
+          });
+        }
+
+        user = await User.findById(userId)
+          .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken');
+        
+        if (!user) {
+          return res.status(404).json({ 
+            success: false,
+            message: 'User not found' 
+          });
+        }
+
+        targetUserId = user._id;
+      }
+
+      // Security: Ensure users can only access their own data (unless admin)
+      const isAdmin = req.user?.isAdmin || req.user?.role === 'admin';
+      const authenticatedUserId = req.user?._id || req.user?.id;
+
+      if (!isAdmin && authenticatedUserId && targetUserId.toString() !== authenticatedUserId.toString()) {
+        return res.status(403).json({ 
+          success: false,
+          message: 'Access denied. You can only access your own data.' 
+        });
+      }
+
+      const userId = targetUserId;
+
+      // Fetch all related data in parallel for better performance
+      const [
+        trips,
+        fuelLogs,
+        maintenanceRecords,
+        reports,
+        userMotors,
+        notifications,
+        savedDestinations,
+        achievements,
+        routes,
+        analytics,
+        userSettings,
+        dailyAnalytics,
+        logs,
+        feedbacks
+      ] = await Promise.all([
+        // Trips - populate motorId (UserMotor) to get motor details
+        TripModel.find({ userId })
+          .populate({
+            path: 'motorId',
+            select: 'nickname plateNumber currentOdometer currentFuelLevel motorcycleId',
+            populate: {
+              path: 'motorcycleId',
+              select: 'model engineDisplacement power torque fuelTank fuelConsumption'
+            }
+          })
+          .sort({ tripStartTime: -1 })
+          .limit(100), // Limit to recent 100 trips
+        
+        // Fuel Logs - populate motorId (Motor model)
+        FuelLogModel.find({ userId })
+          .populate('motorId', 'nickname plateNumber brand model year')
+          .sort({ date: -1 })
+          .limit(100), // Limit to recent 100 logs
+        
+        // Maintenance Records - populate motorId (UserMotor)
+        MaintenanceRecord.find({ userId })
+          .populate({
+            path: 'motorId',
+            select: 'nickname plateNumber motorcycleId',
+            populate: {
+              path: 'motorcycleId',
+              select: 'model engineDisplacement'
+            }
+          })
+          .sort({ timestamp: -1 })
+          .limit(100), // Limit to recent 100 records
+        
+        // Reports
+        Report.find({ userId })
+          .sort({ timestamp: -1 })
+          .limit(100), // Limit to recent 100 reports
+        
+        // User Motors - populate motorcycleId to get motorcycle details
+        UserMotor.find({ userId })
+          .populate('motorcycleId', 'model engineDisplacement power torque fuelTank fuelConsumption')
+          .sort({ createdAt: -1 }),
+        
+        // Notifications - get unread and recent
+        Notification.find({ userId })
+          .sort({ createdAt: -1 })
+          .limit(50), // Limit to recent 50 notifications
+        
+        // Saved Destinations
+        SavedDestination.find({ userId })
+          .sort({ createdAt: -1 }),
+        
+        // User Achievements - populate achievementId
+        UserAchievement.find({ userId })
+          .populate('achievementId')
+          .sort({ completedAt: -1 }),
+        
+        // Routes
+        Route.find({ userId, isActive: true })
+          .sort({ createdAt: -1 })
+          .limit(50),
+        
+        // Analytics - get recent analytics
+        Analytics.find({ userId })
+          .sort({ startDate: -1 })
+          .limit(30), // Limit to recent 30 analytics
+        
+        // User Settings
+        Settings.findOne({ userId }),
+        
+        // Daily Analytics - get recent
+        DailyAnalytics.find({ userId })
+          .sort({ date: -1 })
+          .limit(30), // Limit to recent 30 days
+        
+        // Logs - get recent activity
+        Log.find({ userId })
+          .sort({ createdAt: -1 })
+          .limit(100), // Limit to recent 100 logs
+        
+        // Feedback
+        Feedback.find({ userId })
+          .sort({ createdAt: -1 })
+          .limit(50) // Limit to recent 50 feedbacks
+      ]);
+
+      // Calculate statistics
+      const totalTrips = trips.length;
+      const totalFuelLogs = fuelLogs.length;
+      const totalMaintenance = maintenanceRecords.length;
+      const totalReports = reports.length;
+      const totalMotors = userMotors.length;
+      const unreadNotifications = notifications.filter(n => !n.isRead).length;
+      const totalDistance = trips.reduce((sum, trip) => sum + (trip.actualDistance || trip.distance || 0), 0);
+      const totalFuelUsed = fuelLogs.reduce((sum, log) => sum + (log.liters || 0), 0);
+      const totalFuelCost = fuelLogs.reduce((sum, log) => sum + (log.totalCost || 0), 0);
+      const totalMaintenanceCost = maintenanceRecords.reduce((sum, record) => sum + (record.details?.cost || 0), 0);
+
+      // Transform user data
+      const userData = {
+        _id: user._id,
+        id: user._id,
+        name: user.name || `${user.firstName} ${user.lastName}`,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone || '',
+        street: user.street || '',
+        barangay: user.barangay || '',
+        city: user.city || '',
+        province: user.province || '',
+        isActive: user.isActive !== undefined ? user.isActive : true,
+        isVerified: user.isVerified || false,
+        preferences: user.preferences || {},
+        settings: userSettings || {},
+        location: user.location || {},
+        lastLogin: user.lastLogin,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      };
+
+      // Prepare response with all related data
+      const response = {
+        success: true,
+        data: {
+          user: userData,
+          motors: userMotors.map(motor => ({
+            ...motor.toObject(),
+            motorcycle: motor.motorcycleId || null
+          })),
+          trips: trips,
+          fuelLogs: fuelLogs.map(log => ({
+            ...log.toObject(),
+            motor: log.motorId || null
+          })),
+          maintenance: maintenanceRecords.map(record => ({
+            ...record.toObject(),
+            motor: record.motorId || null
+          })),
+          reports: reports,
+          notifications: {
+            list: notifications,
+            unreadCount: unreadNotifications,
+            total: notifications.length
+          },
+          savedDestinations: savedDestinations,
+          achievements: achievements.map(ach => ({
+            ...ach.toObject(),
+            achievement: ach.achievementId || null
+          })),
+          routes: routes,
+          analytics: analytics,
+          dailyAnalytics: dailyAnalytics,
+          logs: logs,
+          feedbacks: feedbacks,
+          statistics: {
+            overview: {
+              totalTrips,
+              totalFuelLogs,
+              totalMaintenance,
+              totalReports,
+              totalMotors,
+              unreadNotifications
+            },
+            totals: {
+              totalDistance: parseFloat(totalDistance.toFixed(2)),
+              totalFuelUsed: parseFloat(totalFuelUsed.toFixed(2)),
+              totalFuelCost: parseFloat(totalFuelCost.toFixed(2)),
+              totalMaintenanceCost: parseFloat(totalMaintenanceCost.toFixed(2))
+            },
+            averages: {
+              averageTripDistance: totalTrips > 0 ? parseFloat((totalDistance / totalTrips).toFixed(2)) : 0,
+              averageFuelPerLog: totalFuelLogs > 0 ? parseFloat((totalFuelUsed / totalFuelLogs).toFixed(2)) : 0,
+              averageFuelCost: totalFuelLogs > 0 ? parseFloat((totalFuelCost / totalFuelLogs).toFixed(2)) : 0
+            }
+          }
+        }
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error('Get complete user data error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error getting complete user data',
+        error: error.message 
       });
     }
   }

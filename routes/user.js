@@ -11,6 +11,11 @@ router.get('/all', userController.getAllUsers);
 router.get('/me', userController.getCurrentUser);
 router.get('/current', userController.getCurrentUser);
 
+// Get complete user data with all related information (trips, fuel logs, maintenance, etc.)
+router.get('/complete', userController.getCompleteUserData);
+router.get('/complete/:userId', userController.getCompleteUserData);
+router.get('/full-data', userController.getCompleteUserData);
+
 router.get('/profile', userController.getProfile);
 router.put('/profile', userController.updateProfile);
 router.get('/profile/:userId', userController.getProfile);
