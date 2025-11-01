@@ -287,11 +287,36 @@ class UserController {
       const totalFuelCost = fuelLogs.reduce((sum, log) => sum + (log.totalCost || 0), 0);
       const totalMaintenanceCost = maintenanceRecords.reduce((sum, record) => sum + (record.details?.cost || 0), 0);
 
-      // Transform user data
+      // Transform user data - ensure id uses custom id field
+      let computedName = user.name;
+      if (!computedName || computedName.trim() === '') {
+        if (user.firstName && user.lastName) {
+          computedName = `${user.firstName} ${user.lastName}`.trim();
+        } else if (user.firstName) {
+          computedName = user.firstName;
+        } else if (user.lastName) {
+          computedName = user.lastName;
+        } else {
+          computedName = 'User';
+        }
+      }
+
+      // Transform location from { lat, lng } to GeoJSON format if coordinates exist
+      let locationData = {};
+      if (user.location && user.location.lat !== null && user.location.lat !== undefined && 
+          user.location.lng !== null && user.location.lng !== undefined) {
+        locationData = {
+          type: 'Point',
+          coordinates: [user.location.lng, user.location.lat]
+        };
+      } else {
+        locationData = {};
+      }
+
       const userData = {
         _id: user._id,
-        id: user._id,
-        name: user.name || `${user.firstName} ${user.lastName}`,
+        id: user.id || user._id.toString(), // Use custom id field if exists, otherwise use _id
+        name: computedName,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -303,17 +328,16 @@ class UserController {
         isActive: user.isActive !== undefined ? user.isActive : true,
         isVerified: user.isVerified || false,
         preferences: user.preferences || {},
-        settings: userSettings || {},
-        location: user.location || {},
+        role: user.role || 'user',
+        location: locationData,
         lastLogin: user.lastLogin,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       };
 
-      // Prepare response with all related data
+      // Prepare response with all related data - match frontend expectation format
+      // Frontend expects: { user, motors, trips, fuelLogs, maintenance, reports, notifications, destinations, achievements, routes, analytics, settings }
       const response = {
-        success: true,
-        data: {
           user: userData,
           motors: userMotors.map(motor => ({
             ...motor.toObject(),
@@ -334,38 +358,14 @@ class UserController {
             unreadCount: unreadNotifications,
             total: notifications.length
           },
-          savedDestinations: savedDestinations,
+          destinations: savedDestinations, // Frontend expects "destinations" not "savedDestinations"
           achievements: achievements.map(ach => ({
             ...ach.toObject(),
             achievement: ach.achievementId || null
           })),
           routes: routes,
           analytics: analytics,
-          dailyAnalytics: dailyAnalytics,
-          logs: logs,
-          feedbacks: feedbacks,
-          statistics: {
-            overview: {
-              totalTrips,
-              totalFuelLogs,
-              totalMaintenance,
-              totalReports,
-              totalMotors,
-              unreadNotifications
-            },
-            totals: {
-              totalDistance: parseFloat(totalDistance.toFixed(2)),
-              totalFuelUsed: parseFloat(totalFuelUsed.toFixed(2)),
-              totalFuelCost: parseFloat(totalFuelCost.toFixed(2)),
-              totalMaintenanceCost: parseFloat(totalMaintenanceCost.toFixed(2))
-            },
-            averages: {
-              averageTripDistance: totalTrips > 0 ? parseFloat((totalDistance / totalTrips).toFixed(2)) : 0,
-              averageFuelPerLog: totalFuelLogs > 0 ? parseFloat((totalFuelUsed / totalFuelLogs).toFixed(2)) : 0,
-              averageFuelCost: totalFuelLogs > 0 ? parseFloat((totalFuelCost / totalFuelLogs).toFixed(2)) : 0
-            }
-          }
-        }
+          settings: userSettings || {} // Frontend expects "settings" at root level
       };
 
       res.json(response);

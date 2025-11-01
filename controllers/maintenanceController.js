@@ -145,6 +145,23 @@ class MaintenanceController {
     }
   }
 
+  // Get maintenance records for specific user (frontend expects this)
+  async getUserMaintenanceRecords(req, res) {
+    try {
+      const { userId } = req.params;
+      
+      const records = await MaintenanceRecord.find({ userId })
+        .populate('motorId', 'nickname plateNumber')
+        .sort({ timestamp: -1 });
+
+      // Return array directly as frontend expects
+      res.json(records);
+    } catch (error) {
+      console.error('Get user maintenance records error:', error);
+      res.status(500).json({ message: 'Server error getting maintenance records' });
+    }
+  }
+
   // Get maintenance records for specific motor
   async getMotorMaintenance(req, res) {
     try {

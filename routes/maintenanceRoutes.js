@@ -8,6 +8,9 @@ router.post("/", maintenanceController.createMaintenanceRecord);
 // Get all maintenance records
 router.get("/", maintenanceController.getMaintenanceRecords);
 
+// Get maintenance records for a specific user (frontend expects this route)
+router.get("/user/:userId", maintenanceController.getUserMaintenanceRecords);
+
 // Get maintenance records for a specific motor
 router.get("/motor/:motorId", maintenanceController.getMotorMaintenance);
 
