@@ -379,6 +379,31 @@ const logout = async (req, res) => {
 // Verify token
 const verifyToken = async (req, res) => {
   try {
+    // Check if req.user exists (set by middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token. Please login again.'
+      });
+    }
+
+    // Try to find admin first (since this is admin-auth endpoint)
+    const admin = await Admin.findById(req.user.id).select('-password').populate('role');
+    if (admin) {
+      const adminObj = admin.toObject();
+      adminObj.roleInfo = admin.getRoleInfo();
+      
+      return res.json({
+        success: true,
+        message: 'Token is valid',
+        data: {
+          admin: adminObj,
+          user: adminObj // Also include as user for backward compatibility
+        }
+      });
+    }
+
+    // If not admin, try to find user
     const user = await User.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({
@@ -389,13 +414,14 @@ const verifyToken = async (req, res) => {
 
     res.json({
       success: true,
+      message: 'Token is valid',
       data: { user }
     });
   } catch (error) {
     console.error('Verify token error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to verify token',
+      message: 'Server error while verifying token',
       error: error.message
     });
   }

@@ -15,7 +15,7 @@ router.get('/profile', authenticateToken, adminAuthController.getProfile);
 router.put('/profile', authenticateToken, adminAuthController.updateProfile);
 router.put('/change-password', authenticateToken, adminAuthController.changePassword);
 
-// Token verification
-router.get('/verify-token', adminAuthController.verifyToken);
+// Token verification - Now with middleware to set req.user
+router.get('/verify-token', authenticateToken, adminAuthController.verifyToken);
 
 module.exports = router;

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../../../models/User');
 const Admin = require('../../../models/Admin');
 
-// Authenticate JWT token
+// Authenticate JWT token - supports both User and Admin tokens
 const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -17,12 +17,20 @@ const authenticateToken = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
-    // Check if user exists and is active
+    // Try to find admin first (since admin IDs are separate from user IDs)
+    const admin = await Admin.findById(decoded.id).populate('role');
+    if (admin && admin.isActive) {
+      req.user = admin;
+      req.user.isAdmin = true;
+      return next();
+    }
+
+    // If not admin, try to find user
     const user = await User.findById(decoded.id);
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid or inactive user'
+        message: 'Invalid or inactive token. Please login again.'
       });
     }
 
