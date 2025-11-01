@@ -411,10 +411,39 @@ class UserController {
       }
 
       // Transform user data for consistent response
+      // Ensure name is computed correctly
+      let computedName = user.name;
+      if (!computedName || computedName.trim() === '') {
+        if (user.firstName && user.lastName) {
+          computedName = `${user.firstName} ${user.lastName}`.trim();
+        } else if (user.firstName) {
+          computedName = user.firstName;
+        } else if (user.lastName) {
+          computedName = user.lastName;
+        } else {
+          computedName = 'User';
+        }
+      }
+
+      // Transform location from { lat, lng } to GeoJSON format if coordinates exist
+      let locationData = {};
+      if (user.location && user.location.lat !== null && user.location.lat !== undefined && 
+          user.location.lng !== null && user.location.lng !== undefined) {
+        // Convert to GeoJSON Point format: { type: "Point", coordinates: [lng, lat] }
+        // Note: GeoJSON coordinates are [longitude, latitude] (lng, lat order)
+        locationData = {
+          type: 'Point',
+          coordinates: [user.location.lng, user.location.lat]
+        };
+      } else {
+        // Return empty object if no location data
+        locationData = {};
+      }
+
       const userData = {
         _id: user._id,
-        id: user._id,
-        name: user.name || `${user.firstName} ${user.lastName}`,
+        id: user.id || user._id.toString(), // Use custom id field if exists, otherwise use _id
+        name: computedName,
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
@@ -423,20 +452,19 @@ class UserController {
         barangay: user.barangay || '',
         city: user.city || '',
         province: user.province || '',
+        role: user.role || 'user',
         isActive: user.isActive !== undefined ? user.isActive : true,
         isVerified: user.isVerified || false,
         preferences: user.preferences || {},
-        settings: user.settings || {},
+        location: locationData,
         createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        location: user.location || {}
+        updatedAt: user.updatedAt
       };
 
+      // Return in format that frontend expects: { user: {...} } or direct format
+      // Frontend handles both: profileData.user OR profileData (with name/id)
       res.json({
-        success: true,
-        data: {
-          user: userData
-        }
+        user: userData
       });
     } catch (error) {
       console.error('Get current user error:', error);
