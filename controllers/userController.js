@@ -490,21 +490,24 @@ class UserController {
         });
       }
 
-      const user = await User.findById(userId)
-        .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken');
+      // Get complete user data (only exclude password for security)
+      // Use lean() to get plain JavaScript object with all fields
+      const userData = await User.findById(userId)
+        .select('-password')
+        .lean();
       
-      if (!user) {
+      if (!userData) {
         return res.status(404).json({ 
           success: false,
           message: 'User not found' 
         });
       }
 
+      // Return all user data including: _id, name, email, city, province, barangay, street, 
+      // role, isVerified, location, createdAt, updatedAt, id, __v, resetToken, resetTokenExpiry, etc.
       res.json({
         success: true,
-        data: {
-          user
-        }
+        data: userData
       });
     } catch (error) {
       console.error('Get profile error:', error);
