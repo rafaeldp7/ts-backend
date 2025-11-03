@@ -25,7 +25,7 @@ const createTransporter = () => {
     return null; // Email not configured
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: smtpHost,
     port: parseInt(smtpPort),
     secure: false, // true for 465, false for other ports
