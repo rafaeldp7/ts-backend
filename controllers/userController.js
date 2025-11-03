@@ -382,15 +382,15 @@ class UserController {
   // Get current logged-in user data (use this after login)
   async getCurrentUser(req, res) {
     try {
-      let user;
+      let userId;
 
       // Check if req.user is already a full user object (from protect middleware)
       if (req.user && req.user._id && req.user.email) {
         // req.user is already a full user object from middleware
-        user = req.user;
+        userId = req.user._id;
       } else {
         // req.user is just decoded token data, need to fetch user
-        const userId = req.user?.id || req.user?._id || req.user?.userId;
+        userId = req.user?.id || req.user?._id || req.user?.userId;
         
         if (!userId) {
           return res.status(401).json({ 
@@ -398,71 +398,24 @@ class UserController {
             message: 'Authentication required. Please login.' 
           });
         }
-
-        user = await User.findById(userId)
-          .select('-password -resetPasswordToken -resetPasswordExpires -resetToken -resetTokenExpiry -verifyToken');
-        
-        if (!user) {
-          return res.status(404).json({ 
-            success: false,
-            message: 'User not found' 
-          });
-        }
       }
 
-      // Transform user data for consistent response
-      // Ensure name is computed correctly
-      let computedName = user.name;
-      if (!computedName || computedName.trim() === '') {
-        if (user.firstName && user.lastName) {
-          computedName = `${user.firstName} ${user.lastName}`.trim();
-        } else if (user.firstName) {
-          computedName = user.firstName;
-        } else if (user.lastName) {
-          computedName = user.lastName;
-        } else {
-          computedName = 'User';
-        }
+      // Get complete user data (only exclude password for security)
+      // Use lean() to get plain JavaScript object with all fields
+      const userData = await User.findById(userId)
+        .select('-password')
+        .lean();
+      
+      if (!userData) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'User not found' 
+        });
       }
 
-      // Transform location from { lat, lng } to GeoJSON format if coordinates exist
-      let locationData = {};
-      if (user.location && user.location.lat !== null && user.location.lat !== undefined && 
-          user.location.lng !== null && user.location.lng !== undefined) {
-        // Convert to GeoJSON Point format: { type: "Point", coordinates: [lng, lat] }
-        // Note: GeoJSON coordinates are [longitude, latitude] (lng, lat order)
-        locationData = {
-          type: 'Point',
-          coordinates: [user.location.lng, user.location.lat]
-        };
-      } else {
-        // Return empty object if no location data
-        locationData = {};
-      }
-
-      const userData = {
-        _id: user._id,
-        id: user.id || user._id.toString(), // Use custom id field if exists, otherwise use _id
-        name: computedName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        phone: user.phone || '',
-        street: user.street || '',
-        barangay: user.barangay || '',
-        city: user.city || '',
-        province: user.province || '',
-        role: user.role || 'user',
-        isActive: user.isActive !== undefined ? user.isActive : true,
-        isVerified: user.isVerified || false,
-        preferences: user.preferences || {},
-        location: locationData,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      };
-
-      // Return in format that frontend expects: { user: {...} } or direct format
-      // Frontend handles both: profileData.user OR profileData (with name/id)
+      // Return all user data including: _id, name, email, city, province, barangay, street, 
+      // role, isVerified, location, createdAt, updatedAt, id, __v, resetToken, resetTokenExpiry, etc.
+      // Return in format that frontend expects: { user: {...} }
       res.json({
         user: userData
       });
