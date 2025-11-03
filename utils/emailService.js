@@ -81,11 +81,39 @@ const sendOTPEmail = async (userEmail, otpCode) => {
       `
     };
     
-    await transporter.sendMail(mailOptions);
+    console.log(`📧 Attempting to send OTP email to ${userEmail}...`);
+    console.log(`   From: ${mailOptions.from}`);
+    console.log(`   Subject: ${mailOptions.subject}`);
+    
+    // Verify connection before sending
+    await transporter.verify();
+    console.log('✅ SMTP server connection verified');
+    
+    const info = await transporter.sendMail(mailOptions);
     console.log(`✅ OTP email sent successfully to ${userEmail}`);
+    console.log(`   Message ID: ${info.messageId}`);
+    console.log(`   Response: ${info.response}`);
     return true;
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error.message);
+    console.error('❌ Error sending OTP email:');
+    console.error('   Error Message:', error.message);
+    console.error('   Error Code:', error.code);
+    console.error('   Error Response:', error.response);
+    console.error('   Error ResponseCode:', error.responseCode);
+    console.error('   Full Error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    
+    // Common Gmail authentication errors
+    if (error.code === 'EAUTH' || error.message?.includes('Invalid login')) {
+      console.error('   ⚠️ AUTHENTICATION ERROR: This usually means:');
+      console.error('      1. Wrong email/password, OR');
+      console.error('      2. Gmail requires an App Password (not regular password)');
+      console.error('      3. Enable "Less secure app access" or use App Password');
+      console.error('   📖 How to fix:');
+      console.error('      - Go to: https://myaccount.google.com/apppasswords');
+      console.error('      - Generate a new App Password for "Mail"');
+      console.error('      - Use that 16-character password in SMTP_PASS/EMAIL_PASS');
+    }
+    
     // Don't throw error - allow OTP to still be generated and logged
     return false;
   }
