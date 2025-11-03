@@ -1,0 +1,117 @@
+const nodemailer = require('nodemailer');
+
+// Create email transporter
+const createTransporter = () => {
+  // Check if email credentials are configured
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return null; // Email not configured
+  }
+
+  return nodemailer.createTransporter({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: process.env.SMTP_PORT || 587,
+    secure: false, // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+};
+
+// Send OTP email
+const sendOTPEmail = async (userEmail, otpCode) => {
+  try {
+    const transporter = createTransporter();
+    
+    if (!transporter) {
+      console.log('⚠️ Email service not configured (SMTP_USER or SMTP_PASS missing)');
+      return false; // Email not configured, don't throw error
+    }
+
+    const mailOptions = {
+      from: process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@trafficslight.com',
+      to: userEmail,
+      subject: 'Password Reset OTP - TrafficSlight',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+            <h2 style="color: #333; margin-top: 0;">Password Reset Request</h2>
+            <p style="color: #666; font-size: 16px;">You have requested to reset your password for TrafficSlight.</p>
+          </div>
+          
+          <div style="background-color: #fff; border: 2px solid #007bff; padding: 30px; border-radius: 10px; text-align: center; margin: 20px 0;">
+            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">Your OTP code is:</p>
+            <h1 style="color: #007bff; font-size: 36px; letter-spacing: 8px; margin: 20px 0; font-family: 'Courier New', monospace;">
+              ${otpCode}
+            </h1>
+            <p style="color: #999; font-size: 12px; margin-top: 10px;">This code will expire in 10 minutes</p>
+          </div>
+          
+          <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+            <p style="color: #856404; margin: 0; font-size: 14px;">
+              <strong>⚠️ Security Notice:</strong> If you didn't request this password reset, please ignore this email or contact support if you have concerns.
+            </p>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p style="color: #999; font-size: 12px; margin: 0;">
+              Best regards,<br>
+              <strong>TrafficSlight Team</strong>
+            </p>
+          </div>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ OTP email sent successfully to ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending OTP email:', error.message);
+    // Don't throw error - allow OTP to still be generated and logged
+    return false;
+  }
+};
+
+// Send welcome email
+const sendWelcomeEmail = async (userEmail, userName) => {
+  try {
+    const transporter = createTransporter();
+    
+    if (!transporter) {
+      return false;
+    }
+
+    const mailOptions = {
+      from: process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@trafficslight.com',
+      to: userEmail,
+      subject: 'Welcome to TrafficSlight!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">Welcome to TrafficSlight, ${userName}!</h2>
+          <p>Thank you for registering with TrafficSlight. You can now:</p>
+          <ul>
+            <li>Track your trips</li>
+            <li>Log fuel consumption</li>
+            <li>Find nearby gas stations</li>
+            <li>Manage your motorcycles</li>
+          </ul>
+          <p>Best regards,<br>TrafficSlight Team</p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Welcome email sent to ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+    return false;
+  }
+};
+
+module.exports = {
+  sendOTPEmail,
+  sendWelcomeEmail
+};
+

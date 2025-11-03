@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { validationResult } = require('express-validator');
+const { sendOTPEmail } = require('../utils/emailService');
 
 class AuthController {
   // Register new user
@@ -132,27 +133,23 @@ class AuthController {
       otpExpires.setMinutes(otpExpires.getMinutes() + 10);
 
       // Save OTP to user
-      user.otpCode = otpCode;
-      user.otpExpires = otpExpires;
-      
-      try {
-        await user.save();
-      } catch (saveError) {
-        console.error('Error saving OTP to user:', saveError);
-        // If schema validation error, try using updateOne as fallback
-        if (saveError.name === 'ValidationError' || saveError.message.includes('schema')) {
-          await User.updateOne(
-            { _id: user._id },
-            { $set: { otpCode, otpExpires } }
-          );
-        } else {
-          throw saveError;
-        }
-      }
+      // Use updateOne to bypass Mongoose validation (some users might have missing required fields)
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { otpCode, otpExpires } },
+        { runValidators: false } // Skip validation for OTP updates
+      );
 
-      // TODO: Send OTP via email/SMS in production
-      // For development, return OTP (remove in production)
-      console.log(`OTP for ${email}: ${otpCode}`); // Remove in production
+      // Send OTP via email (if email service configured) or log to console
+      const emailSent = await sendOTPEmail(email, otpCode);
+      
+      // Always log OTP to console for development/testing
+      console.log(`🔐 OTP for ${email}: ${otpCode}`);
+      console.log(`⏰ OTP expires at: ${otpExpires.toISOString()}`);
+      
+      if (!emailSent) {
+        console.log(`⚠️ Email not sent (service not configured). OTP is available in console logs above.`);
+      }
 
       res.json({
         message: 'OTP code has been sent to your email',
@@ -262,30 +259,20 @@ class AuthController {
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
       
-      user.password = hashedPassword;
-      user.otpCode = null;
-      user.otpExpires = null;
-      
-      try {
-        await user.save();
-      } catch (saveError) {
-        console.error('Error saving password reset:', saveError);
-        // Fallback to updateOne if save() fails
-        if (saveError.name === 'ValidationError' || saveError.message.includes('schema')) {
-          await User.updateOne(
-            { _id: user._id },
-            { 
-              $set: { 
-                password: hashedPassword,
-                otpCode: null,
-                otpExpires: null
-              } 
-            }
-          );
-        } else {
-          throw saveError;
-        }
-      }
+      // Use updateOne to bypass Mongoose validation (some users might have missing required fields)
+      // Note: Password will be hashed by pre-save hook if we use save(), but since we're using updateOne,
+      // we need to hash it manually (already done above)
+      await User.updateOne(
+        { _id: user._id },
+        { 
+          $set: { 
+            password: hashedPassword,
+            otpCode: null,
+            otpExpires: null
+          } 
+        },
+        { runValidators: false } // Skip validation for password reset
+      );
 
       res.json({
         message: 'Password reset successfully',
