@@ -2,31 +2,36 @@ const nodemailer = require('nodemailer');
 
 // Create email transporter
 const createTransporter = () => {
+  // Support both SMTP_* and EMAIL_* variable names for flexibility
+  const smtpUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+  const smtpPass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+  const smtpHost = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtp.gmail.com';
+  const smtpPort = process.env.SMTP_PORT || process.env.EMAIL_PORT || 587;
+  
   // Debug: Log available email-related environment variables
   console.log('🔍 Email Service Debug:');
-  console.log('  SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
-  console.log('  SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
-  console.log('  SMTP_HOST:', process.env.SMTP_HOST || 'Using default: smtp.gmail.com');
-  console.log('  SMTP_PORT:', process.env.SMTP_PORT || 'Using default: 587');
-  console.log('  FROM_EMAIL:', process.env.FROM_EMAIL || 'Using SMTP_USER or default');
-  
-  // Also check legacy EMAIL variables
-  if (process.env.EMAIL_USER || process.env.EMAIL_PASS) {
-    console.log('  ⚠️ Legacy EMAIL_USER/EMAIL_PASS found, but SMTP_USER/SMTP_PASS are required');
-  }
+  console.log('  SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : (process.env.EMAIL_USER ? '✅ Set (via EMAIL_USER)' : '❌ Missing'));
+  console.log('  SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : (process.env.EMAIL_PASS ? '✅ Set (via EMAIL_PASS)' : '❌ Missing'));
+  console.log('  SMTP_HOST:', smtpHost);
+  console.log('  SMTP_PORT:', smtpPort);
+  console.log('  FROM_EMAIL:', process.env.FROM_EMAIL || 'Using email user or default');
   
   // Check if email credentials are configured
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!smtpUser || !smtpPass) {
+    console.log('  ❌ Missing required credentials:', {
+      user: !smtpUser ? 'Missing' : 'Found',
+      pass: !smtpPass ? 'Missing' : 'Found'
+    });
     return null; // Email not configured
   }
 
   return nodemailer.createTransporter({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: process.env.SMTP_PORT || 587,
+    host: smtpHost,
+    port: parseInt(smtpPort),
     secure: false, // true for 465, false for other ports
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: smtpUser,
+      pass: smtpPass
     }
   });
 };
@@ -42,7 +47,7 @@ const sendOTPEmail = async (userEmail, otpCode) => {
     }
 
     const mailOptions = {
-      from: process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@trafficslight.com',
+      from: process.env.FROM_EMAIL || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@trafficslight.com',
       to: userEmail,
       subject: 'Password Reset OTP - TrafficSlight',
       html: `
@@ -96,7 +101,7 @@ const sendWelcomeEmail = async (userEmail, userName) => {
     }
 
     const mailOptions = {
-      from: process.env.FROM_EMAIL || process.env.SMTP_USER || 'noreply@trafficslight.com',
+      from: process.env.FROM_EMAIL || process.env.SMTP_USER || process.env.EMAIL_USER || 'noreply@trafficslight.com',
       to: userEmail,
       subject: 'Welcome to TrafficSlight!',
       html: `
