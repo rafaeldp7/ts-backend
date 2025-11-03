@@ -13,10 +13,13 @@ const MaintenanceRecordSchema = new mongoose.Schema(
     location: {
       lat: { type: Number },
       lng: { type: Number },
+      latitude: { type: Number }, // Support both formats
+      longitude: { type: Number }, // Support both formats
     },
     details: {
       cost: { type: Number },
       quantity: { type: Number },
+      costPerLiter: { type: Number }, // Store cost per liter for refuel type
       notes: { type: String }
     }
   },

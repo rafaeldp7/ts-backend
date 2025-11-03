@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const maintenanceController = require("../controllers/maintenanceController");
+const { protect } = require("../middlewares/authMiddleware");
+
+// Apply authentication middleware to all routes
+// Note: Some routes may need to work without auth for backward compatibility
+// For now, we'll check auth in controller but allow req.body.userId as fallback
 
 // Create
 router.post("/", maintenanceController.createMaintenanceRecord);

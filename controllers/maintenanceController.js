@@ -1,5 +1,6 @@
 const MaintenanceRecord = require('../models/maintenanceModel');
 const Motor = require('../models/Motor');
+const UserMotor = require('../models/userMotorModel');
 
 class MaintenanceController {
   // Get all maintenance records for user
@@ -76,11 +77,67 @@ class MaintenanceController {
   // Create new maintenance record
   async createMaintenanceRecord(req, res) {
     try {
-      const userId = req.user?.userId;
+      // Get userId from authenticated user or request body (fallback)
+      const userId = req.user?.userId || req.user?.id || req.body.userId;
+      
+      // Validate required fields
+      if (!userId) {
+        return res.status(400).json({ message: 'User ID is required' });
+      }
+      
+      if (!req.body.motorId) {
+        return res.status(400).json({ message: 'Motor ID is required' });
+      }
+      
+      if (!req.body.type) {
+        return res.status(400).json({ message: 'Maintenance type is required' });
+      }
+      
+      if (!['refuel', 'oil_change', 'tune_up'].includes(req.body.type)) {
+        return res.status(400).json({ message: 'Invalid maintenance type. Must be: refuel, oil_change, or tune_up' });
+      }
+      
+      if (!req.body.details || !req.body.details.cost) {
+        return res.status(400).json({ message: 'Cost is required' });
+      }
+      
+      // Validate type-specific requirements
+      if (req.body.type === 'refuel') {
+        if (!req.body.details.quantity && !req.body.details.costPerLiter) {
+          return res.status(400).json({ message: 'For refuel type, either quantity or costPerLiter is required' });
+        }
+      }
+      
+      if (req.body.type === 'oil_change' && !req.body.details.quantity) {
+        return res.status(400).json({ message: 'Quantity is required for oil change type' });
+      }
+      
+      // Convert timestamp from milliseconds to Date if needed
+      let timestamp = req.body.timestamp;
+      if (typeof timestamp === 'number') {
+        timestamp = new Date(timestamp);
+      } else if (timestamp) {
+        timestamp = new Date(timestamp);
+      } else {
+        timestamp = new Date();
+      }
+      
+      // Normalize location format (support both latitude/longitude and lat/lng)
+      let location = req.body.location || {};
+      if (location.latitude !== undefined || location.longitude !== undefined) {
+        location = {
+          lat: location.latitude || location.lat,
+          lng: location.longitude || location.lng,
+          latitude: location.latitude,
+          longitude: location.longitude
+        };
+      }
+      
       const recordData = {
         ...req.body,
         userId,
-        timestamp: req.body.timestamp || new Date(),
+        timestamp,
+        location,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -99,6 +156,15 @@ class MaintenanceController {
       res.status(201).json(record);
     } catch (error) {
       console.error('Create maintenance record error:', error);
+      
+      // Handle validation errors
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+          message: 'Validation error', 
+          errors: Object.values(error.errors).map(e => e.message) 
+        });
+      }
+      
       res.status(500).json({ message: 'Server error creating maintenance record' });
     }
   }
@@ -272,19 +338,48 @@ class MaintenanceController {
   // Helper method to update motor fuel after refuel
   async updateMotorFuelAfterRefuel(motorId, fuelQuantity) {
     try {
-      const motor = await Motor.findById(motorId);
-      if (!motor) return;
+      // Try UserMotor first (as frontend uses this)
+      let motor = await UserMotor.findById(motorId).populate('motorcycleId');
+      
+      if (!motor) {
+        // Fallback to Motor model
+        motor = await Motor.findById(motorId);
+        if (!motor) {
+          console.error('Motor not found:', motorId);
+          return;
+        }
+      }
 
-      // Calculate new fuel level based on tank capacity
-      const tankCapacity = motor.fuelTank || 15; // Default 15L
-      const currentLevel = motor.currentFuelLevel || 0;
+      // Get tank capacity and current fuel level
+      let tankCapacity, currentLevel;
+      
+      if (motor.motorcycleId) {
+        // UserMotor with populated motorcycleId
+        tankCapacity = motor.motorcycleId.fuelTankCapacity || motor.motorcycleId.fuelTank || 15;
+        currentLevel = motor.currentFuelLevel || 0;
+      } else if (motor.fuelTank) {
+        // Motor model
+        tankCapacity = motor.fuelTank || 15;
+        currentLevel = motor.currentFuelLevel || 0;
+      } else {
+        // Default values
+        tankCapacity = 15;
+        currentLevel = 0;
+      }
+      
       const fuelAdded = fuelQuantity;
       
       // Calculate new fuel level (percentage)
-      const newFuelLevel = Math.min(100, ((currentLevel / 100) * tankCapacity + fuelAdded) / tankCapacity * 100);
+      // Convert current level to liters, add fuel, then convert back to percentage
+      const currentLiters = (currentLevel / 100) * tankCapacity;
+      const newLiters = currentLiters + fuelAdded;
+      const newFuelLevel = Math.min(100, (newLiters / tankCapacity) * 100);
       
       motor.currentFuelLevel = newFuelLevel;
-      motor.analytics.lastUpdated = new Date();
+      
+      if (motor.analytics) {
+        motor.analytics.lastUpdated = new Date();
+      }
       
       await motor.save();
     } catch (error) {
