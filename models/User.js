@@ -107,6 +107,8 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
+  otpCode: String,
+  otpExpires: Date,
   
   // Activity Tracking
   lastLogin: {

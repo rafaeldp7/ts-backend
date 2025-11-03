@@ -4,12 +4,13 @@ const authController = require('../controllers/authController');
 
 const { body } = require('express-validator');
 
-// Authentication routes
+// Authentication routes (no auth required)
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-router.post('/reset-password', authController.resetPassword);
-router.post('/verify-reset', authController.verifyReset);
-router.post('/change-password',  authController.changePassword);
+router.post('/reset-password', authController.resetPassword); // Request OTP
+router.post('/verify-reset', authController.verifyReset); // Verify OTP
+router.post('/reset-password-with-otp', authController.resetPasswordWithOTP); // Reset password with OTP
+router.post('/change-password',  authController.changePassword); // Requires auth
 router.post('/logout',  authController.logout);
 router.get('/verify-token',  authController.verifyToken);
 

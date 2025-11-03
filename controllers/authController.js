@@ -106,28 +106,45 @@ class AuthController {
     }
   }
 
-  // Reset password request
+  // Request password reset OTP
   async resetPassword(req, res) {
     try {
       const { email } = req.body;
 
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
       }
 
-      // Generate reset token
-      const resetToken = jwt.sign(
-        { userId: user._id, email: user.email },
-        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
-        { expiresIn: '1h' }
-      );
+      const user = await User.findOne({ email });
+      if (!user) {
+        // Don't reveal if user exists for security
+        return res.json({
+          message: 'If a user with this email exists, an OTP code has been sent',
+          success: true
+        });
+      }
 
-      // TODO: Send email with reset link
-      // For now, just return the token (in production, send via email)
+      // Generate 6-digit OTP code
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Set OTP expiry to 10 minutes
+      const otpExpires = new Date();
+      otpExpires.setMinutes(otpExpires.getMinutes() + 10);
+
+      // Save OTP to user
+      user.otpCode = otpCode;
+      user.otpExpires = otpExpires;
+      await user.save();
+
+      // TODO: Send OTP via email/SMS in production
+      // For development, return OTP (remove in production)
+      console.log(`OTP for ${email}: ${otpCode}`); // Remove in production
+
       res.json({
-        message: 'Password reset instructions sent to your email',
-        resetToken // Remove this in production
+        message: 'OTP code has been sent to your email',
+        success: true
+        // Remove otpCode in production:
+        // otpCode: otpCode
       });
     } catch (error) {
       console.error('Reset password error:', error);
@@ -135,21 +152,92 @@ class AuthController {
     }
   }
 
-  // Verify reset token
+  // Verify OTP code
   async verifyReset(req, res) {
     try {
-      const { token } = req.body;
+      const { email, otpCode } = req.body;
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-for-development');
-      const user = await User.findById(decoded.userId);
-
-      if (!user) {
-        return res.status(400).json({ message: 'Invalid reset token' });
+      if (!email || !otpCode) {
+        return res.status(400).json({ message: 'Email and OTP code are required' });
       }
 
-      res.json({ message: 'Reset token is valid', userId: user._id });
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Check if OTP exists and hasn't expired
+      if (!user.otpCode || !user.otpExpires) {
+        return res.status(400).json({ message: 'No OTP code found. Please request a new one.' });
+      }
+
+      if (new Date() > user.otpExpires) {
+        return res.status(400).json({ message: 'OTP code has expired. Please request a new one.' });
+      }
+
+      if (user.otpCode !== otpCode) {
+        return res.status(400).json({ message: 'Invalid OTP code' });
+      }
+
+      // OTP is valid - return success (don't reset password yet)
+      res.json({
+        message: 'OTP code verified successfully',
+        success: true,
+        verified: true
+      });
     } catch (error) {
-      res.status(400).json({ message: 'Invalid or expired reset token' });
+      console.error('Verify reset error:', error);
+      res.status(500).json({ message: 'Server error during OTP verification' });
+    }
+  }
+
+  // Reset password with OTP
+  async resetPasswordWithOTP(req, res) {
+    try {
+      const { email, otpCode, newPassword } = req.body;
+
+      if (!email || !otpCode || !newPassword) {
+        return res.status(400).json({ message: 'Email, OTP code, and new password are required' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+      }
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify OTP
+      if (!user.otpCode || !user.otpExpires) {
+        return res.status(400).json({ message: 'No OTP code found. Please request a new one.' });
+      }
+
+      if (new Date() > user.otpExpires) {
+        return res.status(400).json({ message: 'OTP code has expired. Please request a new one.' });
+      }
+
+      if (user.otpCode !== otpCode) {
+        return res.status(400).json({ message: 'Invalid OTP code' });
+      }
+
+      // OTP verified - reset password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      
+      user.password = hashedPassword;
+      user.otpCode = null;
+      user.otpExpires = null;
+      await user.save();
+
+      res.json({
+        message: 'Password reset successfully',
+        success: true
+      });
+    } catch (error) {
+      console.error('Reset password with OTP error:', error);
+      res.status(500).json({ message: 'Server error during password reset' });
     }
   }
 
