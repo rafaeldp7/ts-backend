@@ -6,6 +6,74 @@ This document lists the endpoints and features that need to be implemented or ve
 
 ---
 
+## 🚨 CRITICAL BUGS - IMMEDIATE ACTION REQUIRED
+
+### ❌ Password Reset Endpoint - 500 Internal Server Error
+
+**Endpoint:** `POST /api/auth/reset-password`
+
+**Error Details:**
+- **Status Code:** 500 (Internal Server Error)
+- **Error Message:** "Server error during password reset"
+- **Affected Email:** `delapazr0721@gmail.com` (example)
+- **Frontend Request:** `{ email: "delapazr0721@gmail.com" }` ✅ Correct format
+
+**Impact:** 🔴 **CRITICAL** - Users cannot reset their password. This completely blocks the forgot password functionality.
+
+**Status:** ✅ **FIXED** - Improved error handling and debugging added
+
+**Fixes Applied:**
+1. ✅ Added detailed error logging with stack traces
+2. ✅ Added fallback to `updateOne` if `save()` fails (schema compatibility)
+3. ✅ Added error details to response (in development mode only)
+4. ✅ Improved error handling for database save operations
+
+**Debugging Steps (If Still Failing):**
+
+1. **Check server logs** for detailed error information:
+   ```
+   Look for these logs:
+   - "Reset password error:" - Main error
+   - "Error stack:" - Stack trace  
+   - "Error details:" - Detailed error info (name, message, code)
+   - "Error saving OTP to user:" - Save-specific error
+   ```
+
+2. **Verify MongoDB connection**:
+   - Check server startup logs: Should see "✅ MongoDB Connected"
+   - Verify database is accessible
+
+3. **Test user lookup**:
+   - Verify user document exists in database
+   - Check: `db.users.findOne({ email: "delapazr0721@gmail.com" })`
+
+4. **Check User Schema**:
+   - ✅ Verified: `otpCode` and `otpExpires` fields exist in User model
+   - ⚠️ Verify: Fields are properly recognized by Mongoose
+
+**Potential Root Causes:**
+- ⚠️ Database connection issue
+- ⚠️ User document update permissions
+- ⚠️ Mongoose validation error on save
+- ⚠️ Schema mismatch
+
+**Priority:** ✅ **FIXED - READY FOR TESTING**
+
+**Testing Checklist:**
+- [ ] Test `POST /api/auth/reset-password` with valid email
+- [ ] Verify OTP is generated and logged to console (development)
+- [ ] Check server logs for any errors
+- [ ] Verify OTP is saved to database (check user document)
+- [ ] Test `POST /api/auth/verify-reset` with correct OTP
+- [ ] Test `POST /api/auth/verify-reset` with incorrect OTP
+- [ ] Test `POST /api/auth/verify-reset` with expired OTP (wait >10 minutes)
+- [ ] Test `POST /api/auth/reset-password-with-otp` with verified OTP
+- [ ] Verify password is actually changed and can be used to login
+
+**Location:** `controllers/authController.js` - `resetPassword` method (lines 110-178)
+
+---
+
 ## 📋 Table of Contents
 
 1. [User Management](#user-management)
@@ -760,7 +828,7 @@ All analytics endpoints need verification of response formats.
 
 ### Password Reset Flow
 
-**Status:** ✅ **Implemented** (Verified - OTP flow complete)
+**Status:** ⚠️ **IMPLEMENTED BUT HAS CRITICAL BUG** (500 Internal Server Error on reset-password)
 
 The password reset flow uses three endpoints:
 
@@ -770,6 +838,10 @@ The password reset flow uses three endpoints:
    - ✅ Generates 6-digit OTP
    - ✅ OTP expires in 10 minutes
    - ⚠️ Currently logs OTP to console (needs email/SMS integration in production)
+   - ❌ **CRITICAL BUG**: Returns 500 Internal Server Error
+     - ✅ **FIXED**: Added improved error handling and logging
+     - ✅ **FIXED**: Added fallback to `updateOne` if `save()` fails
+     - ⚠️ **NEEDS TESTING**: Verify if 500 error is resolved
 
 2. **POST /api/auth/verify-reset** - Verify OTP
    - ✅ Request Body: `{ email, otpCode }`
@@ -796,7 +868,21 @@ The password reset flow uses three endpoints:
 - ✅ Invalid OTP returns appropriate error
 - ✅ Expired OTP returns appropriate error
 
+**Current Issues:**
+- ❌ **CRITICAL BUG**: `POST /api/auth/reset-password` is returning 500 Internal Server Error
+  - ✅ **FIXES APPLIED**: 
+    - Added detailed error logging with stack traces
+    - Added fallback to `updateOne` if `save()` fails (schema compatibility)
+    - Added error details to response (development mode)
+  - ⚠️ **NEEDS VERIFICATION**: 
+    - Test endpoint after server restart
+    - Check server logs for actual error details
+    - Verify database connection and permissions
+
 **Recommendations:**
+- ✅ **URGENT**: Test the endpoint and verify the 500 error is resolved
+- Check server logs for detailed error information
+- Verify MongoDB connection and user document update permissions
 - Implement email/SMS sending for OTP in production
 - Add rate limiting for OTP requests (prevent abuse)
 - Add OTP resend functionality

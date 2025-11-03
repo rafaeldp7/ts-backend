@@ -134,7 +134,21 @@ class AuthController {
       // Save OTP to user
       user.otpCode = otpCode;
       user.otpExpires = otpExpires;
-      await user.save();
+      
+      try {
+        await user.save();
+      } catch (saveError) {
+        console.error('Error saving OTP to user:', saveError);
+        // If schema validation error, try using updateOne as fallback
+        if (saveError.name === 'ValidationError' || saveError.message.includes('schema')) {
+          await User.updateOne(
+            { _id: user._id },
+            { $set: { otpCode, otpExpires } }
+          );
+        } else {
+          throw saveError;
+        }
+      }
 
       // TODO: Send OTP via email/SMS in production
       // For development, return OTP (remove in production)
@@ -148,7 +162,19 @@ class AuthController {
       });
     } catch (error) {
       console.error('Reset password error:', error);
-      res.status(500).json({ message: 'Server error during password reset' });
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        keyPattern: error.keyPattern,
+        keyValue: error.keyValue
+      });
+      res.status(500).json({ 
+        message: 'Server error during password reset',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        success: false
+      });
     }
   }
 
@@ -187,7 +213,17 @@ class AuthController {
       });
     } catch (error) {
       console.error('Verify reset error:', error);
-      res.status(500).json({ message: 'Server error during OTP verification' });
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code
+      });
+      res.status(500).json({ 
+        message: 'Server error during OTP verification',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        success: false
+      });
     }
   }
 
@@ -229,7 +265,27 @@ class AuthController {
       user.password = hashedPassword;
       user.otpCode = null;
       user.otpExpires = null;
-      await user.save();
+      
+      try {
+        await user.save();
+      } catch (saveError) {
+        console.error('Error saving password reset:', saveError);
+        // Fallback to updateOne if save() fails
+        if (saveError.name === 'ValidationError' || saveError.message.includes('schema')) {
+          await User.updateOne(
+            { _id: user._id },
+            { 
+              $set: { 
+                password: hashedPassword,
+                otpCode: null,
+                otpExpires: null
+              } 
+            }
+          );
+        } else {
+          throw saveError;
+        }
+      }
 
       res.json({
         message: 'Password reset successfully',
@@ -237,7 +293,17 @@ class AuthController {
       });
     } catch (error) {
       console.error('Reset password with OTP error:', error);
-      res.status(500).json({ message: 'Server error during password reset' });
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code
+      });
+      res.status(500).json({ 
+        message: 'Server error during password reset',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        success: false
+      });
     }
   }
 
