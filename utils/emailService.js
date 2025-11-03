@@ -2,6 +2,19 @@ const nodemailer = require('nodemailer');
 
 // Create email transporter
 const createTransporter = () => {
+  // Debug: Log available email-related environment variables
+  console.log('🔍 Email Service Debug:');
+  console.log('  SMTP_USER:', process.env.SMTP_USER ? '✅ Set' : '❌ Missing');
+  console.log('  SMTP_PASS:', process.env.SMTP_PASS ? '✅ Set' : '❌ Missing');
+  console.log('  SMTP_HOST:', process.env.SMTP_HOST || 'Using default: smtp.gmail.com');
+  console.log('  SMTP_PORT:', process.env.SMTP_PORT || 'Using default: 587');
+  console.log('  FROM_EMAIL:', process.env.FROM_EMAIL || 'Using SMTP_USER or default');
+  
+  // Also check legacy EMAIL variables
+  if (process.env.EMAIL_USER || process.env.EMAIL_PASS) {
+    console.log('  ⚠️ Legacy EMAIL_USER/EMAIL_PASS found, but SMTP_USER/SMTP_PASS are required');
+  }
+  
   // Check if email credentials are configured
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return null; // Email not configured
