@@ -221,9 +221,122 @@ const calculateDrivableDistance = async (req, res) => {
   }
 };
 
+/**
+ * Get combined fuel data from fuel logs and maintenance records
+ * GET /api/fuel/combined?userId=user_id&motorId=motor_id
+ */
+const getCombinedFuelData = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { userId, motorId } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    // Import models
+    const FuelLogModel = require('../models/FuelLogModel');
+    const MaintenanceRecord = require('../models/maintenanceModel');
+    
+    // Fetch fuel logs
+    const fuelLogsQuery = { userId };
+    if (motorId) {
+      fuelLogsQuery.motorId = motorId;
+    }
+    const fuelLogs = await FuelLogModel.find(fuelLogsQuery)
+      .populate({
+        path: 'motorId',
+        populate: {
+          path: 'motorcycleId',
+          select: 'model fuelConsumption'
+        },
+        select: 'nickname'
+      })
+      .sort({ date: -1 })
+      .lean();
+    
+    // Fetch maintenance records with refuel type
+    const maintenanceQuery = { 
+      userId,
+      type: 'refuel'
+    };
+    if (motorId) {
+      maintenanceQuery.motorId = motorId;
+    }
+    const maintenanceRefuels = await MaintenanceRecord.find(maintenanceQuery)
+      .populate({
+        path: 'motorId',
+        populate: {
+          path: 'motorcycleId',
+          select: 'model fuelConsumption'
+        },
+        select: 'nickname'
+      })
+      .sort({ timestamp: -1 })
+      .lean();
+    
+    // Transform maintenance refuels to match fuel log format
+    const transformedMaintenanceRefuels = maintenanceRefuels.map(record => ({
+      _id: `maintenance_${record._id}`,
+      userId: record.userId,
+      motorId: record.motorId,
+      date: record.timestamp,
+      liters: record.details?.quantity || 0,
+      pricePerLiter: record.details?.quantity ? 
+        (record.details.cost / record.details.quantity) : 0,
+      totalCost: record.details?.cost || 0,
+      odometer: undefined,
+      fuelType: 'gasoline',
+      location: record.location,
+      notes: record.details?.notes || '',
+      source: 'maintenance',
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt
+    }));
+    
+    // Combine both data sources
+    const combined = [
+      ...fuelLogs.map(log => ({ ...log, source: 'fuel_log' })),
+      ...transformedMaintenanceRefuels
+    ];
+    
+    // Sort by date (newest first)
+    const sortedData = combined.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
+    });
+    
+    // Calculate statistics
+    const statistics = {
+      fuelLogsCount: fuelLogs.length,
+      maintenanceRefuelsCount: maintenanceRefuels.length,
+      totalRecords: sortedData.length,
+      totalCost: sortedData.reduce((sum, record) => sum + (record.totalCost || 0), 0),
+      totalLiters: sortedData.reduce((sum, record) => sum + (record.liters || 0), 0),
+      averagePricePerLiter: sortedData.length > 0 ? 
+        sortedData.reduce((sum, record) => sum + (record.pricePerLiter || 0), 0) / sortedData.length : 0
+    };
+    
+    res.json({
+      combinedData: sortedData,
+      statistics,
+      performance: {
+        originalDataSize: fuelLogs.length + maintenanceRefuels.length,
+        processedDataSize: sortedData.length,
+        transformationTime: Date.now() - startTime
+      }
+    });
+  } catch (error) {
+    console.error('Get combined fuel data error:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   calculateFuelConsumption,
   combineFuelData,
   calculateFuelLevelAfterRefuel,
-  calculateDrivableDistance
+  calculateDrivableDistance,
+  getCombinedFuelData
 };

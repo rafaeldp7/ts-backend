@@ -899,6 +899,125 @@ The password reset flow uses three endpoints:
 
 ---
 
+## ⛽ Missing Fuel Endpoint
+
+### GET /api/fuel/combined
+
+**Status:** ❌ **MISSING** (Frontend expects this endpoint)
+
+**Frontend Error:** 
+```
+WARN  [FuelService] /api/fuel/combined endpoint not available (404). Falling back to frontend processing.
+```
+
+**Location:** `routes/fuel.js` - Missing GET route
+
+**Description:** Get combined fuel data from fuel logs and maintenance records
+
+**Query Parameters:**
+- `userId` (required): User ID
+- `motorId` (optional): Motor ID to filter by specific motor
+
+**Expected Response Format:**
+```json
+{
+  "combinedData": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "userId": "507f1f77bcf86cd799439012",
+      "motorId": {
+        "_id": "507f1f77bcf86cd799439013",
+        "nickname": "My Bike",
+        "motorcycleId": {
+          "model": "Honda CBR150R",
+          "fuelConsumption": 50
+        }
+      },
+      "date": "2024-01-01T10:00:00.000Z",
+      "liters": 10,
+      "pricePerLiter": 65.50,
+      "totalCost": 655.00,
+      "source": "fuel_log",
+      "createdAt": "2024-01-01T10:00:00.000Z"
+    }
+  ],
+  "statistics": {
+    "fuelLogsCount": 50,
+    "maintenanceRefuelsCount": 5,
+    "totalRecords": 55,
+    "totalCost": 32750.00,
+    "totalLiters": 500,
+    "averagePricePerLiter": 65.50
+  },
+  "performance": {
+    "originalDataSize": 55,
+    "processedDataSize": 55,
+    "transformationTime": 45
+  }
+}
+```
+
+**Frontend Usage:** `FuelService` uses this endpoint for combined fuel data
+
+**Requirements:**
+- ✅ Should fetch fuel logs for the user (optionally filtered by motorId)
+- ✅ Should fetch maintenance records with type 'refuel' for the user
+- ✅ Should combine both data sources into a single array
+- ✅ Should sort by date (newest first)
+- ✅ Should calculate statistics (total cost, total liters, average price)
+- ✅ Should include performance metrics (processing time)
+- ✅ Should populate motor and motorcycle information
+- ✅ Should validate userId parameter
+
+**Implementation Status:**
+- ✅ Controller method `getCombinedFuelData` has been added to `fuelController.js`
+- ✅ GET route `/combined` has been added to `routes/fuel.js`
+- ⚠️ Needs testing
+
+---
+
+## 📋 Summary & Clarification
+
+### Is this what the frontend said it needs?
+
+**Yes and No** - Here's the clarification:
+
+**✅ YES** - This document accurately reflects what **USER_FRONTEND_IMPLEMENTATION_GUIDE.md** (the frontend documentation) says the frontend expects.
+
+**⚠️ BUT** - There's a potential discrepancy:
+
+1. **Frontend Documentation** (USER_FRONTEND_IMPLEMENTATION_GUIDE.md) says:
+   - Expects `name` (not `label`)
+   - Expects `location.lat/lng` (not `location.latitude/longitude`)
+   - Expects `address` field (not in backend)
+
+2. **Actual Frontend Implementation** (as mentioned by user):
+   - Uses `label` ✅ (works with backend)
+   - Uses `location.latitude/longitude` ✅ (works with backend)
+   - Uses `category` ✅ (works with backend)
+
+**This suggests:**
+- The documentation may not match the actual frontend code
+- OR there's field mapping/transformation happening
+- OR the documentation needs updating
+
+**Recommendation:**
+1. **Verify** the actual frontend code to see what fields it really uses
+2. **Update** either:
+   - Documentation to match actual implementation, OR
+   - Backend to match documentation, OR
+   - Add field mapping/adapter layer
+
+**Current Status:**
+- ✅ All endpoints listed are documented in USER_FRONTEND_IMPLEMENTATION_GUIDE.md
+- ✅ All endpoints exist in backend (some need verification/enhancement)
+- ⚠️ Some field naming discrepancies between docs and implementation
+- ⚠️ Some endpoints need authorization checks, filtering, statistics
+
+**Answer to your question:** Yes, this document lists everything that the **USER_FRONTEND_IMPLEMENTATION_GUIDE.md** says the frontend needs. However, there may be differences between what's documented and what the actual frontend code uses. We recommend verifying the actual frontend code to confirm.
+
+---
+
 **Last Updated:** 2024  
 **Documentation Reference:** USER_FRONTEND_IMPLEMENTATION_GUIDE.md  
 **Frontend Implementation:** utils/api.ts
