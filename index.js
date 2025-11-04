@@ -56,7 +56,14 @@ const app = express();
 
 // Middleware
 app.use(express.json()); // Parse JSON requests
-app.use(cors()); // Enable CORS
+// CORS configuration - explicitly allow Authorization header
+app.use(cors({
+  origin: '*', // Allow all origins (or specify your frontend URL in production)
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+}));
 // app.use(morgan("dev")); // Log HTTP requests
 
 const PORT = process.env.PORT || 5000;
