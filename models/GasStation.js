@@ -1,5 +1,31 @@
 const mongoose = require('mongoose');
 
+// Price history sub-schema
+const priceHistorySchema = new mongoose.Schema({
+  fuelType: {
+    type: String,
+    enum: ['gasoline', 'diesel', 'premium_gasoline', 'premium_diesel', 'lpg'],
+    required: true
+  },
+  oldPrice: {
+    type: Number,
+    required: true
+  },
+  newPrice: {
+    type: Number,
+    required: true
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, { _id: false });
+
 const gasStationSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -93,6 +119,7 @@ const gasStationSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  priceHistory: [priceHistorySchema],
   operatingHours: {
     monday: {
       open: String,
@@ -215,21 +242,48 @@ gasStationSchema.virtual('googleMapsLink').get(function() {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 });
 
-// Method to update price
-gasStationSchema.methods.updatePrice = function(fuelType, price) {
+// Virtual for formatted price history
+gasStationSchema.virtual('priceHistoryFormatted').get(function() {
+  return this.priceHistory.map(h => ({
+    fuelType: h.fuelType,
+    from: h.oldPrice,
+    to: h.newPrice,
+    updatedBy: h.updatedBy,
+    date: h.updatedAt.toLocaleString()
+  }));
+});
+
+// Method to update price with history tracking
+gasStationSchema.methods.updatePrice = async function(fuelType, newPrice, userId) {
   const existingPrice = this.prices.find(p => p.fuelType === fuelType);
+  let oldPrice = null;
+  
   if (existingPrice) {
-    existingPrice.price = price;
+    oldPrice = existingPrice.price;
+    existingPrice.price = newPrice;
     existingPrice.lastUpdated = new Date();
   } else {
     this.prices.push({
       fuelType,
-      price,
+      price: newPrice,
       lastUpdated: new Date()
     });
   }
+  
+  // Only add to history if price actually changed
+  if (oldPrice !== newPrice) {
+    this.priceHistory.push({
+      fuelType,
+      oldPrice: oldPrice ?? 0,
+      newPrice,
+      updatedBy: userId,
+      updatedAt: new Date()
+    });
+  }
+  
   this.lastUpdated = new Date();
-  return this.save();
+  await this.save();
+  return this;
 };
 
 // Method to get current price

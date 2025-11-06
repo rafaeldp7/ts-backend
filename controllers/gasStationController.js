@@ -244,6 +244,151 @@ class GasStationController {
       res.status(500).json({ message: 'Server error updating gas station prices' });
     }
   }
+
+  // Update gas price (single fuel type with history tracking)
+  async updateGasPrice(req, res) {
+    try {
+      const { id } = req.params;
+      const { fuelType, newPrice } = req.body;
+      const userId = req.user?._id || req.user?.id;
+
+      // Validate required fields
+      if (!fuelType || newPrice === undefined || newPrice === null) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'fuelType and newPrice are required' 
+        });
+      }
+
+      // Validate fuel type
+      const validFuelTypes = ['gasoline', 'diesel', 'premium_gasoline', 'premium_diesel', 'lpg'];
+      if (!validFuelTypes.includes(fuelType)) {
+        return res.status(400).json({ 
+          success: false,
+          message: `Invalid fuelType. Must be one of: ${validFuelTypes.join(', ')}` 
+        });
+      }
+
+      // Validate price
+      if (typeof newPrice !== 'number' || newPrice < 0) {
+        return res.status(400).json({ 
+          success: false,
+          message: 'newPrice must be a positive number' 
+        });
+      }
+
+      // Check if user is authenticated
+      if (!userId) {
+        return res.status(401).json({ 
+          success: false,
+          message: 'Authentication required. Please login.' 
+        });
+      }
+
+      // Find gas station
+      const station = await GasStation.findById(id);
+      if (!station) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Gas station not found' 
+        });
+      }
+
+      // Get old price before update
+      const existingPrice = station.prices.find(p => p.fuelType === fuelType);
+      const oldPrice = existingPrice ? existingPrice.price : null;
+
+      // Update price using the model method
+      await station.updatePrice(fuelType, newPrice, userId);
+
+      // Populate updatedBy in the latest price history entry
+      const latestHistory = station.priceHistory[station.priceHistory.length - 1];
+      if (latestHistory && latestHistory.updatedBy) {
+        await station.populate({
+          path: 'priceHistory.updatedBy',
+          select: 'name email'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Price updated successfully',
+        data: {
+          station: {
+            _id: station._id,
+            name: station.name,
+            prices: station.prices,
+            priceHistory: station.priceHistory.slice(-10), // Return last 10 history entries
+            lastUpdated: station.lastUpdated
+          },
+          update: {
+            fuelType,
+            oldPrice,
+            newPrice,
+            changed: oldPrice !== newPrice
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Update gas price error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error updating gas price', 
+        error: error.message 
+      });
+    }
+  }
+
+  // Get price history for a gas station
+  async getPriceHistory(req, res) {
+    try {
+      const { id } = req.params;
+      const { fuelType, limit = 50 } = req.query;
+
+      const station = await GasStation.findById(id)
+        .select('name priceHistory')
+        .populate({
+          path: 'priceHistory.updatedBy',
+          select: 'name email'
+        });
+
+      if (!station) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Gas station not found' 
+        });
+      }
+
+      let history = station.priceHistory;
+
+      // Filter by fuel type if provided
+      if (fuelType) {
+        history = history.filter(h => h.fuelType === fuelType);
+      }
+
+      // Sort by date (newest first) and limit
+      history = history
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        .slice(0, parseInt(limit));
+
+      res.json({
+        success: true,
+        data: {
+          stationId: station._id,
+          stationName: station.name,
+          history,
+          count: history.length
+        }
+      });
+    } catch (error) {
+      console.error('Get price history error:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error getting price history', 
+        error: error.message 
+      });
+    }
+  }
 }
 
 module.exports = new GasStationController();
