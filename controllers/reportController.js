@@ -1,6 +1,7 @@
 // controllers/reportController.js
 const Report = require("../models/Reports.js");
 const mongoose = require("mongoose");
+const { filterReports, validateCoordinates } = require("../utils/mapProcessingUtils");
 
 exports.getArchivedReports = async (req, res) => {
   try {
@@ -203,10 +204,85 @@ exports.createReport = async (req, res) => {
 
 exports.getAllReports = async (req, res) => {
   try {
-    const reports = await Report.find().sort({ timestamp: -1 });
-    res.status(200).json(reports);
-    } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    const { 
+      includeArchived = false, 
+      includeInvalid = false,
+      filters,
+      viewport
+    } = req.query;
+    
+    // Build query
+    const query = {};
+    
+    // Filter archived reports unless explicitly included
+    if (includeArchived !== 'true' && includeArchived !== true) {
+      query.archived = { $ne: true };
+      // Note: status field may not exist in all reports, so we only filter if it exists
+      // The filterReports utility will handle status filtering
+    }
+    
+    // Parse filters if provided
+    let reportFilters = null;
+    if (filters) {
+      try {
+        reportFilters = typeof filters === 'string' ? JSON.parse(filters) : filters;
+        
+        // Apply type filters
+        if (reportFilters.types && Array.isArray(reportFilters.types) && reportFilters.types.length > 0) {
+          query.reportType = { $in: reportFilters.types };
+        }
+        
+        // Apply status filters
+        if (reportFilters.status && Array.isArray(reportFilters.status) && reportFilters.status.length > 0) {
+          query.status = { $in: reportFilters.status };
+        }
+      } catch (e) {
+        console.warn('Invalid filters format:', e);
+      }
+    }
+    
+    // Parse viewport if provided
+    if (viewport) {
+      try {
+        const viewportBounds = typeof viewport === 'string' ? JSON.parse(viewport) : viewport;
+        query['location.latitude'] = {
+          $gte: viewportBounds.south,
+          $lte: viewportBounds.north
+        };
+        query['location.longitude'] = {
+          $gte: viewportBounds.west,
+          $lte: viewportBounds.east
+        };
+      } catch (e) {
+        console.warn('Invalid viewport format:', e);
+      }
+    }
+    
+    // Fetch reports
+    const rawReports = await Report.find(query).sort({ timestamp: -1 }).lean();
+    
+    // Filter invalid reports unless explicitly included
+    let reports = rawReports;
+    if (includeInvalid !== 'true' && includeInvalid !== true) {
+      reports = filterReports(rawReports);
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: reports,
+      statistics: {
+        total: rawReports.length,
+        filtered: reports.length,
+        removed: rawReports.length - reports.length
+      }
+    });
+  } catch (error) {
+    console.error('Get all reports error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: "Server error", 
+      error: error.message 
+    });
   }
 };
 

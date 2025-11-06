@@ -1,4 +1,21 @@
 const mongoose = require('mongoose');
+const Report = require('../models/Reports');
+const GasStation = require('../models/GasStation');
+const UserMotor = require('../models/userMotorModel');
+const {
+  validateCoordinates,
+  filterReports,
+  filterGasStations,
+  generateReportMarkers,
+  generateGasStationMarkers,
+  generateCurrentLocationMarker,
+  generateDestinationMarker,
+  generatePolylines,
+  compareReports,
+  applyMapFilters,
+  clusterMarkers: clusterMarkersUtil,
+  calculateDistance: calculateDistanceUtil
+} = require('../utils/mapProcessingUtils');
 
 /**
  * Cluster markers for better performance
@@ -278,18 +295,7 @@ const snapToRoads = async (req, res) => {
 };
 
 // Helper functions
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Earth's radius in meters
-  const φ1 = lat1 * Math.PI / 180;
-  const φ2 = lat2 * Math.PI / 180;
-  const Δφ = (lat2 - lat1) * Math.PI / 180;
-  const Δλ = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-      Math.cos(φ1) * Math.cos(φ2) *
-    Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-};
+const calculateDistance = calculateDistanceUtil;
 
 const generateClusterIcon = (count) => {
   if (count <= 10) return 'small';
@@ -298,9 +304,280 @@ const generateClusterIcon = (count) => {
   return 'xlarge';
 };
 
+/**
+ * Get processed map data
+ * GET /api/map/processed-data
+ */
+const getProcessedData = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { 
+      userId, 
+      showReports = true, 
+      showGasStations = true, 
+      currentZoom,
+      viewport,
+      mapFilters
+    } = req.query;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'User ID is required' 
+      });
+    }
+    
+    // Parse query parameters
+    const showReportsFlag = showReports === 'true' || showReports === true;
+    const showGasStationsFlag = showGasStations === 'true' || showGasStations === true;
+    const zoom = currentZoom ? parseFloat(currentZoom) : 15;
+    
+    // Parse viewport if provided
+    let viewportBounds = null;
+    if (viewport) {
+      try {
+        viewportBounds = typeof viewport === 'string' ? JSON.parse(viewport) : viewport;
+      } catch (e) {
+        console.warn('Invalid viewport format:', e);
+      }
+    }
+    
+    // Parse map filters if provided
+    let filters = null;
+    if (mapFilters) {
+      try {
+        filters = typeof mapFilters === 'string' ? JSON.parse(mapFilters) : mapFilters;
+      } catch (e) {
+        console.warn('Invalid mapFilters format:', e);
+      }
+    }
+    
+    // Build query for reports
+    const reportQuery = {};
+    if (viewportBounds) {
+      reportQuery['location.latitude'] = {
+        $gte: viewportBounds.south,
+        $lte: viewportBounds.north
+      };
+      reportQuery['location.longitude'] = {
+        $gte: viewportBounds.west,
+        $lte: viewportBounds.east
+      };
+    }
+    
+    // Build query for gas stations
+    const gasStationQuery = {};
+    if (viewportBounds) {
+      gasStationQuery.location = {
+        $geoWithin: {
+          $box: [
+            [viewportBounds.west, viewportBounds.south],
+            [viewportBounds.east, viewportBounds.north]
+          ]
+        }
+      };
+    }
+    
+    // Fetch raw data
+    const [rawReports, rawGasStations, rawMotors] = await Promise.all([
+      showReportsFlag ? Report.find(reportQuery).lean() : [],
+      showGasStationsFlag ? GasStation.find(gasStationQuery).lean() : [],
+      UserMotor.find({ userId }).lean()
+    ]);
+    
+    const filteringStartTime = Date.now();
+    
+    // Filter reports
+    let filteredReports = filterReports(rawReports);
+    
+    // Apply map filters to reports
+    if (filters) {
+      filteredReports = applyMapFilters(filteredReports, filters);
+    }
+    
+    // Filter gas stations
+    const filteredGasStations = filterGasStations(rawGasStations);
+    
+    const filteringTime = Date.now() - filteringStartTime;
+    
+    // Generate markers
+    const markerGenerationStartTime = Date.now();
+    const reportMarkers = generateReportMarkers(filteredReports);
+    const gasStationMarkers = generateGasStationMarkers(filteredGasStations);
+    const allMarkers = [...reportMarkers, ...gasStationMarkers];
+    const markerGenerationTime = Date.now() - markerGenerationStartTime;
+    
+    // Cluster markers if needed
+    const clusteringStartTime = Date.now();
+    const clusters = clusterMarkersUtil(allMarkers, zoom, { radius: 100, minZoom: 15 });
+    const clusteringTime = Date.now() - clusteringStartTime;
+    
+    // Calculate statistics
+    const statistics = {
+      totalReports: rawReports.length,
+      filteredReports: filteredReports.length,
+      totalGasStations: rawGasStations.length,
+      filteredGasStations: filteredGasStations.length,
+      totalMotors: rawMotors.length,
+      markersGenerated: allMarkers.length,
+      clustersGenerated: clusters.length
+    };
+    
+    // Performance metrics
+    const performance = {
+      processingTime: Date.now() - startTime,
+      filteringTime,
+      clusteringTime,
+      markerGenerationTime
+    };
+    
+    res.json({
+      success: true,
+      data: {
+        reports: filteredReports,
+        gasStations: filteredGasStations,
+        motors: rawMotors,
+        markers: allMarkers,
+        clusters,
+        statistics,
+        performance
+      }
+    });
+  } catch (error) {
+    console.error('Get processed data error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * Prepare map markers and polylines
+ * POST /api/map/prepare-markers
+ */
+const prepareMarkers = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const {
+      currentLocation,
+      destination,
+      selectedRoute,
+      alternativeRoutes,
+      reports = [],
+      gasStations = [],
+      showReports = true,
+      showGasStations = true,
+      currentZoom = 15
+    } = req.body;
+    
+    const markers = [];
+    const polylines = [];
+    
+    // Add current location marker
+    if (currentLocation) {
+      const currentMarker = generateCurrentLocationMarker(currentLocation);
+      if (currentMarker) {
+        markers.push(currentMarker);
+      }
+    }
+    
+    // Add destination marker
+    if (destination) {
+      const destMarker = generateDestinationMarker(destination);
+      if (destMarker) {
+        markers.push(destMarker);
+      }
+    }
+    
+    // Filter and generate report markers
+    if (showReports && Array.isArray(reports) && reports.length > 0) {
+      const filteredReports = filterReports(reports);
+      const reportMarkers = generateReportMarkers(filteredReports);
+      markers.push(...reportMarkers);
+    }
+    
+    // Filter and generate gas station markers
+    if (showGasStations && Array.isArray(gasStations) && gasStations.length > 0) {
+      const filteredGasStations = filterGasStations(gasStations);
+      const gasStationMarkers = generateGasStationMarkers(filteredGasStations);
+      markers.push(...gasStationMarkers);
+    }
+    
+    // Generate polylines
+    const generatedPolylines = generatePolylines(selectedRoute, alternativeRoutes);
+    polylines.push(...generatedPolylines);
+    
+    // Cluster markers if needed
+    const clusters = clusterMarkersUtil(markers, currentZoom, { radius: 100, minZoom: 15 });
+    
+    res.json({
+      success: true,
+      data: {
+        markers,
+        polylines,
+        clusters
+      },
+      performance: {
+        processingTime: Date.now() - startTime,
+        markersGenerated: markers.length,
+        polylinesGenerated: polylines.length,
+        clustersGenerated: clusters.length
+      }
+    });
+  } catch (error) {
+    console.error('Prepare markers error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
+/**
+ * Compare reports for changes
+ * POST /api/map/compare-reports
+ */
+const compareReportsEndpoint = async (req, res) => {
+  try {
+    const startTime = Date.now();
+    const { currentReports = [], freshReports = [] } = req.body;
+    
+    if (!Array.isArray(currentReports) || !Array.isArray(freshReports)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Both currentReports and freshReports must be arrays'
+      });
+    }
+    
+    const comparisonResult = compareReports(currentReports, freshReports);
+    
+    res.json({
+      success: true,
+      data: {
+        hasChanges: comparisonResult.hasChanges,
+        changes: comparisonResult.changes,
+        statistics: comparisonResult.statistics
+      },
+      performance: {
+        processingTime: Date.now() - startTime
+      }
+    });
+  } catch (error) {
+    console.error('Compare reports error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
 module.exports = {
   clusterMarkers,
   processMarkers,
   applyMapFilters,
-  snapToRoads
+  snapToRoads,
+  getProcessedData,
+  prepareMarkers,
+  compareReportsEndpoint
 };

@@ -1,4 +1,5 @@
 const GasStation = require('../models/GasStation');
+const { filterGasStations, validateCoordinates } = require('../utils/mapProcessingUtils');
 
 class GasStationController {
   // Get all gas stations with filtering and pagination
@@ -13,7 +14,9 @@ class GasStationController {
         sortOrder = 'asc',
         lat,
         lng,
-        radius = 10
+        radius = 10,
+        includeInvalid = false,
+        viewport
       } = req.query;
 
       // Build filter object
@@ -33,26 +36,62 @@ class GasStationController {
           }
         };
       }
+      
+      // Parse viewport if provided
+      if (viewport) {
+        try {
+          const viewportBounds = typeof viewport === 'string' ? JSON.parse(viewport) : viewport;
+          filter.location = {
+            ...filter.location,
+            $geoWithin: {
+              $box: [
+                [viewportBounds.west, viewportBounds.south],
+                [viewportBounds.east, viewportBounds.north]
+              ]
+            }
+          };
+        } catch (e) {
+          console.warn('Invalid viewport format:', e);
+        }
+      }
 
       const sortOptions = {};
       sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-      const gasStations = await GasStation.find(filter)
+      // Fetch raw gas stations
+      const rawGasStations = await GasStation.find(filter)
         .sort(sortOptions)
         .limit(limit * 1)
-        .skip((page - 1) * limit);
+        .skip((page - 1) * limit)
+        .lean();
+
+      // Filter invalid gas stations unless explicitly included
+      let gasStations = rawGasStations;
+      if (includeInvalid !== 'true' && includeInvalid !== true) {
+        gasStations = filterGasStations(rawGasStations);
+      }
 
       const total = await GasStation.countDocuments(filter);
 
       res.json({
-        gasStations,
+        success: true,
+        data: gasStations,
         totalPages: Math.ceil(total / limit),
         currentPage: page,
-        total
+        total,
+        statistics: {
+          total: rawGasStations.length,
+          filtered: gasStations.length,
+          removed: rawGasStations.length - gasStations.length
+        }
       });
     } catch (error) {
       console.error('Get gas stations error:', error);
-      res.status(500).json({ message: 'Server error getting gas stations' });
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error getting gas stations',
+        error: error.message 
+      });
     }
   }
 
