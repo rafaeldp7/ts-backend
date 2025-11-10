@@ -12,7 +12,7 @@ const {
   generateDestinationMarker,
   generatePolylines,
   compareReports,
-  applyMapFilters,
+  applyMapFilters: applyMapFiltersUtil,
   clusterMarkers: clusterMarkersUtil,
   calculateDistance: calculateDistanceUtil
 } = require('../utils/mapProcessingUtils');
@@ -392,7 +392,7 @@ const getProcessedData = async (req, res) => {
     
     // Apply map filters to reports
     if (filters) {
-      filteredReports = applyMapFilters(filteredReports, filters);
+      filteredReports = applyMapFiltersUtil(filteredReports, filters);
     }
     
     // Filter gas stations
