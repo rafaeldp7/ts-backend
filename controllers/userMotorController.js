@@ -123,6 +123,69 @@ exports.getUserMotorsByUserId = async (req, res) => {
 
 
 
+// GET motor fuel level
+exports.getMotorFuelLevel = async (req, res) => {
+  try {
+    const { id } = req.params; // motorId
+
+    // Find motor and populate motorcycle info (for fuel efficiency and tank capacity)
+    const motor = await UserMotor.findById(id).populate("motorcycleId");
+    
+    if (!motor) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Motor not found" 
+      });
+    }
+
+    // Get fuel-related data
+    const currentFuelLevel = motor.currentFuelLevel || 0; // percentage (0-100%)
+    const fuelTankCapacity = motor.motorcycleId?.fuelTank || 0; // liters
+    const fuelEfficiency = motor.motorcycleId?.fuelConsumption || 0; // km/L
+    const currentFuelLiters = (currentFuelLevel / 100) * fuelTankCapacity; // calculated liters
+
+    // Calculate derived values
+    const totalDrivableDistance = fuelTankCapacity && fuelEfficiency 
+      ? fuelTankCapacity * fuelEfficiency 
+      : 0; // km
+
+    const totalDrivableDistanceWithCurrentGas = fuelEfficiency && fuelTankCapacity
+      ? fuelEfficiency * fuelTankCapacity * (currentFuelLevel / 100)
+      : 0; // km
+
+    const isLowFuel = totalDrivableDistanceWithCurrentGas < (totalDrivableDistance * 0.1);
+
+    // Build response
+    res.status(200).json({
+      success: true,
+      motorId: motor._id,
+      nickname: motor.nickname || "",
+      fuelLevel: {
+        percentage: parseFloat(currentFuelLevel.toFixed(2)), // 0-100%
+        liters: parseFloat(currentFuelLiters.toFixed(2)), // calculated liters
+        fuelTankCapacity: fuelTankCapacity, // liters
+      },
+      fuelEfficiency: fuelEfficiency, // km/L
+      drivableDistance: {
+        withFullTank: parseFloat(totalDrivableDistance.toFixed(2)), // km
+        withCurrentFuel: parseFloat(totalDrivableDistanceWithCurrentGas.toFixed(2)), // km
+      },
+      alerts: {
+        isLowFuel: isLowFuel,
+        lowFuelThreshold: parseFloat((totalDrivableDistance * 0.1).toFixed(2)), // km
+      },
+      lastUpdated: motor.updatedAt,
+    });
+  } catch (err) {
+    console.error("❌ Failed to get motor fuel level:", err);
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to retrieve motor fuel level", 
+      error: err.message 
+    });
+  }
+};
+
 // PUT update only the fuel level + derived fields
 exports.updateFuelLevel = async (req, res) => {
   try {

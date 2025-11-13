@@ -651,3 +651,120 @@ exports.manageTripCache = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+/**
+ * Update distance traveled during an active trip and update fuel level
+ * POST /api/trip/update-distance
+ */
+exports.updateDistance = async (req, res) => {
+  try {
+    const { userMotorId, totalDistanceTraveled, lastPostedDistance } = req.body;
+
+    // Validation: userMotorId must be provided
+    if (!userMotorId) {
+      return res.status(400).json({
+        success: false,
+        message: "userMotorId is required"
+      });
+    }
+
+    // Validation: totalDistanceTraveled and lastPostedDistance must be provided
+    if (totalDistanceTraveled === undefined || lastPostedDistance === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "totalDistanceTraveled and lastPostedDistance are required"
+      });
+    }
+
+    // Calculate actual distance traveled since last update
+    const actualDistanceTraveled = totalDistanceTraveled - lastPostedDistance;
+
+    // Validation: Reject if actualDistanceTraveled <= 0
+    if (actualDistanceTraveled <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "actualDistanceTraveled must be greater than 0",
+        actualDistanceTraveled
+      });
+    }
+
+    // Skip updates if actualDistanceTraveled < 0.01 km (reduces unnecessary writes)
+    if (actualDistanceTraveled < 0.01) {
+      return res.status(200).json({
+        success: true,
+        status: "skipped",
+        reason: "Distance too small to update",
+        actualDistanceTraveled: actualDistanceTraveled
+      });
+    }
+
+    // Retrieve the user's motor data with populated motorcycleId
+    const userMotor = await UserMotor.findById(userMotorId).populate("motorcycleId");
+    
+    if (!userMotor) {
+      return res.status(404).json({
+        success: false,
+        message: "UserMotor not found"
+      });
+    }
+
+    const motorcycle = userMotor.motorcycleId;
+    
+    if (!motorcycle) {
+      return res.status(404).json({
+        success: false,
+        message: "Motorcycle data not found for this UserMotor"
+      });
+    }
+
+    // Validate motorcycle has required fields
+    if (!motorcycle.fuelConsumption || !motorcycle.fuelTank) {
+      return res.status(400).json({
+        success: false,
+        message: "Motorcycle fuelConsumption and fuelTank must be set"
+      });
+    }
+
+    // Get current fuel level (treating as percentage 0-100%)
+    const currentFuelLevel = userMotor.currentFuelLevel || 0;
+
+    // Calculate total drivable distance with current gas (for reference)
+    const totalDrivableDistanceWithCurrentGas =
+      motorcycle.fuelConsumption * motorcycle.fuelTank * (currentFuelLevel / 100);
+
+    // Compute used fuel for the actual distance (in liters)
+    const fuelUsedLiters = actualDistanceTraveled / motorcycle.fuelConsumption;
+
+    // Convert used fuel to percentage of tank
+    const fuelUsedPercent = (fuelUsedLiters / motorcycle.fuelTank) * 100;
+
+    // Update fuel level safely (clamp to 0-100%)
+    const newFuelLevel = Math.max(0, Math.min(100, currentFuelLevel - fuelUsedPercent));
+
+    // Check for low fuel warning (<= 10%)
+    const lowFuelWarning = newFuelLevel <= 10;
+
+    // Update userMotor fuel level
+    userMotor.currentFuelLevel = newFuelLevel;
+    await userMotor.save();
+
+    // Return response
+    res.status(200).json({
+      success: true,
+      userMotorId: userMotorId,
+      actualDistanceTraveled: parseFloat(actualDistanceTraveled.toFixed(2)),
+      fuelUsedLiters: parseFloat(fuelUsedLiters.toFixed(4)),
+      fuelUsedPercent: parseFloat(fuelUsedPercent.toFixed(2)),
+      newFuelLevel: parseFloat(newFuelLevel.toFixed(2)),
+      lowFuelWarning: lowFuelWarning,
+      totalDrivableDistanceWithCurrentGas: parseFloat(totalDrivableDistanceWithCurrentGas.toFixed(2))
+    });
+  } catch (error) {
+    console.error("❌ Error updating distance and fuel:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update distance and fuel level",
+      error: error.message
+    });
+  }
+};

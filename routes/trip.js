@@ -26,4 +26,7 @@ router.post('/calculate-statistics', tripController.calculateTripStatistics);
 router.post('/summary-analysis', tripController.generateTripSummary);
 router.post('/cache-management', tripController.manageTripCache);
 
+// Distance and fuel tracking during active trip
+router.post('/update-distance', tripController.updateDistance);
+
 module.exports = router;

@@ -161,7 +161,7 @@ class MaintenanceController {
 
       // Update motor fuel level if it's a refuel
       if (record.type === 'refuel' && record.details.quantity) {
-        await this.updateMotorFuelAfterRefuel(record.motorId, record.details.quantity);
+        await MaintenanceController.updateMotorFuelAfterRefuel(record.motorId, record.details.quantity);
       }
 
       res.status(201).json(record);
@@ -346,8 +346,8 @@ class MaintenanceController {
     }
   }
 
-  // Helper method to update motor fuel after refuel
-  async updateMotorFuelAfterRefuel(motorId, fuelQuantity) {
+  // Helper method to update motor fuel after refuel (static method to avoid 'this' binding issues)
+  static async updateMotorFuelAfterRefuel(motorId, fuelQuantity) {
     try {
       // Try UserMotor first (as frontend uses this)
       let motor = await UserMotor.findById(motorId).populate('motorcycleId');

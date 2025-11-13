@@ -12,6 +12,7 @@ const {
   getUserOverviewAnalytics,
   getMotorOverviewAnalytics,
   recalculateAllMotorAnalytics,
+  getMotorFuelLevel,
   updateFuelLevel,
   updateEfficiency,
 } = require("../controllers/userMotorController");
@@ -27,6 +28,7 @@ router.put("/fix-motor-analytics", recalculateAllMotorAnalytics);
 router.get("/", getAllUserMotors); // GET all
 router.get("/count", getUserMotorCount); // GET total count
 router.get("/user/:id", getUserMotorsByUserId); // GET by userId
+router.get("/:id/fuel", getMotorFuelLevel); // GET motor fuel level
 router.post("/", createUserMotor); // POST new motor
 router.put("/:id", updateUserMotor); // PUT update motor
 router.delete("/:id", deleteUserMotor); // DELETE motor
