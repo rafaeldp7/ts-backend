@@ -1018,6 +1018,30 @@ GET /api/maintenance-records/analytics/summary?motorId=507f1f77bcf86cd799439013&
 }
 ```
 
+### Database Indexes
+
+The MaintenanceRecord schema includes the following indexes for optimal query performance:
+
+**Single Field Indexes:**
+- `{ userId: 1 }` - Index on userId for fast user-based queries
+- `{ motorId: 1 }` - Index on motorId for fast motor-based queries
+
+**Compound Indexes:**
+- `{ userId: 1, type: 1 }` - Optimizes queries filtering by user and maintenance type
+- `{ userId: 1, timestamp: -1 }` - Optimizes queries for user records sorted by date (descending)
+- `{ motorId: 1, type: 1 }` - Optimizes queries filtering by motor and maintenance type
+- `{ motorId: 1, timestamp: -1 }` - Optimizes queries for motor records sorted by date (descending)
+- `{ type: 1, timestamp: -1 }` - Optimizes queries filtering by type and sorting by date
+
+These indexes are automatically created when the model is initialized and are designed to match the common query patterns used in the maintenance API endpoints. They significantly improve query performance, especially for:
+- Filtering maintenance records by user
+- Filtering maintenance records by motor
+- Filtering by maintenance type
+- Sorting by timestamp (most recent first)
+- Combined filters (user + type, motor + type, etc.)
+
+**Note:** Indexes are managed automatically by Mongoose. No manual index creation is required.
+
 ---
 
 ## Error Handling
@@ -1364,6 +1388,8 @@ const getMotorMaintenance = async (motorId, options = {}) => {
 - **Use pagination**: For large datasets, implement pagination
 - **Cache results**: Cache frequently accessed records
 - **Filter on server**: Use query parameters to filter on the server side
+- **Leverage indexes**: The database indexes are optimized for common query patterns (userId, motorId, type, timestamp). Queries using these fields will be faster
+- **Use compound filters**: When filtering by multiple fields (e.g., userId + type), the compound indexes will optimize these queries automatically
 
 ### 5. Security
 

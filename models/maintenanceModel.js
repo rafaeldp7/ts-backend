@@ -2,8 +2,16 @@ const mongoose = require("mongoose");
 
 const MaintenanceRecordSchema = new mongoose.Schema(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    motorId: { type: mongoose.Schema.Types.ObjectId, ref: "UserMotor", required: true },
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "User", 
+      required: true
+    },
+    motorId: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: "UserMotor", 
+      required: true
+    },
     type: {
       type: String,
       enum: ["oil_change", "tune_up", "refuel", "repair", "other"],
@@ -40,5 +48,15 @@ const MaintenanceRecordSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Define compound indexes explicitly to prevent duplicates
+// These match the common query patterns used in the controller
+MaintenanceRecordSchema.index({ userId: 1 });
+MaintenanceRecordSchema.index({ userId: 1, type: 1 });
+MaintenanceRecordSchema.index({ userId: 1, timestamp: -1 });
+MaintenanceRecordSchema.index({ motorId: 1 });
+MaintenanceRecordSchema.index({ motorId: 1, type: 1 });
+MaintenanceRecordSchema.index({ motorId: 1, timestamp: -1 });
+MaintenanceRecordSchema.index({ type: 1, timestamp: -1 });
 
 module.exports = mongoose.model("MaintenanceRecord", MaintenanceRecordSchema);
