@@ -10,14 +10,23 @@ const { protect } = require("../middlewares/authMiddleware");
 // Create
 router.post("/", maintenanceController.createMaintenanceRecord);
 
+// Refuel endpoint (specific refuel logic)
+router.post("/refuel", maintenanceController.refuel);
+
 // Get all maintenance records
 router.get("/", maintenanceController.getMaintenanceRecords);
 
 // Get maintenance records for a specific user (frontend expects this route)
 router.get("/user/:userId", maintenanceController.getUserMaintenanceRecords);
 
+// Get last maintenance records (refuel, oil change, tune-up)
+router.get("/last/:userId", maintenanceController.getLastMaintenanceRecords);
+
 // Get maintenance records for a specific motor
 router.get("/motor/:motorId", maintenanceController.getMotorMaintenance);
+
+// Get oil change countdown
+router.get("/oil-change/countdown/:motorId", maintenanceController.getOilChangeCountdown);
 
 // Analytics
 router.get("/analytics/summary", maintenanceController.getMaintenanceAnalytics);

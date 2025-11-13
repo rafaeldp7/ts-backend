@@ -124,20 +124,31 @@ class MaintenanceController {
       
       // Normalize location format (support both latitude/longitude and lat/lng)
       let location = req.body.location || {};
-      if (location.latitude !== undefined || location.longitude !== undefined) {
+      if (location.latitude !== undefined || location.longitude !== undefined || location.lat || location.lng) {
         location = {
           lat: location.latitude || location.lat,
           lng: location.longitude || location.lng,
-          latitude: location.latitude,
-          longitude: location.longitude
+          latitude: location.latitude || location.lat,
+          longitude: location.longitude || location.lng,
+          address: location.address || req.body.address
         };
+      }
+      
+      // Get odometer from UserMotor if not provided
+      let odometer = req.body.odometer;
+      if (!odometer) {
+        const userMotor = await UserMotor.findById(req.body.motorId);
+        if (userMotor) {
+          odometer = userMotor.currentOdometer || 0;
+        }
       }
       
       const recordData = {
         ...req.body,
         userId,
         timestamp,
-        location,
+        odometer: odometer,
+        location: location,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -384,6 +395,257 @@ class MaintenanceController {
       await motor.save();
     } catch (error) {
       console.error('Update motor fuel after refuel error:', error);
+    }
+  }
+
+  // Get last maintenance records (refuel, oil change, tune-up) for a user
+  async getLastMaintenanceRecords(req, res) {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        return res.status(400).json({ message: 'User ID is required' });
+      }
+
+      // Get last refuel record
+      const lastRefuel = await MaintenanceRecord.findOne({ 
+        userId, 
+        type: 'refuel' 
+      })
+        .sort({ timestamp: -1 });
+
+      // Get last oil change record
+      const lastOilChange = await MaintenanceRecord.findOne({ 
+        userId, 
+        type: 'oil_change' 
+      })
+        .sort({ timestamp: -1 });
+
+      // Get last tune-up record
+      const lastTuneUp = await MaintenanceRecord.findOne({ 
+        userId, 
+        type: 'tune_up' 
+      })
+        .sort({ timestamp: -1 });
+
+      // Build response
+      // Odometer values are now stored directly in maintenance records for accurate historical tracking
+      const response = {
+        lastRefuel: lastRefuel ? {
+          date: lastRefuel.timestamp,
+          odometer: lastRefuel.odometer || 0
+        } : null,
+        lastOilChange: lastOilChange ? {
+          date: lastOilChange.timestamp,
+          odometer: lastOilChange.odometer || 0
+        } : null,
+        lastTuneUp: lastTuneUp ? {
+          date: lastTuneUp.timestamp,
+          odometer: lastTuneUp.odometer || 0
+        } : null
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error('Get last maintenance records error:', error);
+      res.status(500).json({ message: 'Server error getting last maintenance records' });
+    }
+  }
+
+  // Get oil change countdown for a motor
+  async getOilChangeCountdown(req, res) {
+    try {
+      const { motorId } = req.params;
+
+      if (!motorId) {
+        return res.status(400).json({ message: 'Motor ID is required' });
+      }
+
+      // Get the motor to access current odometer
+      const motor = await UserMotor.findById(motorId);
+      if (!motor) {
+        return res.status(404).json({ message: 'Motor not found' });
+      }
+
+      // Get last oil change record
+      const lastOilChange = await MaintenanceRecord.findOne({ 
+        motorId, 
+        type: 'oil_change' 
+      })
+        .sort({ timestamp: -1 });
+
+      if (!lastOilChange) {
+        // No oil change record found
+        return res.json({
+          motorId,
+          kmSinceLastOilChange: null,
+          daysSinceLastOilChange: null,
+          needsOilChange: true,
+          remainingKm: 3000,
+          remainingDays: 90,
+          message: 'No previous oil change record found'
+        });
+      }
+
+      // Calculate days since last oil change
+      const now = new Date();
+      const lastOilChangeDate = new Date(lastOilChange.timestamp);
+      const daysSinceLastOilChange = Math.floor((now - lastOilChangeDate) / (1000 * 60 * 60 * 24));
+
+      // Calculate km since last oil change by summing trip distances
+      // Import Trip model
+      const TripModel = require('../models/TripModel');
+      
+      // Get all trips for this motor since last oil change
+      const tripsSinceLastOilChange = await TripModel.find({
+        motorId,
+        tripStartTime: { $gte: lastOilChangeDate },
+        status: 'completed'
+      }).select('actualDistance distance');
+
+      // Sum up distances from trips
+      const kmSinceLastOilChange = tripsSinceLastOilChange.reduce((total, trip) => {
+        const distance = trip.actualDistance || trip.distance || 0;
+        return total + distance;
+      }, 0);
+
+      // Check if oil change is needed (3000 km or 90 days)
+      const needsOilChange = kmSinceLastOilChange >= 3000 || daysSinceLastOilChange >= 90;
+
+      // Calculate remaining values
+      const remainingKm = Math.max(0, 3000 - kmSinceLastOilChange);
+      const remainingDays = Math.max(0, 90 - daysSinceLastOilChange);
+
+      res.json({
+        motorId,
+        kmSinceLastOilChange,
+        daysSinceLastOilChange,
+        needsOilChange,
+        remainingKm,
+        remainingDays,
+        lastOilChangeDate: lastOilChange.timestamp
+      });
+    } catch (error) {
+      console.error('Get oil change countdown error:', error);
+      res.status(500).json({ message: 'Server error getting oil change countdown' });
+    }
+  }
+
+  // Refuel endpoint with automatic quantity calculation
+  async refuel(req, res) {
+    try {
+      const { userMotorId, price, costPerLiter } = req.body;
+
+      // Validation
+      if (!userMotorId) {
+        return res.status(400).json({ message: 'userMotorId is required' });
+      }
+
+      if (!price || price <= 0) {
+        return res.status(400).json({ message: 'price must be a positive number' });
+      }
+
+      if (!costPerLiter || costPerLiter <= 0) {
+        return res.status(400).json({ message: 'costPerLiter must be a positive number' });
+      }
+
+      // Calculate quantity
+      const quantity = price / costPerLiter;
+
+      // Get UserMotor and populate motorcycleId to access fuelTank
+      const userMotor = await UserMotor.findById(userMotorId).populate('motorcycleId');
+      
+      if (!userMotor) {
+        return res.status(404).json({ message: 'UserMotor not found' });
+      }
+
+      if (!userMotor.motorcycleId) {
+        return res.status(400).json({ message: 'Motorcycle information not found for this motor' });
+      }
+
+      // Get fuel tank capacity
+      const fuelTank = userMotor.motorcycleId.fuelTank;
+      
+      if (!fuelTank || fuelTank <= 0) {
+        return res.status(400).json({ message: 'Fuel tank capacity is missing or invalid' });
+      }
+
+      // Calculate refueled percentage
+      const refueledPercent = (quantity / fuelTank) * 100;
+
+      // Get current fuel level (percentage)
+      const currentFuelLevel = userMotor.currentFuelLevel || 0;
+
+      // Calculate new fuel level (capped at 100%)
+      const newFuelLevel = Math.min(currentFuelLevel + refueledPercent, 100);
+
+      // Update the currentFuelLevel in UserMotor
+      userMotor.currentFuelLevel = newFuelLevel;
+      
+      if (userMotor.analytics) {
+        userMotor.analytics.lastUpdated = new Date();
+      }
+      
+      await userMotor.save();
+
+      // Create maintenance record for the refuel
+      const userId = userMotor.userId;
+      
+      // Get odometer reading from UserMotor
+      const odometer = userMotor.currentOdometer || 0;
+      
+      // Get location from request body if provided
+      const location = req.body.location || {};
+      
+      const recordData = {
+        userId,
+        motorId: userMotorId,
+        type: 'refuel',
+        timestamp: new Date(),
+        odometer: odometer,
+        location: {
+          lat: location.lat || location.latitude,
+          lng: location.lng || location.longitude,
+          latitude: location.latitude || location.lat,
+          longitude: location.longitude || location.lng,
+          address: location.address || req.body.address
+        },
+        details: {
+          cost: price,
+          quantity: parseFloat(quantity.toFixed(2)),
+          costPerLiter: costPerLiter,
+          fuelTank: fuelTank,
+          refueledPercent: parseFloat(refueledPercent.toFixed(2)),
+          fuelLevelBefore: parseFloat(currentFuelLevel.toFixed(2)),
+          fuelLevelAfter: parseFloat(newFuelLevel.toFixed(2)),
+          notes: req.body.notes || req.body.details?.notes,
+          serviceProvider: req.body.serviceProvider || req.body.details?.serviceProvider
+        }
+      };
+
+      const record = new MaintenanceRecord(recordData);
+      await record.save();
+
+      // Return response with computed data
+      res.status(201).json({
+        userMotorId,
+        quantity: parseFloat(quantity.toFixed(2)),
+        fuelTank,
+        refueledPercent: parseFloat(refueledPercent.toFixed(2)),
+        newFuelLevel: parseFloat(newFuelLevel.toFixed(2)),
+        maintenanceRecord: record
+      });
+    } catch (error) {
+      console.error('Refuel error:', error);
+      
+      if (error.name === 'ValidationError') {
+        return res.status(400).json({ 
+          message: 'Validation error', 
+          errors: Object.values(error.errors).map(e => e.message) 
+        });
+      }
+      
+      res.status(500).json({ message: 'Server error processing refuel' });
     }
   }
 }
