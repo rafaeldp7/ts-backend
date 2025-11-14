@@ -622,16 +622,40 @@ exports.getMotorOverviewAnalytics = async (req, res) => {
     const analytics = motor.analytics || {};
     const fuelStats = motor.fuelConsumptionStats || {};
 
+    // Calculate fuel efficiency (km/L) - distance divided by fuel
+    const fuelEfficiency = analytics.totalDistance > 0 && analytics.totalFuelUsed > 0
+      ? parseFloat((analytics.totalDistance / analytics.totalFuelUsed).toFixed(2))
+      : null;
+
+    // Get counts for maintenance records and fuel logs
+    const MaintenanceRecord = require('../models/maintenanceModel');
+    const FuelLog = require('../models/FuelLogModel');
+    
+    const maintenanceRecordsCount = await MaintenanceRecord.countDocuments({ motorId: motor._id });
+    const fuelLogsCount = await FuelLog.countDocuments({ motorId: motor._id });
+
+    // Get total motors for this user (if needed)
+    const totalMotors = await UserMotor.countDocuments({ userId: motor.userId });
+
     res.status(200).json({
       motorId: motor._id,
       nickname: motor.nickname,
-
-      totalTrips: analytics.tripsCompleted || 0,
+      
+      // Core analytics
+      trips: analytics.tripsCompleted || 0,  // Frontend expects 'trips'
+      totalTrips: analytics.tripsCompleted || 0,  // Keep for backward compatibility
       totalDistance: analytics.totalDistance || 0,
       totalFuelUsed: analytics.totalFuelUsed || 0,
-      fuelEfficiency: analytics.totalDistance > 0
-        ? (analytics.totalFuelUsed / analytics.totalDistance).toFixed(2)
-        : null,
+      
+      // Fuel efficiency - provide both field names for compatibility
+      averageEfficiency: fuelEfficiency,  // Frontend expects this
+      fuelEfficiency: fuelEfficiency,  // Keep for backward compatibility
+      
+      // Additional counts
+      maintenanceRecords: maintenanceRecordsCount,
+      fuelLogs: fuelLogsCount,
+      totalMotors: totalMotors,
+      
       alerts: analytics.maintenanceAlerts || [],
       fuelStats: {
         average: fuelStats.average || 0,

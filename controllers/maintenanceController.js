@@ -285,8 +285,9 @@ class MaintenanceController {
   // Get maintenance analytics for motor
   async getMaintenanceAnalytics(req, res) {
     try {
-      const { motorId } = req.params;
-      const userId = req.user?.userId;
+      // Support both query params (frontend) and params (backward compatibility)
+      const motorId = req.query.motorId || req.params.motorId;
+      const userId = req.query.userId || req.user?.userId;
       const { period = '30d' } = req.query;
 
       // Calculate date range
@@ -306,12 +307,13 @@ class MaintenanceController {
           startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       }
 
+      // Build filter - motorId and userId are optional
+      const filter = { timestamp: { $gte: startDate } };
+      if (motorId) filter.motorId = motorId;
+      if (userId) filter.userId = userId;
+
       // Get maintenance records for the period
-      const records = await MaintenanceRecord.find({
-        motorId,
-        userId,
-        timestamp: { $gte: startDate }
-      });
+      const records = await MaintenanceRecord.find(filter);
 
       // Calculate analytics
       const totalRecords = records.length;
@@ -325,6 +327,23 @@ class MaintenanceController {
         ? refuelRecords.reduce((sum, record) => sum + (record.details.cost || 0), 0) / refuelRecords.length 
         : 0;
 
+      // Calculate counts for all maintenance types
+      const allTypes = ['refuel', 'oil_change', 'tune_up', 'tire_rotation', 'brake_service', 'repair', 'other'];
+      const recordsByType = {};
+      allTypes.forEach(type => {
+        recordsByType[type] = records.filter(r => r.type === type).length;
+      });
+
+      // Get upcoming services from records with nextServiceDate
+      const upcomingServices = records
+        .filter(r => r.details?.nextServiceDate)
+        .map(r => ({
+          motorId: r.motorId,
+          nextServiceDate: r.details.nextServiceDate,
+          type: r.type
+        }))
+        .sort((a, b) => new Date(a.nextServiceDate) - new Date(b.nextServiceDate));
+
       const analytics = {
         period,
         totalRecords,
@@ -334,11 +353,9 @@ class MaintenanceController {
         refuelCount: refuelRecords.length,
         oilChangeCount: oilChangeRecords.length,
         tuneUpCount: tuneUpRecords.length,
-        recordsByType: {
-          refuel: refuelRecords.length,
-          oil_change: oilChangeRecords.length,
-          tune_up: tuneUpRecords.length
-        },
+        byType: recordsByType, // Frontend expects 'byType' not 'recordsByType'
+        recordsByType: recordsByType, // Keep for backward compatibility
+        upcomingServices,
         recentRecords: records.slice(0, 5) // Last 5 records
       };
 

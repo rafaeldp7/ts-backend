@@ -77,10 +77,16 @@ exports.updateTrip = async (req, res) => {
  * ================= ADMIN SIDE =================
  */
 
-// ✅ Get all trips from all users
+// ✅ Get all trips from all users (admin) or filter by motorId (frontend)
 exports.getAllTrips = async (req, res) => {
   try {
-    const trips = await Trip.find()
+    const { motorId } = req.query;
+    
+    // Build query - if motorId is provided, filter by it (frontend use case)
+    // Otherwise, return all trips (admin use case)
+    const query = motorId ? { motorId } : {};
+    
+    const trips = await Trip.find(query)
       .populate("userId", "name email")
       .populate({
         path: "motorId",
@@ -95,7 +101,7 @@ exports.getAllTrips = async (req, res) => {
 
     res.status(200).json(trips);
   } catch (err) {
-    res.status(500).json({ msg: "Failed to fetch all trips", error: err.message });
+    res.status(500).json({ msg: "Failed to fetch trips", error: err.message });
   }
 };
 
