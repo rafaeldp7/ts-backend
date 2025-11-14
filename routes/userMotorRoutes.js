@@ -14,6 +14,7 @@ const {
   recalculateAllMotorAnalytics,
   getMotorFuelLevel,
   updateFuelLevel,
+  updateFuelLevelByLiters,
   updateEfficiency,
 } = require("../controllers/userMotorController");
 
@@ -32,8 +33,9 @@ router.get("/:id/fuel", getMotorFuelLevel); // GET motor fuel level
 router.post("/", createUserMotor); // POST new motor
 router.put("/:id", updateUserMotor); // PUT update motor
 router.delete("/:id", deleteUserMotor); // DELETE motor
-router.put("/:id/fuel", updateFuelLevel); // Update fuel level
-router.put("/:id/updateEfficiency", updateEfficiency); // Update fuel level
+router.put("/:id/fuel", updateFuelLevel); // Update fuel level (by percentage)
+router.put("/:id/fuel/liters", updateFuelLevelByLiters); // Update fuel level (by liters - converts to percentage)
+router.put("/:id/updateEfficiency", updateEfficiency); // Update fuel efficiency
 
 
 router.get("/user-overview/:userId", getUserOverviewAnalytics);

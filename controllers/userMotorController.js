@@ -186,7 +186,7 @@ exports.getMotorFuelLevel = async (req, res) => {
   }
 };
 
-// PUT update only the fuel level + derived fields
+// PUT update only the fuel level + derived fields (by percentage)
 exports.updateFuelLevel = async (req, res) => {
   try {
     const { id } = req.params; // motorId
@@ -201,18 +201,18 @@ exports.updateFuelLevel = async (req, res) => {
     if (!motor) return res.status(404).json({ msg: "Motor not found" });
 
     const fuelEfficiency = motor.motorcycleId?.fuelConsumption || 0; // km/L
-    const tankCapacity = motor.motorcycleId?.fuelTankCapacity || 0;  // optional, if you store it
+    const tankCapacity = motor.motorcycleId?.fuelTank || 0;  // liters
 
     // Calculate derived values
     const totalDrivableDistance = tankCapacity && fuelEfficiency 
       ? tankCapacity * fuelEfficiency 
       : 0;
 
-    const totalDrivableDistanceWithCurrentGas = fuelEfficiency
-      ? currentFuelLevel * fuelEfficiency
+    const totalDrivableDistanceWithCurrentGas = fuelEfficiency && tankCapacity
+      ? fuelEfficiency * tankCapacity * (currentFuelLevel / 100)
       : 0;
 
-    const isLowFuel = totalDrivableDistanceWithCurrentGas < 50; // 🚨 you can change threshold
+    const isLowFuel = totalDrivableDistanceWithCurrentGas < (totalDrivableDistance * 0.1);
 
     // Update motor
     motor.currentFuelLevel = currentFuelLevel;
@@ -236,6 +236,108 @@ exports.updateFuelLevel = async (req, res) => {
   } catch (err) {
     console.error("❌ Failed to update fuel level:", err);
     res.status(500).json({ msg: "Failed to update fuel level in backend", error: err.message });
+  }
+};
+
+// PUT update fuel level by liters (converts to percentage)
+exports.updateFuelLevelByLiters = async (req, res) => {
+  try {
+    const { id } = req.params; // motorId
+    const { liters } = req.body;
+
+    // Validate input
+    if (typeof liters !== "number") {
+      return res.status(400).json({ 
+        success: false,
+        msg: "liters must be a number" 
+      });
+    }
+
+    if (liters < 0) {
+      return res.status(400).json({ 
+        success: false,
+        msg: "liters cannot be negative" 
+      });
+    }
+
+    // Find motor and its motorcycle info (for fuel tank capacity and efficiency)
+    const motor = await UserMotor.findById(id).populate("motorcycleId");
+    if (!motor) {
+      return res.status(404).json({ 
+        success: false,
+        msg: "Motor not found" 
+      });
+    }
+
+    const fuelTankCapacity = motor.motorcycleId?.fuelTank || 0; // liters
+    const fuelEfficiency = motor.motorcycleId?.fuelConsumption || 0; // km/L
+
+    // Check if fuel tank capacity is set
+    if (!fuelTankCapacity || fuelTankCapacity <= 0) {
+      return res.status(400).json({ 
+        success: false,
+        msg: "Fuel tank capacity is not set for this motorcycle. Please set the fuel tank capacity first." 
+      });
+    }
+
+    // Convert liters to percentage
+    // Clamp to 0-100% range (handle overflow if liters > capacity)
+    const percentage = Math.min(100, Math.max(0, (liters / fuelTankCapacity) * 100));
+
+    // Calculate derived values
+    const totalDrivableDistance = fuelTankCapacity && fuelEfficiency 
+      ? fuelTankCapacity * fuelEfficiency 
+      : 0;
+
+    const totalDrivableDistanceWithCurrentGas = fuelEfficiency && fuelTankCapacity
+      ? fuelEfficiency * fuelTankCapacity * (percentage / 100)
+      : 0;
+
+    const isLowFuel = totalDrivableDistanceWithCurrentGas < (totalDrivableDistance * 0.1);
+
+    // Update motor
+    motor.currentFuelLevel = parseFloat(percentage.toFixed(2));
+    motor.totalDrivableDistance = totalDrivableDistance;
+    motor.totalDrivableDistanceWithCurrentGas = totalDrivableDistanceWithCurrentGas;
+    motor.isLowFuel = isLowFuel;
+
+    const updatedMotor = await motor.save();
+
+    // Calculate actual liters (may be clamped if input exceeded capacity)
+    const actualLiters = Math.min(liters, fuelTankCapacity);
+
+    res.status(200).json({
+      success: true,
+      msg: "Fuel level updated successfully from liters",
+      motor: {
+        _id: updatedMotor._id,
+        nickname: updatedMotor.nickname,
+        fuelLevel: {
+          liters: parseFloat(actualLiters.toFixed(2)),
+          percentage: parseFloat(percentage.toFixed(2)),
+          fuelTankCapacity: fuelTankCapacity,
+        },
+        drivableDistance: {
+          withFullTank: parseFloat(totalDrivableDistance.toFixed(2)),
+          withCurrentFuel: parseFloat(totalDrivableDistanceWithCurrentGas.toFixed(2)),
+        },
+        isLowFuel: updatedMotor.isLowFuel,
+      },
+      conversion: {
+        inputLiters: liters,
+        actualLiters: parseFloat(actualLiters.toFixed(2)),
+        percentage: parseFloat(percentage.toFixed(2)),
+        fuelTankCapacity: fuelTankCapacity,
+        overflow: liters > fuelTankCapacity ? parseFloat((liters - fuelTankCapacity).toFixed(2)) : 0,
+      }
+    });
+  } catch (err) {
+    console.error("❌ Failed to update fuel level by liters:", err);
+    res.status(500).json({ 
+      success: false,
+      msg: "Failed to update fuel level in backend", 
+      error: err.message 
+    });
   }
 };
 
