@@ -1,4 +1,4 @@
-const Report = require('../../../models/Reports');
+const Report = require('../models/Report');
 const User = require('../../../models/User');
 const Notification = require('../../../models/Notification');
 const { logAdminAction } = require('./adminLogsController');
@@ -20,32 +20,67 @@ const getReports = async (req, res) => {
       search
     } = req.query;
 
-    // Build filter object
-    const filter = { isArchived: false };
+    // Build filter object - exclude archived reports
+    const filter = {
+      $and: [
+        {
+          $or: [
+            { isArchived: { $ne: true } },
+            { archived: { $ne: true } },
+            { isArchived: { $exists: false } },
+            { archived: { $exists: false } }
+          ]
+        }
+      ]
+    };
 
     if (status) filter.status = status;
     if (type) filter.reportType = type;
     if (priority) filter.priority = priority;
     if (city) filter['location.city'] = new RegExp(city, 'i');
     if (barangay) filter['location.barangay'] = new RegExp(barangay, 'i');
+    
     if (dateFrom || dateTo) {
-      filter.reportedAt = {};
-      if (dateFrom) filter.reportedAt.$gte = new Date(dateFrom);
-      if (dateTo) filter.reportedAt.$lte = new Date(dateTo);
+      const dateFilter = {
+        $or: []
+      };
+      if (dateFrom && dateTo) {
+        dateFilter.$or.push(
+          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
+          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
+        );
+      } else if (dateFrom) {
+        dateFilter.$or.push(
+          { reportedAt: { $gte: new Date(dateFrom) } },
+          { timestamp: { $gte: new Date(dateFrom) } }
+        );
+      } else if (dateTo) {
+        dateFilter.$or.push(
+          { reportedAt: { $lte: new Date(dateTo) } },
+          { timestamp: { $lte: new Date(dateTo) } }
+        );
+      }
+      filter.$and.push(dateFilter);
     }
+    
     if (search) {
-      filter.$or = [
-        { title: new RegExp(search, 'i') },
-        { description: new RegExp(search, 'i') },
-        { 'location.address': new RegExp(search, 'i') }
-      ];
+      const searchFilter = {
+        $or: [
+          { title: new RegExp(search, 'i') },
+          { description: new RegExp(search, 'i') },
+          { 'location.address': new RegExp(search, 'i') },
+          { address: new RegExp(search, 'i') }
+        ]
+      };
+      filter.$and.push(searchFilter);
     }
 
     const reports = await Report.find(filter)
       .populate('reporter', 'firstName lastName email')
+      .populate('userId', 'firstName lastName email')
       .populate('verifiedBy', 'firstName lastName')
       .populate('resolvedBy', 'firstName lastName')
-      .sort({ reportedAt: -1 })
+      .sort({ reportedAt: -1, timestamp: -1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
@@ -70,6 +105,7 @@ const getReport = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id)
       .populate('reporter', 'firstName lastName email phone')
+      .populate('userId', 'firstName lastName email phone')
       .populate('verifiedBy', 'firstName lastName')
       .populate('resolvedBy', 'firstName lastName')
       .populate('comments.author', 'firstName lastName');
@@ -134,12 +170,8 @@ const updateReport = async (req, res) => {
 
     // Check if user can update (only reporter or admin)
     // Since this route uses authenticateAdmin, user is always admin
-    if (report.reporter.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this report'
-      });
-    }
+    // Allow admin to update any report (remove restriction for admin)
+    // The check below was too restrictive - admins should be able to update all reports
 
     // Store original report data for logging
     const originalReport = {
@@ -207,12 +239,8 @@ const deleteReport = async (req, res) => {
 
     // Check if user can delete (only reporter or admin)
     // Since this route uses authenticateAdmin, user is always admin
-    if (report.reporter.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this report'
-      });
-    }
+    // Allow admin to delete any report (remove restriction for admin)
+    // The check below was too restrictive - admins should be able to delete all reports
 
     // Store report data for logging before deletion
     const reportData = {
@@ -552,7 +580,11 @@ const reverseGeocodeReport = async (req, res) => {
     const tempReport = new Report({
       location: {
         latitude: parseFloat(lat),
-        longitude: parseFloat(lng)
+        longitude: parseFloat(lng),
+        coordinates: {
+          lat: parseFloat(lat),
+          lng: parseFloat(lng)
+        }
       }
     });
     
@@ -604,7 +636,10 @@ const autoReverseGeocodeReport = async (req, res) => {
       return sendErrorResponse(res, 404, 'Report not found');
     }
     
-    if (!report.location.latitude || !report.location.longitude) {
+    const lat = report.location?.coordinates?.lat || report.location?.latitude;
+    const lng = report.location?.coordinates?.lng || report.location?.longitude;
+    
+    if (!lat || !lng) {
       return sendErrorResponse(res, 400, 'Report does not have valid coordinates');
     }
     
@@ -623,8 +658,8 @@ const autoReverseGeocodeReport = async (req, res) => {
           reportDescription: report.description,
           geocodedAddress: address,
           coordinates: {
-            latitude: report.location.latitude,
-            longitude: report.location.longitude
+            latitude: report.location?.latitude || report.location?.coordinates?.lat,
+            longitude: report.location?.longitude || report.location?.coordinates?.lng
           }
         },
         req
