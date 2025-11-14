@@ -243,7 +243,8 @@ class MaintenanceController {
   async getMotorMaintenance(req, res) {
     try {
       const { motorId } = req.params;
-      const userId = req.user?.userId;
+      // Get userId from authenticated user, query params, or request body (for flexibility)
+      const userId = req.user?.userId || req.query.userId || req.body.userId;
       const { 
         page = 1, 
         limit = 10, 
@@ -252,8 +253,9 @@ class MaintenanceController {
         sortOrder = 'desc'
       } = req.query;
 
-      // Build filter object
-      const filter = { motorId, userId };
+      // Build filter object - motorId is required, userId is optional
+      const filter = { motorId };
+      if (userId) filter.userId = userId;
       if (type) filter.type = type;
 
       const sortOptions = {};
@@ -263,14 +265,15 @@ class MaintenanceController {
         .sort(sortOptions)
         .limit(limit * 1)
         .skip((page - 1) * limit)
-        .populate('motorId', 'nickname brand model');
+        .populate('motorId', 'nickname plateNumber')
+        .lean(); // Use lean() for better performance and to ensure all fields are returned
 
       const total = await MaintenanceRecord.countDocuments(filter);
 
       res.json({
         records,
         totalPages: Math.ceil(total / limit),
-        currentPage: page,
+        currentPage: parseInt(page),
         total
       });
     } catch (error) {
@@ -399,49 +402,82 @@ class MaintenanceController {
   }
 
   // Get last maintenance records (refuel, oil change, tune-up) for a user
+  // Optionally filter by motorId via query parameter
   async getLastMaintenanceRecords(req, res) {
     try {
       const { userId } = req.params;
+      // Optional motorId filter from query params
+      const { motorId } = req.query;
 
       if (!userId) {
         return res.status(400).json({ message: 'User ID is required' });
       }
 
+      // Build base filter
+      const baseFilter = { userId };
+      if (motorId) baseFilter.motorId = motorId;
+
       // Get last refuel record
       const lastRefuel = await MaintenanceRecord.findOne({ 
-        userId, 
+        ...baseFilter,
         type: 'refuel' 
       })
-        .sort({ timestamp: -1 });
+        .sort({ timestamp: -1 })
+        .lean();
 
       // Get last oil change record
       const lastOilChange = await MaintenanceRecord.findOne({ 
-        userId, 
+        ...baseFilter,
         type: 'oil_change' 
       })
-        .sort({ timestamp: -1 });
+        .sort({ timestamp: -1 })
+        .lean();
 
       // Get last tune-up record
       const lastTuneUp = await MaintenanceRecord.findOne({ 
-        userId, 
+        ...baseFilter,
         type: 'tune_up' 
       })
-        .sort({ timestamp: -1 });
+        .sort({ timestamp: -1 })
+        .lean();
 
-      // Build response
-      // Odometer values are now stored directly in maintenance records for accurate historical tracking
+      // Build response with full record data
       const response = {
         lastRefuel: lastRefuel ? {
-          date: lastRefuel.timestamp,
-          odometer: lastRefuel.odometer || 0
+          _id: lastRefuel._id,
+          userId: lastRefuel.userId,
+          motorId: lastRefuel.motorId,
+          type: lastRefuel.type,
+          timestamp: lastRefuel.timestamp,
+          odometer: lastRefuel.odometer || 0,
+          location: lastRefuel.location || {},
+          details: lastRefuel.details || {},
+          createdAt: lastRefuel.createdAt,
+          updatedAt: lastRefuel.updatedAt
         } : null,
         lastOilChange: lastOilChange ? {
-          date: lastOilChange.timestamp,
-          odometer: lastOilChange.odometer || 0
+          _id: lastOilChange._id,
+          userId: lastOilChange.userId,
+          motorId: lastOilChange.motorId,
+          type: lastOilChange.type,
+          timestamp: lastOilChange.timestamp,
+          odometer: lastOilChange.odometer || 0,
+          location: lastOilChange.location || {},
+          details: lastOilChange.details || {},
+          createdAt: lastOilChange.createdAt,
+          updatedAt: lastOilChange.updatedAt
         } : null,
         lastTuneUp: lastTuneUp ? {
-          date: lastTuneUp.timestamp,
-          odometer: lastTuneUp.odometer || 0
+          _id: lastTuneUp._id,
+          userId: lastTuneUp.userId,
+          motorId: lastTuneUp.motorId,
+          type: lastTuneUp.type,
+          timestamp: lastTuneUp.timestamp,
+          odometer: lastTuneUp.odometer || 0,
+          location: lastTuneUp.location || {},
+          details: lastTuneUp.details || {},
+          createdAt: lastTuneUp.createdAt,
+          updatedAt: lastTuneUp.updatedAt
         } : null
       };
 
@@ -449,6 +485,43 @@ class MaintenanceController {
     } catch (error) {
       console.error('Get last maintenance records error:', error);
       res.status(500).json({ message: 'Server error getting last maintenance records' });
+    }
+  }
+
+  // Get last maintenance record for a specific motor (by motorId)
+  // Returns the most recent maintenance record of any type for the motor
+  async getLastMotorMaintenanceRecord(req, res) {
+    try {
+      const { motorId } = req.params;
+      // Optional userId filter from query params
+      const { userId, type } = req.query;
+
+      if (!motorId) {
+        return res.status(400).json({ message: 'Motor ID is required' });
+      }
+
+      // Build filter
+      const filter = { motorId };
+      if (userId) filter.userId = userId;
+      if (type) filter.type = type;
+
+      // Get last maintenance record
+      const lastRecord = await MaintenanceRecord.findOne(filter)
+        .sort({ timestamp: -1 })
+        .populate('motorId', 'nickname plateNumber')
+        .lean();
+
+      if (!lastRecord) {
+        return res.status(404).json({ 
+          message: 'No maintenance records found for this motor',
+          motorId 
+        });
+      }
+
+      res.json(lastRecord);
+    } catch (error) {
+      console.error('Get last motor maintenance record error:', error);
+      res.status(500).json({ message: 'Server error getting last motor maintenance record' });
     }
   }
 
