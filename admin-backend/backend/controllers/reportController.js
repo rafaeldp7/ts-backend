@@ -681,6 +681,156 @@ const autoReverseGeocodeReport = async (req, res) => {
   }
 };
 
+// Get total report count
+const getTotalReportCount = async (req, res) => {
+  try {
+    const totalCount = await Report.countDocuments({});
+
+    sendSuccessResponse(res, {
+      totalCount
+    }, 'Total report count retrieved successfully');
+  } catch (error) {
+    console.error('Get total report count error:', error);
+    sendErrorResponse(res, 500, 'Failed to get total report count', error);
+  }
+};
+
+// Get active report count (not archived)
+const getActiveReportCount = async (req, res) => {
+  try {
+    const activeCount = await Report.countDocuments({
+      $or: [
+        { isArchived: { $ne: true } },
+        { archived: { $ne: true } },
+        { isArchived: { $exists: false } },
+        { archived: { $exists: false } }
+      ]
+    });
+
+    sendSuccessResponse(res, {
+      activeCount
+    }, 'Active report count retrieved successfully');
+  } catch (error) {
+    console.error('Get active report count error:', error);
+    sendErrorResponse(res, 500, 'Failed to get active report count', error);
+  }
+};
+
+// Get archived report count
+const getArchivedReportCount = async (req, res) => {
+  try {
+    const archivedCount = await Report.countDocuments({
+      $or: [
+        { isArchived: true },
+        { archived: true }
+      ]
+    });
+
+    sendSuccessResponse(res, {
+      archivedCount
+    }, 'Archived report count retrieved successfully');
+  } catch (error) {
+    console.error('Get archived report count error:', error);
+    sendErrorResponse(res, 500, 'Failed to get archived report count', error);
+  }
+};
+
+// Get all active reports (not archived)
+const getActiveReports = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      type,
+      priority,
+      city,
+      barangay,
+      dateFrom,
+      dateTo,
+      search
+    } = req.query;
+
+    // Build filter object - only active (not archived) reports
+    const filter = {
+      $and: [
+        {
+          $or: [
+            { isArchived: { $ne: true } },
+            { archived: { $ne: true } },
+            { isArchived: { $exists: false } },
+            { archived: { $exists: false } }
+          ]
+        }
+      ]
+    };
+
+    if (status) filter.status = status;
+    if (type) filter.reportType = type;
+    if (priority) filter.priority = priority;
+    if (city) filter['location.city'] = new RegExp(city, 'i');
+    if (barangay) filter['location.barangay'] = new RegExp(barangay, 'i');
+    
+    if (dateFrom || dateTo) {
+      const dateFilter = {
+        $or: []
+      };
+      if (dateFrom && dateTo) {
+        dateFilter.$or.push(
+          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
+          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
+        );
+      } else if (dateFrom) {
+        dateFilter.$or.push(
+          { reportedAt: { $gte: new Date(dateFrom) } },
+          { timestamp: { $gte: new Date(dateFrom) } }
+        );
+      } else if (dateTo) {
+        dateFilter.$or.push(
+          { reportedAt: { $lte: new Date(dateTo) } },
+          { timestamp: { $lte: new Date(dateTo) } }
+        );
+      }
+      filter.$and.push(dateFilter);
+    }
+    
+    if (search) {
+      const searchFilter = {
+        $or: [
+          { title: new RegExp(search, 'i') },
+          { description: new RegExp(search, 'i') },
+          { 'location.address': new RegExp(search, 'i') },
+          { address: new RegExp(search, 'i') }
+        ]
+      };
+      filter.$and.push(searchFilter);
+    }
+
+    const reports = await Report.find(filter)
+      .populate('reporter', 'firstName lastName email')
+      .populate('userId', 'firstName lastName email')
+      .populate('verifiedBy', 'firstName lastName')
+      .populate('resolvedBy', 'firstName lastName')
+      .sort({ reportedAt: -1, timestamp: -1, createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Report.countDocuments(filter);
+
+    sendSuccessResponse(res, {
+      reports,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    }, 'Active reports retrieved successfully');
+  } catch (error) {
+    console.error('Get active reports error:', error);
+    sendErrorResponse(res, 500, 'Failed to get active reports', error);
+  }
+};
+
 module.exports = {
   getReports,
   getReport,
@@ -695,5 +845,9 @@ module.exports = {
   archiveReport,
   reverseGeocodeReport,
   bulkReverseGeocodeReports,
-  autoReverseGeocodeReport
+  autoReverseGeocodeReport,
+  getTotalReportCount,
+  getActiveReportCount,
+  getArchivedReportCount,
+  getActiveReports
 };

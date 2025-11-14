@@ -14,7 +14,11 @@ const {
   archiveReport,
   reverseGeocodeReport,
   bulkReverseGeocodeReports,
-  autoReverseGeocodeReport
+  autoReverseGeocodeReport,
+  getTotalReportCount,
+  getActiveReportCount,
+  getArchivedReportCount,
+  getActiveReports
 } = require('../controllers/reportController');
 const { authenticateToken } = require('../middleware/auth');
 const { authenticateAdmin } = require('../middleware/adminAuth');
@@ -24,6 +28,14 @@ router.get('/', getReports);
 router.get('/stats', getReportStats);
 router.get('/location', getReportsByLocation);
 router.get('/reverse-geocode', reverseGeocodeReport); // Public reverse geocoding endpoint
+
+// Count routes (admin only)
+router.get('/count/total', authenticateAdmin, getTotalReportCount);
+router.get('/count/active', authenticateAdmin, getActiveReportCount);
+router.get('/count/archived', authenticateAdmin, getArchivedReportCount);
+
+// Active reports route (not archived) - admin only
+router.get('/active', authenticateAdmin, getActiveReports);
 
 // Protected routes
 router.get('/:id', getReport);
