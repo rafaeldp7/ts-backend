@@ -1,4 +1,4 @@
-const Report = require('../models/Report');
+const Report = require('../../../models/Reports');
 const User = require('../../../models/User');
 const Notification = require('../../../models/Notification');
 const { logAdminAction } = require('./adminLogsController');
