@@ -528,43 +528,21 @@ class MaintenanceController {
         .sort({ timestamp: -1 })
         .lean();
 
-      // Build response with full record data
+      // Build response with specific fields as per requirements
       const response = {
         lastRefuel: lastRefuel ? {
-          _id: lastRefuel._id,
-          userId: lastRefuel.userId,
-          motorId: lastRefuel.motorId,
-          type: lastRefuel.type,
-          timestamp: lastRefuel.timestamp,
-          odometer: lastRefuel.odometer || 0,
-          location: lastRefuel.location || {},
-          details: lastRefuel.details || {},
-          createdAt: lastRefuel.createdAt,
-          updatedAt: lastRefuel.updatedAt
+          cost: lastRefuel.details?.cost || 0,
+          liters: lastRefuel.details?.quantity || 0,
+          costPerLiter: lastRefuel.details?.costPerLiter || 0,
+          date: lastRefuel.timestamp
         } : null,
         lastOilChange: lastOilChange ? {
-          _id: lastOilChange._id,
-          userId: lastOilChange.userId,
-          motorId: lastOilChange.motorId,
-          type: lastOilChange.type,
-          timestamp: lastOilChange.timestamp,
-          odometer: lastOilChange.odometer || 0,
-          location: lastOilChange.location || {},
-          details: lastOilChange.details || {},
-          createdAt: lastOilChange.createdAt,
-          updatedAt: lastOilChange.updatedAt
+          cost: lastOilChange.details?.cost || 0,
+          date: lastOilChange.timestamp
         } : null,
         lastTuneUp: lastTuneUp ? {
-          _id: lastTuneUp._id,
-          userId: lastTuneUp.userId,
-          motorId: lastTuneUp.motorId,
-          type: lastTuneUp.type,
-          timestamp: lastTuneUp.timestamp,
-          odometer: lastTuneUp.odometer || 0,
-          location: lastTuneUp.location || {},
-          details: lastTuneUp.details || {},
-          createdAt: lastTuneUp.createdAt,
-          updatedAt: lastTuneUp.updatedAt
+          cost: lastTuneUp.details?.cost || 0,
+          date: lastTuneUp.timestamp
         } : null
       };
 
