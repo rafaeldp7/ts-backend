@@ -488,6 +488,93 @@ class MaintenanceController {
     }
   }
 
+  // Get last maintenance records (refuel, oil change, tune-up) for a specific motor
+  // Similar to getLastMaintenanceRecords but filters by motorId instead of userId
+  async getLastMotorMaintenanceRecords(req, res) {
+    try {
+      const { motorId } = req.params;
+      // Optional userId filter from query params
+      const { userId } = req.query;
+
+      if (!motorId) {
+        return res.status(400).json({ message: 'Motor ID is required' });
+      }
+
+      // Build base filter
+      const baseFilter = { motorId };
+      if (userId) baseFilter.userId = userId;
+
+      // Get last refuel record
+      const lastRefuel = await MaintenanceRecord.findOne({ 
+        ...baseFilter,
+        type: 'refuel' 
+      })
+        .sort({ timestamp: -1 })
+        .lean();
+
+      // Get last oil change record
+      const lastOilChange = await MaintenanceRecord.findOne({ 
+        ...baseFilter,
+        type: 'oil_change' 
+      })
+        .sort({ timestamp: -1 })
+        .lean();
+
+      // Get last tune-up record
+      const lastTuneUp = await MaintenanceRecord.findOne({ 
+        ...baseFilter,
+        type: 'tune_up' 
+      })
+        .sort({ timestamp: -1 })
+        .lean();
+
+      // Build response with full record data
+      const response = {
+        lastRefuel: lastRefuel ? {
+          _id: lastRefuel._id,
+          userId: lastRefuel.userId,
+          motorId: lastRefuel.motorId,
+          type: lastRefuel.type,
+          timestamp: lastRefuel.timestamp,
+          odometer: lastRefuel.odometer || 0,
+          location: lastRefuel.location || {},
+          details: lastRefuel.details || {},
+          createdAt: lastRefuel.createdAt,
+          updatedAt: lastRefuel.updatedAt
+        } : null,
+        lastOilChange: lastOilChange ? {
+          _id: lastOilChange._id,
+          userId: lastOilChange.userId,
+          motorId: lastOilChange.motorId,
+          type: lastOilChange.type,
+          timestamp: lastOilChange.timestamp,
+          odometer: lastOilChange.odometer || 0,
+          location: lastOilChange.location || {},
+          details: lastOilChange.details || {},
+          createdAt: lastOilChange.createdAt,
+          updatedAt: lastOilChange.updatedAt
+        } : null,
+        lastTuneUp: lastTuneUp ? {
+          _id: lastTuneUp._id,
+          userId: lastTuneUp.userId,
+          motorId: lastTuneUp.motorId,
+          type: lastTuneUp.type,
+          timestamp: lastTuneUp.timestamp,
+          odometer: lastTuneUp.odometer || 0,
+          location: lastTuneUp.location || {},
+          details: lastTuneUp.details || {},
+          createdAt: lastTuneUp.createdAt,
+          updatedAt: lastTuneUp.updatedAt
+        } : null
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error('Get last motor maintenance records error:', error);
+      res.status(500).json({ message: 'Server error getting last motor maintenance records' });
+    }
+  }
+
   // Get last maintenance record for a specific motor (by motorId)
   // Returns the most recent maintenance record of any type for the motor
   async getLastMotorMaintenanceRecord(req, res) {

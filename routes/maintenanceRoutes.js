@@ -22,6 +22,9 @@ router.get("/user/:userId", maintenanceController.getUserMaintenanceRecords);
 // Get last maintenance records (refuel, oil change, tune-up)
 router.get("/last/:userId", maintenanceController.getLastMaintenanceRecords);
 
+// Get last maintenance records for a specific motor (by motorId)
+router.get("/last/motor/:motorId", maintenanceController.getLastMotorMaintenanceRecords);
+
 // Get maintenance records for a specific motor
 router.get("/motor/:motorId", maintenanceController.getMotorMaintenance);
 
