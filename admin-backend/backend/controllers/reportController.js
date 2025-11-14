@@ -46,18 +46,18 @@ const getReports = async (req, res) => {
       };
       if (dateFrom && dateTo) {
         dateFilter.$or.push(
-          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
-          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
+          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
+          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
         );
       } else if (dateFrom) {
         dateFilter.$or.push(
-          { reportedAt: { $gte: new Date(dateFrom) } },
-          { timestamp: { $gte: new Date(dateFrom) } }
+          { timestamp: { $gte: new Date(dateFrom) } },
+          { reportedAt: { $gte: new Date(dateFrom) } }
         );
       } else if (dateTo) {
         dateFilter.$or.push(
-          { reportedAt: { $lte: new Date(dateTo) } },
-          { timestamp: { $lte: new Date(dateTo) } }
+          { timestamp: { $lte: new Date(dateTo) } },
+          { reportedAt: { $lte: new Date(dateTo) } }
         );
       }
       filter.$and.push(dateFilter);
@@ -66,21 +66,22 @@ const getReports = async (req, res) => {
     if (search) {
       const searchFilter = {
         $or: [
-          { title: new RegExp(search, 'i') },
           { description: new RegExp(search, 'i') },
-          { 'location.address': new RegExp(search, 'i') },
-          { address: new RegExp(search, 'i') }
+          { title: new RegExp(search, 'i') },
+          { address: new RegExp(search, 'i') },
+          { geocodedAddress: new RegExp(search, 'i') },
+          { 'location.address': new RegExp(search, 'i') }
         ]
       };
       filter.$and.push(searchFilter);
     }
 
     const reports = await Report.find(filter)
-      .populate('reporter', 'firstName lastName email')
       .populate('userId', 'firstName lastName email')
+      .populate('reporter', 'firstName lastName email')
       .populate('verifiedBy', 'firstName lastName')
       .populate('resolvedBy', 'firstName lastName')
-      .sort({ reportedAt: -1, timestamp: -1, createdAt: -1 })
+      .sort({ timestamp: -1, reportedAt: -1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
@@ -104,8 +105,8 @@ const getReports = async (req, res) => {
 const getReport = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id)
-      .populate('reporter', 'firstName lastName email phone')
       .populate('userId', 'firstName lastName email phone')
+      .populate('reporter', 'firstName lastName email phone')
       .populate('verifiedBy', 'firstName lastName')
       .populate('resolvedBy', 'firstName lastName')
       .populate('comments.author', 'firstName lastName');
@@ -129,13 +130,15 @@ const createReport = async (req, res) => {
   try {
     const reportData = {
       ...req.body,
+      userId: req.user.id,
       reporter: req.user.id
     };
 
     const report = new Report(reportData);
     await report.save();
 
-    // Populate reporter information
+    // Populate userId information (primary field)
+    await report.populate('userId', 'firstName lastName email');
     await report.populate('reporter', 'firstName lastName email');
 
     // Send notification to admins (simplified - in real app, you'd notify specific admins)
@@ -175,8 +178,8 @@ const updateReport = async (req, res) => {
 
     // Store original report data for logging
     const originalReport = {
+      description: report.description || report.title,
       title: report.title,
-      description: report.description,
       status: report.status,
       priority: report.priority,
       reportType: report.reportType
@@ -198,8 +201,9 @@ const updateReport = async (req, res) => {
         'UPDATE',
         'REPORT',
         {
-          description: `Updated report: "${report.title}" (ID: ${report._id})`,
+          description: `Updated report: "${report.description || report.title}" (ID: ${report._id})`,
           reportId: report._id,
+          reportDescription: report.description || report.title,
           reportTitle: report.title,
           reportType: report.reportType,
           changes: req.body,
@@ -245,8 +249,8 @@ const deleteReport = async (req, res) => {
     // Store report data for logging before deletion
     const reportData = {
       id: report._id,
+      description: report.description || report.title,
       title: report.title,
-      description: report.description,
       status: report.status,
       priority: report.priority,
       reportType: report.reportType
@@ -261,8 +265,9 @@ const deleteReport = async (req, res) => {
         'DELETE',
         'REPORT',
         {
-          description: `Deleted report: "${reportData.title}" (ID: ${reportData.id})`,
+          description: `Deleted report: "${reportData.description || reportData.title}" (ID: ${reportData.id})`,
           reportId: reportData.id,
+          reportDescription: reportData.description || reportData.title,
           reportTitle: reportData.title,
           reportType: reportData.reportType,
           reportStatus: reportData.status,
@@ -308,8 +313,9 @@ const verifyReport = async (req, res) => {
         'UPDATE',
         'REPORT',
         {
-          description: `Verified report: "${report.title}" (ID: ${report._id})`,
+          description: `Verified report: "${report.description || report.title}" (ID: ${report._id})`,
           reportId: report._id,
+          reportDescription: report.description || report.title,
           reportTitle: report.title,
           reportType: report.reportType,
           previousStatus: 'pending',
@@ -320,26 +326,29 @@ const verifyReport = async (req, res) => {
       );
     }
 
-    // Send notification to reporter
-    await Notification.create({
-      recipient: report.reporter,
-      title: 'Report Verified',
-      message: `Your report "${report.title}" has been verified by an admin.`,
-      type: 'report_verified',
-      priority: 'medium',
-      relatedEntity: {
-        type: 'report',
-        entityId: report._id
-      },
-      sender: {
-        type: 'admin',
-        id: req.user.id,
-        name: 'Admin'
-      },
-      delivery: {
-        channels: ['in_app', 'email']
-      }
-    });
+    // Send notification to reporter (use userId as primary, fallback to reporter)
+    const recipientId = report.userId || report.reporter;
+    if (recipientId) {
+      await Notification.create({
+        recipient: recipientId,
+        title: 'Report Verified',
+        message: `Your report "${report.description || report.title}" has been verified by an admin.`,
+        type: 'report_verified',
+        priority: 'medium',
+        relatedEntity: {
+          type: 'report',
+          entityId: report._id
+        },
+        sender: {
+          type: 'admin',
+          id: req.user.id,
+          name: 'Admin'
+        },
+        delivery: {
+          channels: ['in_app', 'email']
+        }
+      });
+    }
 
     res.json({
       success: true,
@@ -382,8 +391,9 @@ const resolveReport = async (req, res) => {
         'UPDATE',
         'REPORT',
         {
-          description: `Resolved report: "${report.title}" (ID: ${report._id})`,
+          description: `Resolved report: "${report.description || report.title}" (ID: ${report._id})`,
           reportId: report._id,
+          reportDescription: report.description || report.title,
           reportTitle: report.title,
           reportType: report.reportType,
           previousStatus: 'verified',
@@ -395,26 +405,29 @@ const resolveReport = async (req, res) => {
       );
     }
 
-    // Send notification to reporter
-    await Notification.create({
-      recipient: report.reporter,
-      title: 'Report Resolved',
-      message: `Your report "${report.title}" has been resolved.`,
-      type: 'report_resolved',
-      priority: 'medium',
-      relatedEntity: {
-        type: 'report',
-        entityId: report._id
-      },
-      sender: {
-        type: 'admin',
-        id: req.user.id,
-        name: 'Admin'
-      },
-      delivery: {
-        channels: ['in_app', 'email']
-      }
-    });
+    // Send notification to reporter (use userId as primary, fallback to reporter)
+    const recipientId = report.userId || report.reporter;
+    if (recipientId) {
+      await Notification.create({
+        recipient: recipientId,
+        title: 'Report Resolved',
+        message: `Your report "${report.description || report.title}" has been resolved.`,
+        type: 'report_resolved',
+        priority: 'medium',
+        relatedEntity: {
+          type: 'report',
+          entityId: report._id
+        },
+        sender: {
+          type: 'admin',
+          id: req.user.id,
+          name: 'Admin'
+        },
+        delivery: {
+          channels: ['in_app', 'email']
+        }
+      });
+    }
 
     res.json({
       success: true,
@@ -530,6 +543,8 @@ const archiveReport = async (req, res) => {
       });
     }
 
+    // Set both archived and isArchived for compatibility
+    report.archived = true;
     report.isArchived = true;
     report.archivedAt = new Date();
     report.archivedBy = req.user.id;
@@ -542,8 +557,9 @@ const archiveReport = async (req, res) => {
         'UPDATE',
         'REPORT',
         {
-          description: `Archived report: "${report.title}" (ID: ${report._id})`,
+          description: `Archived report: "${report.description || report.title}" (ID: ${report._id})`,
           reportId: report._id,
+          reportDescription: report.description || report.title,
           reportTitle: report.title,
           reportType: report.reportType,
           previousStatus: report.status,
@@ -778,18 +794,18 @@ const getActiveReports = async (req, res) => {
       };
       if (dateFrom && dateTo) {
         dateFilter.$or.push(
-          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
-          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
+          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
+          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
         );
       } else if (dateFrom) {
         dateFilter.$or.push(
-          { reportedAt: { $gte: new Date(dateFrom) } },
-          { timestamp: { $gte: new Date(dateFrom) } }
+          { timestamp: { $gte: new Date(dateFrom) } },
+          { reportedAt: { $gte: new Date(dateFrom) } }
         );
       } else if (dateTo) {
         dateFilter.$or.push(
-          { reportedAt: { $lte: new Date(dateTo) } },
-          { timestamp: { $lte: new Date(dateTo) } }
+          { timestamp: { $lte: new Date(dateTo) } },
+          { reportedAt: { $lte: new Date(dateTo) } }
         );
       }
       filter.$and.push(dateFilter);
@@ -798,21 +814,22 @@ const getActiveReports = async (req, res) => {
     if (search) {
       const searchFilter = {
         $or: [
-          { title: new RegExp(search, 'i') },
           { description: new RegExp(search, 'i') },
-          { 'location.address': new RegExp(search, 'i') },
-          { address: new RegExp(search, 'i') }
+          { title: new RegExp(search, 'i') },
+          { address: new RegExp(search, 'i') },
+          { geocodedAddress: new RegExp(search, 'i') },
+          { 'location.address': new RegExp(search, 'i') }
         ]
       };
       filter.$and.push(searchFilter);
     }
 
     const reports = await Report.find(filter)
-      .populate('reporter', 'firstName lastName email')
       .populate('userId', 'firstName lastName email')
+      .populate('reporter', 'firstName lastName email')
       .populate('verifiedBy', 'firstName lastName')
       .populate('resolvedBy', 'firstName lastName')
-      .sort({ reportedAt: -1, timestamp: -1, createdAt: -1 })
+      .sort({ timestamp: -1, reportedAt: -1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
@@ -873,18 +890,18 @@ const getArchivedReports = async (req, res) => {
       };
       if (dateFrom && dateTo) {
         dateFilter.$or.push(
-          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
-          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
+          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
+          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
         );
       } else if (dateFrom) {
         dateFilter.$or.push(
-          { reportedAt: { $gte: new Date(dateFrom) } },
-          { timestamp: { $gte: new Date(dateFrom) } }
+          { timestamp: { $gte: new Date(dateFrom) } },
+          { reportedAt: { $gte: new Date(dateFrom) } }
         );
       } else if (dateTo) {
         dateFilter.$or.push(
-          { reportedAt: { $lte: new Date(dateTo) } },
-          { timestamp: { $lte: new Date(dateTo) } }
+          { timestamp: { $lte: new Date(dateTo) } },
+          { reportedAt: { $lte: new Date(dateTo) } }
         );
       }
       filter.$and.push(dateFilter);
@@ -893,22 +910,23 @@ const getArchivedReports = async (req, res) => {
     if (search) {
       const searchFilter = {
         $or: [
-          { title: new RegExp(search, 'i') },
           { description: new RegExp(search, 'i') },
-          { 'location.address': new RegExp(search, 'i') },
-          { address: new RegExp(search, 'i') }
+          { title: new RegExp(search, 'i') },
+          { address: new RegExp(search, 'i') },
+          { geocodedAddress: new RegExp(search, 'i') },
+          { 'location.address': new RegExp(search, 'i') }
         ]
       };
       filter.$and.push(searchFilter);
     }
 
     const reports = await Report.find(filter)
-      .populate('reporter', 'firstName lastName email')
       .populate('userId', 'firstName lastName email')
+      .populate('reporter', 'firstName lastName email')
       .populate('verifiedBy', 'firstName lastName')
       .populate('resolvedBy', 'firstName lastName')
       .populate('archivedBy', 'firstName lastName')
-      .sort({ archivedAt: -1, reportedAt: -1, timestamp: -1, createdAt: -1 })
+      .sort({ archivedAt: -1, timestamp: -1, reportedAt: -1, createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
