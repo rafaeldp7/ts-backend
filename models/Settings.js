@@ -357,7 +357,7 @@ const settingsSchema = new mongoose.Schema({
 });
 
 // Indexes
-settingsSchema.index({ userId: 1 });
+// Note: userId index is automatically created by unique: true, so we don't need to define it again
 settingsSchema.index({ 'app.theme': 1 });
 settingsSchema.index({ 'app.language': 1 });
 settingsSchema.index({ 'notifications.push': 1 });
