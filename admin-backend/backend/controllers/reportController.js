@@ -735,7 +735,7 @@ const getArchivedReportCount = async (req, res) => {
   }
 };
 
-// Get all active reports (not archived)
+// Get all active reports (not archived) - archived = false
 const getActiveReports = async (req, res) => {
   try {
     const {
@@ -752,6 +752,7 @@ const getActiveReports = async (req, res) => {
     } = req.query;
 
     // Build filter object - only active (not archived) reports
+    // Active = isArchived != true OR archived != true
     const filter = {
       $and: [
         {
@@ -831,6 +832,102 @@ const getActiveReports = async (req, res) => {
   }
 };
 
+// Get all archived reports - archived = true
+const getArchivedReports = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      type,
+      priority,
+      city,
+      barangay,
+      dateFrom,
+      dateTo,
+      search
+    } = req.query;
+
+    // Build filter object - only archived reports
+    // Archived = isArchived == true OR archived == true
+    const filter = {
+      $and: [
+        {
+          $or: [
+            { isArchived: true },
+            { archived: true }
+          ]
+        }
+      ]
+    };
+
+    if (status) filter.status = status;
+    if (type) filter.reportType = type;
+    if (priority) filter.priority = priority;
+    if (city) filter['location.city'] = new RegExp(city, 'i');
+    if (barangay) filter['location.barangay'] = new RegExp(barangay, 'i');
+    
+    if (dateFrom || dateTo) {
+      const dateFilter = {
+        $or: []
+      };
+      if (dateFrom && dateTo) {
+        dateFilter.$or.push(
+          { reportedAt: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } },
+          { timestamp: { $gte: new Date(dateFrom), $lte: new Date(dateTo) } }
+        );
+      } else if (dateFrom) {
+        dateFilter.$or.push(
+          { reportedAt: { $gte: new Date(dateFrom) } },
+          { timestamp: { $gte: new Date(dateFrom) } }
+        );
+      } else if (dateTo) {
+        dateFilter.$or.push(
+          { reportedAt: { $lte: new Date(dateTo) } },
+          { timestamp: { $lte: new Date(dateTo) } }
+        );
+      }
+      filter.$and.push(dateFilter);
+    }
+    
+    if (search) {
+      const searchFilter = {
+        $or: [
+          { title: new RegExp(search, 'i') },
+          { description: new RegExp(search, 'i') },
+          { 'location.address': new RegExp(search, 'i') },
+          { address: new RegExp(search, 'i') }
+        ]
+      };
+      filter.$and.push(searchFilter);
+    }
+
+    const reports = await Report.find(filter)
+      .populate('reporter', 'firstName lastName email')
+      .populate('userId', 'firstName lastName email')
+      .populate('verifiedBy', 'firstName lastName')
+      .populate('resolvedBy', 'firstName lastName')
+      .populate('archivedBy', 'firstName lastName')
+      .sort({ archivedAt: -1, reportedAt: -1, timestamp: -1, createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Report.countDocuments(filter);
+
+    sendSuccessResponse(res, {
+      reports,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    }, 'Archived reports retrieved successfully');
+  } catch (error) {
+    console.error('Get archived reports error:', error);
+    sendErrorResponse(res, 500, 'Failed to get archived reports', error);
+  }
+};
+
 module.exports = {
   getReports,
   getReport,
@@ -849,5 +946,6 @@ module.exports = {
   getTotalReportCount,
   getActiveReportCount,
   getArchivedReportCount,
-  getActiveReports
+  getActiveReports,
+  getArchivedReports
 };

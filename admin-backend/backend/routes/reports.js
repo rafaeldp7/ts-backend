@@ -18,7 +18,8 @@ const {
   getTotalReportCount,
   getActiveReportCount,
   getArchivedReportCount,
-  getActiveReports
+  getActiveReports,
+  getArchivedReports
 } = require('../controllers/reportController');
 const { authenticateToken } = require('../middleware/auth');
 const { authenticateAdmin } = require('../middleware/adminAuth');
@@ -36,6 +37,9 @@ router.get('/count/archived', authenticateAdmin, getArchivedReportCount);
 
 // Active reports route (not archived) - admin only
 router.get('/active', authenticateAdmin, getActiveReports);
+
+// Archived reports route - admin only
+router.get('/archived', authenticateAdmin, getArchivedReports);
 
 // Protected routes
 router.get('/:id', getReport);

@@ -24,7 +24,13 @@ Returns count of archived reports
 ```
 GET /api/admin-reports/active
 ```
-Returns paginated list of active reports with filtering
+Returns paginated list of active reports with filtering (archived = false)
+
+### 5. Get All Archived Reports
+```
+GET /api/admin-reports/archived
+```
+Returns paginated list of archived reports with filtering (archived = true)
 
 ---
 
@@ -35,9 +41,10 @@ Returns paginated list of active reports with filtering
    - Added `getActiveReportCount()` function
    - Added `getArchivedReportCount()` function
    - Added `getActiveReports()` function
+   - Added `getArchivedReports()` function
 
 2. ✅ `admin-backend/backend/routes/reports.js`
-   - Added routes for all 4 endpoints
+   - Added routes for all 5 endpoints
    - Applied `authenticateAdmin` middleware
 
 ---
@@ -64,8 +71,18 @@ Returns paginated list of active reports with filtering
 
 4. **getActiveReports** (lines 738-832)
    - Similar to `getReports()` but explicitly excludes archived
+   - Filters: `archived = false` (isArchived != true OR archived != true)
    - Supports all filtering options (status, type, priority, city, barangay, date range, search)
    - Supports pagination
+   - Returns `{ reports: [], pagination: {} }`
+
+5. **getArchivedReports** (lines 835-929)
+   - Similar to `getActiveReports()` but explicitly includes only archived
+   - Filters: `archived = true` (isArchived == true OR archived == true)
+   - Supports all filtering options (status, type, priority, city, barangay, date range, search)
+   - Supports pagination
+   - Populates `archivedBy` field
+   - Sorted by `archivedAt` (most recently archived first)
    - Returns `{ reports: [], pagination: {} }`
 
 ### Routes
@@ -80,6 +97,9 @@ router.get('/count/archived', authenticateAdmin, getArchivedReportCount);
 
 // Active reports route (not archived) - admin only
 router.get('/active', authenticateAdmin, getActiveReports);
+
+// Archived reports route - admin only
+router.get('/archived', authenticateAdmin, getArchivedReports);
 ```
 
 **Route Order:** These routes are placed before `/:id` route to ensure proper matching.
@@ -168,6 +188,31 @@ curl -X GET "http://localhost:5000/api/admin-reports/count/archived" \
 # Get active reports
 curl -X GET "http://localhost:5000/api/admin-reports/active?page=1&limit=10" \
   -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get archived reports
+curl -X GET "http://localhost:5000/api/admin-reports/archived?page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+## ✅ Logic Confirmation
+
+### Total Reports
+- **Filter:** `{}` (no filter)
+- **Result:** ALL reports (active + archived)
+
+### Active Reports
+- **Filter:** `archived = false` (isArchived != true OR archived != true)
+- **Result:** Only non-archived reports
+
+### Archived Reports
+- **Filter:** `archived = true` (isArchived == true OR archived == true)
+- **Result:** Only archived reports
+
+### Mathematical Relationship
+```
+totalCount = activeCount + archivedCount
 ```
 
 ---
@@ -183,5 +228,11 @@ See `REPORT_COUNT_API_DOCUMENTATION.md` for complete documentation including:
 
 ---
 
-**Status:** ✅ **ALL ENDPOINTS IMPLEMENTED AND READY**
+**Status:** ✅ **ALL 5 ENDPOINTS IMPLEMENTED AND READY**
+
+1. ✅ GET /api/admin-reports/count/total - Total count (all reports)
+2. ✅ GET /api/admin-reports/count/active - Active count (archived = false)
+3. ✅ GET /api/admin-reports/active - Active reports data (archived = false)
+4. ✅ GET /api/admin-reports/count/archived - Archived count (archived = true)
+5. ✅ GET /api/admin-reports/archived - Archived reports data (archived = true)
 
