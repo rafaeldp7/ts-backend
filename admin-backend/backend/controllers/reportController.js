@@ -21,14 +21,18 @@ const getReports = async (req, res) => {
     } = req.query;
 
     // Build filter object - exclude archived reports
+    // Prioritize archived field (actual data structure)
+    // Active = archived == false OR archived != true OR archived doesn't exist
     const filter = {
       $and: [
         {
           $or: [
-            { isArchived: { $ne: true } },
+            { archived: false },
             { archived: { $ne: true } },
-            { isArchived: { $exists: false } },
-            { archived: { $exists: false } }
+            { archived: { $exists: false } },
+            // Fallback for isArchived compatibility
+            { isArchived: { $ne: true } },
+            { isArchived: { $exists: false } }
           ]
         }
       ]
@@ -711,15 +715,19 @@ const getTotalReportCount = async (req, res) => {
   }
 };
 
-// Get active report count (not archived)
+// Get active report count (not archived) - archived = false
 const getActiveReportCount = async (req, res) => {
   try {
+    // Prioritize archived field (actual data structure)
+    // Active = archived == false OR archived != true OR archived doesn't exist
     const activeCount = await Report.countDocuments({
       $or: [
-        { isArchived: { $ne: true } },
+        { archived: false },
         { archived: { $ne: true } },
-        { isArchived: { $exists: false } },
-        { archived: { $exists: false } }
+        { archived: { $exists: false } },
+        // Fallback for isArchived compatibility
+        { isArchived: { $ne: true } },
+        { isArchived: { $exists: false } }
       ]
     });
 
@@ -732,13 +740,16 @@ const getActiveReportCount = async (req, res) => {
   }
 };
 
-// Get archived report count
+// Get archived report count - archived = true
 const getArchivedReportCount = async (req, res) => {
   try {
+    // Prioritize archived field (actual data structure)
+    // Archived = archived == true
     const archivedCount = await Report.countDocuments({
       $or: [
-        { isArchived: true },
-        { archived: true }
+        { archived: true },
+        // Fallback for isArchived compatibility
+        { isArchived: true }
       ]
     });
 
@@ -768,15 +779,18 @@ const getActiveReports = async (req, res) => {
     } = req.query;
 
     // Build filter object - only active (not archived) reports
-    // Active = isArchived != true OR archived != true
+    // Active = archived == false OR archived != true OR archived doesn't exist
+    // Prioritize archived field (actual data structure)
     const filter = {
       $and: [
         {
           $or: [
-            { isArchived: { $ne: true } },
+            { archived: false },
             { archived: { $ne: true } },
-            { isArchived: { $exists: false } },
-            { archived: { $exists: false } }
+            { archived: { $exists: false } },
+            // Fallback for isArchived compatibility
+            { isArchived: { $ne: true } },
+            { isArchived: { $exists: false } }
           ]
         }
       ]
@@ -866,13 +880,15 @@ const getArchivedReports = async (req, res) => {
     } = req.query;
 
     // Build filter object - only archived reports
-    // Archived = isArchived == true OR archived == true
+    // Archived = archived == true
+    // Prioritize archived field (actual data structure)
     const filter = {
       $and: [
         {
           $or: [
-            { isArchived: true },
-            { archived: true }
+            { archived: true },
+            // Fallback for isArchived compatibility
+            { isArchived: true }
           ]
         }
       ]
