@@ -20,10 +20,6 @@ class AuthController {
         return res.status(400).json({ message: 'User already exists' });
       }
 
-      // Hash password
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
-
       // Generate 6-digit OTP code
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       
@@ -32,9 +28,10 @@ class AuthController {
       otpExpires.setMinutes(otpExpires.getMinutes() + 10);
 
       // Create user with isVerified: false
+      // Note: Password will be automatically hashed by the User model's pre-save hook
       const user = new User({
         email,
-        password: hashedPassword,
+        password: password, // Pre-save hook will hash this automatically
         name,
         firstName: name.split(' ')[0] || name,
         lastName: name.split(' ').slice(1).join(' ') || '',
