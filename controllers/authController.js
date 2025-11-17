@@ -5,10 +5,14 @@ const { validationResult } = require('express-validator');
 const { sendOTPEmail } = require('../utils/emailService');
 
 class AuthController {
-  // Register new user
+  // Register new user (sends OTP for verification)
   async register(req, res) {
     try {
-      const { email, password, firstName, lastName, phone } = req.body;
+      const { email, password, name, city, province, barangay, street } = req.body;
+
+      if (!email || !password || !name || !city || !province || !barangay || !street) {
+        return res.status(400).json({ message: 'All fields are required: email, password, name, city, province, barangay, street' });
+      }
 
       // Check if user already exists
       const existingUser = await User.findOne({ email });
@@ -20,18 +24,27 @@ class AuthController {
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      // Create user
+      // Generate 6-digit OTP code
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Set OTP expiry to 10 minutes
+      const otpExpires = new Date();
+      otpExpires.setMinutes(otpExpires.getMinutes() + 10);
+
+      // Create user with isVerified: false
       const user = new User({
         email,
         password: hashedPassword,
-        firstName,
-        lastName,
-        name: `${firstName} ${lastName}`,
-        phone: phone || '',
-        street: 'Default Street',
-        city: 'Default City',
-        province: 'Default Province',
-        barangay: 'Default Barangay',
+        name,
+        firstName: name.split(' ')[0] || name,
+        lastName: name.split(' ').slice(1).join(' ') || '',
+        city,
+        province,
+        barangay,
+        street,
+        isVerified: false, // User not verified until OTP is confirmed
+        otpCode,
+        otpExpires,
         preferences: {
           units: 'metric',
           language: 'en',
@@ -41,27 +54,31 @@ class AuthController {
 
       await user.save();
 
-      // Generate JWT token
-      const token = jwt.sign(
-        { userId: user._id, email: user.email },
-        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
-        { expiresIn: '7d' }
-      );
+      // Send OTP via email (if email service configured) or log to console
+      const emailSent = await sendOTPEmail(email, otpCode);
+      
+      // Always log OTP to console for development/testing
+      console.log(`🔐 Registration OTP for ${email}: ${otpCode}`);
+      console.log(`⏰ OTP expires at: ${otpExpires.toISOString()}`);
+      
+      if (!emailSent) {
+        console.log(`⚠️ Email not sent (service not configured). OTP is available in console logs above.`);
+      }
 
       res.status(201).json({
-        message: 'User created successfully',
-        token,
-        user: {
-          _id: user._id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phone: user.phone
-        }
+        message: 'Registration successful. Please verify your email with the OTP code sent to your email.',
+        success: true
+        // Remove otpCode in production:
+        // otpCode: otpCode
       });
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ message: 'Server error during registration' });
+      console.error('Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Server error during registration',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        success: false
+      });
     }
   }
 
@@ -74,6 +91,14 @@ class AuthController {
       const user = await User.findOne({ email });
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      // Check if user is verified
+      if (!user.isVerified) {
+        return res.status(403).json({ 
+          message: 'Please verify your email address before logging in. Check your email for the OTP code.',
+          requiresVerification: true
+        });
       }
 
       // Check password
@@ -507,6 +532,149 @@ class AuthController {
       res.status(500).json({ 
         error: 'Failed to fetch new users this month',
         message: error.message 
+      });
+    }
+  }
+
+  // Verify sign up OTP
+  async verifySignUpOTP(req, res) {
+    try {
+      const { email } = req.body;
+      const { otp } = req.params;
+
+      if (!email || !otp) {
+        return res.status(400).json({ message: 'Email and OTP code are required' });
+      }
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Check if user is already verified
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'User is already verified' });
+      }
+
+      // Check if OTP exists and hasn't expired
+      if (!user.otpCode || !user.otpExpires) {
+        return res.status(400).json({ message: 'No OTP code found. Please request a new one.' });
+      }
+
+      if (new Date() > user.otpExpires) {
+        return res.status(400).json({ message: 'OTP code has expired. Please request a new one.' });
+      }
+
+      if (user.otpCode !== otp) {
+        return res.status(400).json({ message: 'Invalid OTP code' });
+      }
+
+      // OTP is valid - verify user and clear OTP
+      await User.updateOne(
+        { _id: user._id },
+        { 
+          $set: { 
+            isVerified: true,
+            otpCode: null,
+            otpExpires: null
+          } 
+        },
+        { runValidators: false }
+      );
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET || 'fallback-secret-key-for-development',
+        { expiresIn: '7d' }
+      );
+
+      res.json({
+        message: 'Email verified successfully',
+        success: true,
+        verified: true,
+        token,
+        user: {
+          _id: user._id,
+          email: user.email,
+          name: user.name,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isVerified: true
+        }
+      });
+    } catch (error) {
+      console.error('Verify sign up OTP error:', error);
+      console.error('Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Server error during OTP verification',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        success: false
+      });
+    }
+  }
+
+  // Resend sign up verification OTP
+  async resendVerification(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        // Don't reveal if user exists for security
+        return res.json({
+          message: 'If a user with this email exists, a verification OTP code has been sent',
+          success: true
+        });
+      }
+
+      // Check if user is already verified
+      if (user.isVerified) {
+        return res.status(400).json({ message: 'User is already verified' });
+      }
+
+      // Generate new 6-digit OTP code
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Set OTP expiry to 10 minutes
+      const otpExpires = new Date();
+      otpExpires.setMinutes(otpExpires.getMinutes() + 10);
+
+      // Save OTP to user
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { otpCode, otpExpires } },
+        { runValidators: false }
+      );
+
+      // Send OTP via email (if email service configured) or log to console
+      const emailSent = await sendOTPEmail(email, otpCode, 'sign-up');
+      
+      // Always log OTP to console for development/testing
+      console.log(`🔐 Resent verification OTP for ${email}: ${otpCode}`);
+      console.log(`⏰ OTP expires at: ${otpExpires.toISOString()}`);
+      
+      if (!emailSent) {
+        console.log(`⚠️ Email not sent (service not configured). OTP is available in console logs above.`);
+      }
+
+      res.json({
+        message: 'Verification OTP code has been sent to your email',
+        success: true
+        // Remove otpCode in production:
+        // otpCode: otpCode
+      });
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      console.error('Error stack:', error.stack);
+      res.status(500).json({ 
+        message: 'Server error during resend verification',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        success: false
       });
     }
   }
