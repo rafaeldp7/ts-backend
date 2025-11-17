@@ -13,8 +13,8 @@ router.delete('/:id', gasStationController.deleteGasStation);
 router.get('/:id/prices', gasStationController.getGasStationPrices);
 router.put('/:id/prices', gasStationController.updateGasStationPrices);
 
-// Price update routes (protected - requires authentication)
-router.put('/:id/price', protect, gasStationController.updateGasPrice);
+// Price update routes (no authentication required)
+router.put('/:id/price', gasStationController.updateGasPrice);
 router.get('/:id/price-history', gasStationController.getPriceHistory);
 
 module.exports = router;

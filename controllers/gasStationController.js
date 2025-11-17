@@ -250,7 +250,8 @@ class GasStationController {
     try {
       const { id } = req.params;
       const { fuelType, newPrice } = req.body;
-      const userId = req.user?._id || req.user?.id;
+      // User ID is optional - can be from authenticated user or null for anonymous updates
+      const userId = req.user?._id || req.user?.id || req.user?.userId || null;
 
       // Validate required fields
       if (!fuelType || newPrice === undefined || newPrice === null) {
@@ -277,14 +278,6 @@ class GasStationController {
         });
       }
 
-      // Check if user is authenticated
-      if (!userId) {
-        return res.status(401).json({ 
-          success: false,
-          message: 'Authentication required. Please login.' 
-        });
-      }
-
       // Find gas station
       const station = await GasStation.findById(id);
       if (!station) {
@@ -298,10 +291,10 @@ class GasStationController {
       const existingPrice = station.prices.find(p => p.fuelType === fuelType);
       const oldPrice = existingPrice ? existingPrice.price : null;
 
-      // Update price using the model method
+      // Update price using the model method (userId can be null for anonymous updates)
       await station.updatePrice(fuelType, newPrice, userId);
 
-      // Populate updatedBy in the latest price history entry
+      // Populate updatedBy in the latest price history entry (only if userId exists)
       const latestHistory = station.priceHistory[station.priceHistory.length - 1];
       if (latestHistory && latestHistory.updatedBy) {
         await station.populate({

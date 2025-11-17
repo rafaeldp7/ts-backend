@@ -18,7 +18,7 @@ const priceHistorySchema = new mongoose.Schema({
   updatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false // Optional - allows anonymous updates
   },
   updatedAt: {
     type: Date,
@@ -276,7 +276,7 @@ gasStationSchema.methods.updatePrice = async function(fuelType, newPrice, userId
       fuelType,
       oldPrice: oldPrice ?? 0,
       newPrice,
-      updatedBy: userId,
+      updatedBy: userId || null, // Can be null for anonymous updates
       updatedAt: new Date()
     });
   }
