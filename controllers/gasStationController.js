@@ -246,9 +246,14 @@ class GasStationController {
   }
 
   // Update gas price (single fuel type with history tracking)
+  // IMPLEMENTATION: 
+  // 1. VERIFY - Checks if gas station exists by ID
+  // 2. IF NON-EXISTING - Automatically creates new station with provided data or defaults
+  // 3. Updates price for the station (existing or newly created)
   async updateGasPrice(req, res) {
     try {
-      const { id } = req.params;
+      // Trim and clean the ID to handle any whitespace issues
+      const id = req.params.id ? req.params.id.trim() : null;
       const { fuelType, newPrice, name, location, address, brand, city, state, country } = req.body;
       // User ID is optional - can be from authenticated user or null for anonymous updates
       const userId = req.user?._id || req.user?.id || req.user?.userId || null;
@@ -278,32 +283,77 @@ class GasStationController {
         });
       }
 
-      // Validate MongoDB ObjectId format if provided
-      if (id && !/^[0-9a-fA-F]{24}$/.test(id)) {
+      // Validate MongoDB ObjectId format using mongoose's built-in validation
+      const mongoose = require('mongoose');
+      if (id && !mongoose.Types.ObjectId.isValid(id)) {
+        console.error(`[updateGasPrice] Invalid ObjectId format: ${id}`);
         return res.status(400).json({ 
           success: false,
-          message: 'Invalid gas station ID format. Must be a valid MongoDB ObjectId (24 hex characters)' 
+          message: 'Invalid gas station ID format. Must be a valid MongoDB ObjectId' 
         });
       }
 
-      // Find gas station
+      // STEP 1: VERIFY - Find gas station
       let station = await GasStation.findById(id);
       let isNewStation = false;
       
-      // If station doesn't exist, create it with provided data
+      // STEP 2: IF NON-EXISTING, CREATE NEW
       if (!station) {
+        console.log(`[updateGasPrice] Station not found with ID: ${id}. Attempting to create new station...`);
         isNewStation = true;
-        // Validate required fields for creating a new station
-        if (!name || !location || !location.coordinates || location.coordinates.length !== 2) {
+
+        // Try to get coordinates from different sources
+        let coordinates = null;
+        let stationName = name || `Gas Station ${id.substring(0, 8)}`; // Use provided name or generate from ID
+
+        // Check if location is provided in request body
+        if (location && location.coordinates && Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+          coordinates = location.coordinates;
+        }
+        // Check if coordinates are provided directly in request body (alternative format)
+        else if (req.body.coordinates && Array.isArray(req.body.coordinates) && req.body.coordinates.length === 2) {
+          coordinates = req.body.coordinates;
+        }
+        // Check if lat/lng are provided separately
+        else if (req.body.lat !== undefined && req.body.lng !== undefined) {
+          coordinates = [parseFloat(req.body.lng), parseFloat(req.body.lat)];
+        }
+        // Check if latitude/longitude are provided (alternative naming)
+        else if (req.body.latitude !== undefined && req.body.longitude !== undefined) {
+          coordinates = [parseFloat(req.body.longitude), parseFloat(req.body.latitude)];
+        }
+
+        // If still no coordinates, try to get from PriceHistory (if stationId exists there)
+        if (!coordinates) {
+          try {
+            const PriceHistory = require('../models/PriceHistoryModel');
+            const priceHistory = await PriceHistory.findOne({ stationId: id }).sort({ date: -1 });
+            
+            // Note: PriceHistory doesn't store location, so we can't get it from there
+            // But we log that we tried
+            if (priceHistory) {
+              console.log(`[updateGasPrice] Found price history for station ${id}, but location not available`);
+            }
+          } catch (err) {
+            console.log(`[updateGasPrice] Could not check PriceHistory: ${err.message}`);
+          }
+        }
+
+        // If coordinates are still missing, we cannot create the station
+        if (!coordinates || coordinates.length !== 2) {
           return res.status(400).json({ 
             success: false,
-            message: 'Gas station not found. To create a new station, please provide: name, location.coordinates (array with [lng, lat])' 
+            message: `Gas station with ID "${id}" not found. To create a new station, please provide location coordinates in one of these formats:
+- location.coordinates: [lng, lat]
+- coordinates: [lng, lat]  
+- lat and lng: { lat: number, lng: number }
+- latitude and longitude: { latitude: number, longitude: number }` 
           });
         }
 
         // Validate coordinates
-        const [lng, lat] = location.coordinates;
-        if (typeof lng !== 'number' || typeof lat !== 'number' || 
+        const [lng, lat] = coordinates;
+        if (typeof lng !== 'number' || typeof lat !== 'number' || isNaN(lng) || isNaN(lat) ||
             lng < -180 || lng > 180 || lat < -90 || lat > 90) {
           return res.status(400).json({ 
             success: false,
@@ -311,10 +361,10 @@ class GasStationController {
           });
         }
 
-        // Create new gas station
+        // Create new gas station with provided or default data
         const stationData = {
           _id: id, // Use the provided ID
-          name: name.trim(),
+          name: stationName.trim(),
           location: {
             type: 'Point',
             coordinates: [lng, lat]
@@ -326,9 +376,9 @@ class GasStationController {
         };
 
         // Add optional fields if provided
-        if (address) stationData.address = address.trim();
-        if (city) stationData.city = city.trim();
-        if (state) stationData.state = state.trim();
+        if (address) stationData.address = typeof address === 'string' ? address.trim() : address;
+        if (city) stationData.city = typeof city === 'string' ? city.trim() : city;
+        if (state) stationData.state = typeof state === 'string' ? state.trim() : state;
 
         // Initialize empty prices array - will be set by updatePrice method
         stationData.prices = [];
@@ -337,12 +387,29 @@ class GasStationController {
         stationData.fuelTypes = [fuelType];
 
         // Create the station
-        station = new GasStation(stationData);
-        await station.save();
-
-        console.log(`✅ Created new gas station: ${station.name} (${id})`);
+        try {
+          station = new GasStation(stationData);
+          await station.save();
+          console.log(`✅ Created new gas station: ${station.name} (${id}) at [${lng}, ${lat}]`);
+        } catch (createError) {
+          // If creation fails (e.g., duplicate key), try to find it again
+          if (createError.code === 11000 || createError.message.includes('duplicate')) {
+            console.log(`[updateGasPrice] Station creation failed (possibly duplicate), attempting to find existing station...`);
+            station = await GasStation.findById(id);
+            if (station) {
+              console.log(`[updateGasPrice] Found existing station after creation attempt`);
+              isNewStation = false;
+            } else {
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
+        }
         
         // Note: Price will be set below using updatePrice method, which will track it in history
+      } else {
+        console.log(`[updateGasPrice] Station found: ${station.name} (${id})`);
       }
 
       // Get old price before update
