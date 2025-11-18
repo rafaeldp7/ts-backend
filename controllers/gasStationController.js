@@ -249,7 +249,7 @@ class GasStationController {
   async updateGasPrice(req, res) {
     try {
       const { id } = req.params;
-      const { fuelType, newPrice } = req.body;
+      const { fuelType, newPrice, name, location, address, brand, city, state, country } = req.body;
       // User ID is optional - can be from authenticated user or null for anonymous updates
       const userId = req.user?._id || req.user?.id || req.user?.userId || null;
 
@@ -278,13 +278,71 @@ class GasStationController {
         });
       }
 
-      // Find gas station
-      const station = await GasStation.findById(id);
-      if (!station) {
-        return res.status(404).json({ 
+      // Validate MongoDB ObjectId format if provided
+      if (id && !/^[0-9a-fA-F]{24}$/.test(id)) {
+        return res.status(400).json({ 
           success: false,
-          message: 'Gas station not found' 
+          message: 'Invalid gas station ID format. Must be a valid MongoDB ObjectId (24 hex characters)' 
         });
+      }
+
+      // Find gas station
+      let station = await GasStation.findById(id);
+      let isNewStation = false;
+      
+      // If station doesn't exist, create it with provided data
+      if (!station) {
+        isNewStation = true;
+        // Validate required fields for creating a new station
+        if (!name || !location || !location.coordinates || location.coordinates.length !== 2) {
+          return res.status(400).json({ 
+            success: false,
+            message: 'Gas station not found. To create a new station, please provide: name, location.coordinates (array with [lng, lat])' 
+          });
+        }
+
+        // Validate coordinates
+        const [lng, lat] = location.coordinates;
+        if (typeof lng !== 'number' || typeof lat !== 'number' || 
+            lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+          return res.status(400).json({ 
+            success: false,
+            message: 'Invalid coordinates. Longitude must be between -180 and 180, latitude between -90 and 90' 
+          });
+        }
+
+        // Create new gas station
+        const stationData = {
+          _id: id, // Use the provided ID
+          name: name.trim(),
+          location: {
+            type: 'Point',
+            coordinates: [lng, lat]
+          },
+          brand: brand || 'Unknown',
+          country: country || 'Philippines',
+          isActive: true,
+          isVerified: false
+        };
+
+        // Add optional fields if provided
+        if (address) stationData.address = address.trim();
+        if (city) stationData.city = city.trim();
+        if (state) stationData.state = state.trim();
+
+        // Initialize empty prices array - will be set by updatePrice method
+        stationData.prices = [];
+
+        // Initialize fuelTypes array
+        stationData.fuelTypes = [fuelType];
+
+        // Create the station
+        station = new GasStation(stationData);
+        await station.save();
+
+        console.log(`✅ Created new gas station: ${station.name} (${id})`);
+        
+        // Note: Price will be set below using updatePrice method, which will track it in history
       }
 
       // Get old price before update
@@ -293,6 +351,9 @@ class GasStationController {
 
       // Update price using the model method (userId can be null for anonymous updates)
       await station.updatePrice(fuelType, newPrice, userId);
+
+      // Refresh station data after update
+      station = await GasStation.findById(station._id);
 
       // Populate updatedBy in the latest price history entry (only if userId exists)
       const latestHistory = station.priceHistory[station.priceHistory.length - 1];
@@ -305,7 +366,9 @@ class GasStationController {
 
       res.status(200).json({
         success: true,
-        message: 'Price updated successfully',
+        message: isNewStation 
+          ? 'Gas station created and price set successfully' 
+          : 'Price updated successfully',
         data: {
           station: {
             _id: station._id,
@@ -318,7 +381,8 @@ class GasStationController {
             fuelType,
             oldPrice,
             newPrice,
-            changed: oldPrice !== newPrice
+            changed: oldPrice !== newPrice,
+            isNewStation: isNewStation
           }
         }
       });
